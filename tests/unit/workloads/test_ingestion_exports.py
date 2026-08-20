@@ -6,7 +6,10 @@ from localbench.workloads.code_retrieval import (
     CodeUnit,
     CodeUnitContext,
     DatasetMetadata,
+    ExtractedCodeUnit,
+    ExtractionResult,
     GitRepository,
+    ParseError,
     QueryCase,
     QueryGenerationMetadata,
     QueryRelevance,
@@ -15,9 +18,12 @@ from localbench.workloads.code_retrieval import (
     RepositorySource,
     RevisionNotFoundError,
     SemanticLabel,
+    SkippedFile,
     SourceRepositorySnapshot,
     WorkspaceError,
     acquire_repository,
+    discover_python_files,
+    extract_code_units,
 )
 
 
@@ -43,6 +49,14 @@ class TestPackageExports:
         assert QueryRelevance is not None
         assert SemanticLabel is not None
         assert SourceRepositorySnapshot is not None
+
+    def test_extraction_classes_exported(self):
+        assert ExtractedCodeUnit is not None
+        assert ExtractionResult is not None
+        assert ParseError is not None
+        assert SkippedFile is not None
+        assert callable(extract_code_units)
+        assert callable(discover_python_files)
 
     def test_all_matches_actual_exports(self):
         import localbench.workloads.code_retrieval as pkg
