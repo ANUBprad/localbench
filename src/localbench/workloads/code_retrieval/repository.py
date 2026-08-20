@@ -79,16 +79,17 @@ def _run_git(
 
 
 def _compute_content_hash(directory: Path) -> str:
-    """SHA-256 hash of sorted file paths + sizes in *directory*.
+    """SHA-256 hash of sorted file paths + contents in *directory*.
 
-    A lightweight content fingerprint that does not read file contents.
+    Excludes ``.git`` directories.  Reads file contents to detect
+    changes even when file sizes remain the same.
     """
     hasher = hashlib.sha256()
     for path in sorted(directory.rglob("*")):
-        if path.is_file():
+        if path.is_file() and ".git" not in path.parts:
             rel = path.relative_to(directory)
             hasher.update(str(rel).encode())
-            hasher.update(str(path.stat().st_size).encode())
+            hasher.update(path.read_bytes())
     return hasher.hexdigest()
 
 
