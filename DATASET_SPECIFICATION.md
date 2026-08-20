@@ -307,6 +307,37 @@ Retrieval queries are short developer-style questions used exclusively for evalu
 - A developer should find the relevant code unit in top-10 results
 - Avoid queries that could match multiple unrelated units
 
+### 4.4.1 Query-Generation Model Selection (Decision Record)
+
+**Selected model:** `qwen2.5-coder:7b` (4.7GB, local Ollama deployment)
+
+**Selection methodology:** Controlled smoke test on 2026-08-21. Five Ollama models evaluated on the same prompt — generating a natural-language query from a function signature + docstring without leaking identifiers.
+
+| Model | Size | Latency | Output Quality | Verdict |
+|---|---|---|---|---|
+| qwen2.5-coder:7b | 4.7GB | ~49s | Clean natural query, no identifier leaks | **Selected** |
+| llama3:latest | 4.7GB | ~27s | Clean but slightly verbose | Acceptable alternative |
+| mistral:latest | 4.4GB | ~21s | Leaked function name + parameter names | Rejected |
+| gemma4:latest | 9.6GB | >90s timeout | Timed out | Rejected |
+| qwen3:latest | 5.2GB | >120s timeout | Timed out | Rejected |
+
+**Rationale:**
+- Code-specialized model produces queries grounded in functionality, not identifiers
+- No leakage of function names, parameter names, or class names in output
+- Moderate size (4.7GB) fits resource constraints
+- ~49s latency acceptable for 45-query batch generation
+
+**Independence guarantee:** `qwen2.5-coder:7b` is **never** used as a benchmark model (models being evaluated for retrieval performance). It serves exclusively as dataset infrastructure.
+
+**SemanticLabel visibility:** The query generator receives **source code only** — it does NOT receive SemanticLabels. Labels are a separate artifact used for training, not query generation. This prevents circular dependency between label generation and query generation.
+
+**Reproducibility metadata stored in `meta/version.json`:**
+- `model_name`: "qwen2.5-coder:7b"
+- `model_version`: "7b"
+- `prompt_template_version`: "1.0.0"
+- `seed`: 42
+- `generation_params`: {temperature: 0.7, top_p: 0.9}
+
 ---
 
 ### 4.5 Ground-Truth Labeling
@@ -350,10 +381,14 @@ Dataset version: `MAJOR.MINOR.PATCH`
   "total_queries": 45,
   "split_seed": 42,
   "query_generation": {
-    "model_name": "TBD",
-    "model_version": "TBD",
-    "prompt_template_version": "TBD",
-    "seed": 42
+    "model_name": "qwen2.5-coder:7b",
+    "model_version": "7b",
+    "prompt_template_version": "1.0.0",
+    "seed": 42,
+    "generation_params": {
+      "temperature": 0.7,
+      "top_p": 0.9
+    }
   },
   "schema_version": "1.0.0",
   "parser": "python_ast",
