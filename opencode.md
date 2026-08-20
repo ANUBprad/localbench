@@ -1418,11 +1418,53 @@ refactor(pit_logic): extract pit window calculation into helper function
 
 ### Pushing Changes
 
-**20.4 Push Only When Explicitly Requested**
-- Do not push automatically after committing.
+**20.4 Atomic File-Level Commit and Push Workflow**
+
+When working on bounded phases where changes are broken into individual files, the following mandatory workflow applies:
+
+1. **Before modifying a file**, verify the working tree is clean (`git status`).
+2. **Modify exactly ONE file.** Do not touch a second file until the first is committed and pushed.
+3. **After completing that file:**
+   - Run targeted tests relevant to that file.
+   - Run applicable lint/format checks (e.g. Ruff).
+   - Inspect the diff (`git diff -- <file>`).
+   - Confirm only that file is modified (`git status`).
+4. **Stage ONLY that file:**
+   ```
+   git add <file>
+   ```
+5. **Verify exactly one file is staged:**
+   ```
+   git diff --cached --name-only
+   ```
+   There must be exactly one file listed.
+6. **Commit immediately** with a focused, meaningful message.
+7. **Push immediately** to the configured remote/main branch.
+8. **Verify:**
+   - Working tree is clean.
+   - Local branch is synchronized with remote.
+   - Push succeeded.
+9. **Only then** may the next file be modified.
+
+**Prohibited at all times:**
+- `git add .` or `git add -A` when this would stage unrelated files.
+- Modifying two files before committing the first.
+- Batching source + tests into a single commit.
+- Batching unrelated fixes.
+- Pushing only at the end of a phase.
+- Creating artificial, empty, or no-op commits.
+
+**File dependency:** If a logical change genuinely requires a second file (e.g. implementation + its import in `__init__.py`), STOP before modifying the second file. Explain the dependency, identify the files, and wait for approval before proceeding.
+
+**Purpose:** Atomic reviewable changes, immediate remote backup, clear Git history, easier rollback, disciplined engineering. This is not commit farming — it is legitimate engineering granularity.
+
+This rule applies to: source files, tests, configuration files, documentation, scripts, CI/build files, and generated project metadata when tracked.
+
+**20.5 Push Only When Explicitly Requested**
+- Outside the atomic file-level workflow, do not push automatically after committing.
 - Wait for approval or explicit instruction to push.
 
-**20.5 Never Rewrite History, Force-Push, or Discard Changes**
+**20.6 Never Rewrite History, Force-Push, or Discard Changes**
 - Do not use `git reset --hard`, `git rebase -i`, or `git push -f` without explicit approval.
 - Do not change, combine, or reorder commits that have been pushed.
 - Do not discard user work without explicit confirmation.
