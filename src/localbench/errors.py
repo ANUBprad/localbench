@@ -33,3 +33,11 @@ class ModelNotFoundError(OllamaError):
 
 class GenerationError(OllamaError):
     """Generation request failed."""
+
+
+class ValidationError(LocalBenchError):
+    """Structured output failed Pydantic validation."""
+
+
+class SchemaError(LocalBenchError):
+    """A Pydantic schema or its definition is invalid."""
