@@ -53,7 +53,7 @@ The documentation is organized into **8 comprehensive guides** covering differen
 - Artifact layout & distribution
 
 **Audience:** Data engineers, dataset managers, researchers  
-**When to read:** During Phase 3 (dataset construction)
+**When to read:** During Phase 4 (dataset construction)
 
 **Key takeaway:** Repository-disjoint splits prevent leakage; frozen test set ensures reproducibility.
 
@@ -97,7 +97,7 @@ The documentation is organized into **8 comprehensive guides** covering differen
 **Key sections:**
 - Training objective (specialize small model via LoRA)
 - Base model selection (phi-3-mini, phi-3, mistral, gemma candidates)
-- Training dataset construction (from Phase 3)
+- Training dataset construction (from Phase 4)
 - Prompt template & consistency
 - Fine-tuning approach (LoRA = parameter-efficient)
 - LoRA configuration (rank, alpha, dropout, target modules)
@@ -110,7 +110,7 @@ The documentation is organized into **8 comprehensive guides** covering differen
 - Reproducibility checklist
 
 **Audience:** ML engineers, practitioners  
-**When to read:** During Phase 6 (specialization)
+**When to read:** During Phase 7 (specialization)
 
 **Key takeaway:** LoRA is efficient; adds ~1% overhead; baseline required first.
 
@@ -206,7 +206,7 @@ localbench recommend --min-hit-at-10 0.85  # Get recommendation
 **Key principles:**
 - Hypothesis stated before results
 - Negative results are valid
-- Test set frozen after Phase 3
+- Test set frozen after Phase 4
 - Repository-disjoint splits prevent leakage
 - Limitations explicitly acknowledged
 
@@ -250,12 +250,13 @@ localbench recommend --min-hit-at-10 0.85  # Get recommendation
 | **Phase 0** (Research Reset) | RESEARCH_METHODOLOGY.md |
 | **Phase 1** (Runtime) | ARCHITECTURE.md, DEPLOYMENT_GUIDE.md |
 | **Phase 2** (Validation) | TESTING_STRATEGY.md |
-| **Phase 3** (Dataset) | DATASET_SPECIFICATION.md |
-| **Phase 4** (Retrieval) | EVALUATION_PROTOCOL.md, ARCHITECTURE.md |
-| **Phase 5** (Baseline) | EVALUATION_PROTOCOL.md, DEPLOYMENT_GUIDE.md |
-| **Phase 6** (Specialization) | TRAINING_SPECIFICATION.md |
-| **Phase 7** (Experiments) | TRAINING_SPECIFICATION.md, EVALUATION_PROTOCOL.md |
-| **Phase 8–10** (Release) | RESEARCH_METHODOLOGY.md |
+| **Phase 3** (Retry/Recovery) | ARCHITECTURE.md |
+| **Phase 4** (Dataset) | DATASET_SPECIFICATION.md |
+| **Phase 5** (Retrieval) | EVALUATION_PROTOCOL.md, ARCHITECTURE.md |
+| **Phase 6** (Baseline) | EVALUATION_PROTOCOL.md, DEPLOYMENT_GUIDE.md |
+| **Phase 7** (Specialization) | TRAINING_SPECIFICATION.md |
+| **Phase 8** (Experiments) | TRAINING_SPECIFICATION.md, EVALUATION_PROTOCOL.md |
+| **Phase 9–10** (Release) | RESEARCH_METHODOLOGY.md |
 
 ---
 
@@ -321,7 +322,7 @@ Code Unit → Generation → Validation & Retry → Artifact Store
 - **Supporting:** Validity, Reliability (robustness)
 
 ### 4. Versioning Scheme
-- **Dataset:** MAJOR.MINOR.PATCH (v1.0.0 frozen after Phase 3)
+- **Dataset:** MAJOR.MINOR.PATCH (v1.0.0 frozen after Phase 4)
 - **Workload:** MAJOR.MINOR.PATCH (v1.0.0 = code retrieval)
 - **Protocol:** MAJOR.MINOR.PATCH (v3.0.0 = benchmark protocol)
 - **Models:** name + checkpoint ID (phi-3-mini-lora-full)
@@ -384,12 +385,12 @@ Code Unit → Generation → Validation & Retry → Artifact Store
 - [ ] Implement tests per TESTING_STRATEGY.md
 - [ ] Document configuration options
 
-### Medium-term (Phase 3–5, Weeks 7–12)
+### Medium-term (Phase 4–6, Weeks 7–12)
 - [ ] Build dataset per DATASET_SPECIFICATION.md
 - [ ] Implement retrieval pipeline
 - [ ] Run baseline benchmarks per EVALUATION_PROTOCOL.md
 
-### Long-term (Phase 6–10, Weeks 13+)
+### Long-term (Phase 8–10, Weeks 13+)
 - [ ] Fine-tune model per TRAINING_SPECIFICATION.md
 - [ ] Run ablations per EVALUATION_PROTOCOL.md
 - [ ] Document findings per RESEARCH_METHODOLOGY.md
@@ -407,19 +408,19 @@ Each phase has success criteria defined in its primary document:
 - [ ] `localbench ask` works with Ollama
 - [ ] Tests pass
 
-**Phase 3 (Dataset):** DATASET_SPECIFICATION.md §10
+**Phase 4 (Dataset):** DATASET_SPECIFICATION.md §10
 - [ ] Dataset loaded and validated
 - [ ] Repository-disjoint splits verified
 - [ ] Ground truth labeled
 - [ ] Dataset v1.0.0 frozen
 
-**Phase 5 (Baseline):** EVALUATION_PROTOCOL.md §7
+**Phase 6 (Baseline):** EVALUATION_PROTOCOL.md §7
 - [ ] Baseline metrics computed for all models
 - [ ] Failures classified and analyzed
 - [ ] Report generated
 - [ ] Artifacts persisted
 
-**Phase 7 (Experiments):** TRAINING_SPECIFICATION.md §11
+**Phase 8 (Experiments):** TRAINING_SPECIFICATION.md §11
 - [ ] Specialization hypothesis tested
 - [ ] Ablations completed
 - [ ] Reproducibility verified

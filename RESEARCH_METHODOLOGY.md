@@ -97,7 +97,7 @@ This question is **falsifiable**:
 
 ### 3.2 Test Set Immutability
 
-**Rule:** Once final test set is frozen (end of Phase 3), it is never modified or tuned against.
+**Rule:** Once final test set is frozen (end of Phase 4), it is never modified or tuned against.
 
 **Prohibited actions:**
 - Adjusting prompts based on test case failures

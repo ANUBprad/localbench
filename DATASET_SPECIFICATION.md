@@ -1,7 +1,7 @@
 # LocalBench --- Dataset Specification v3
 
-**Status:** Blueprint for Phase 3 implementation  
-**Last Updated:** 2026-08-19  
+**Status:** Blueprint for Phase 4 implementation
+**Last Updated:** 2026-08-20
 **Role:** Defines dataset schema, collection methodology, versioning, leakage prevention, and validation procedures.
 
 ---
@@ -224,25 +224,34 @@ A **relevance relationship** maps queries to code units.
 
 **Extraction process:**
 
-1. **Source parsing** — Parse repository into AST
+1. **Source parsing** — Parse repository into AST using Python `ast` (stdlib)
 2. **Function/method discovery** — Identify all functions and methods
 3. **Filtering** — Exclude:
    - Private methods (single underscore prefix, unless pedagogically useful)
    - Generated code
+   - Vendor code
    - Tests and test utilities
-   - Lambdas and trivial single-liners (< 3 lines)
+   - Lambdas and trivial single-liners (< 3 source lines)
+   - Nested functions (only top-level functions and class methods are extracted)
+   - Code units exceeding 100 source lines
 4. **Context collection** — Capture class/module context
 5. **Validation** — Ensure source code is valid, symbol matches
 6. **Normalization** — Consistent formatting, encoding (UTF-8)
+7. **Deduplication** — Exact duplicates detected via content hashing
+
+**Code unit bounds (v1):**
+- Minimum: 3 source lines (functions/methods shorter than this are excluded)
+- Maximum: 100 source lines (functions/methods longer than this are excluded)
 
 **Tools:**
-- AST parsing: `ast` (Python), `tree-sitter` (multi-language)
-- Code formatting: `black` for normalization
-- Duplicate detection: Similarity hashing
+- AST parsing: `ast` (Python stdlib) — v1 scope
+- Duplicate detection: Content hashing (SHA256 of normalized source code)
 
 ---
 
 ### 4.3 Semantic Labeling
+
+Semantic labels describe what each code unit does. They exist for all code units across all splits (train, validation, test). Labels are used for training data (code → description pairs) and as context for query generation.
 
 **Human labeling process:**
 
@@ -263,28 +272,38 @@ A **relevance relationship** maps queries to code units.
 - ≥ 2 concepts, ≤ 10 concepts
 - Descriptions must reference code specifics (not generic)
 
+**Distinction from retrieval queries:** Semantic labels describe code units in detail. Retrieval queries (§4.4) are short developer-style questions used only for evaluation. These are separate artifacts with separate generation processes.
+
 ---
 
-### 4.4 Query Generation
+### 4.4 Retrieval Query Generation
 
-**Developer-style query generation:**
+Retrieval queries are short developer-style questions used exclusively for evaluation. They are a **separate artifact** from semantic labels.
 
-1. **Read code unit** and semantic label
-2. **Generate 2–3 realistic queries** — How would a developer search for this?
-   - "How do we retry failed payments?"
-   - "Where is exponential backoff implemented?"
-   - "Find the payment processor retry logic"
-3. **Label query style** — Natural, technical, verbose, concise
-4. **Label intent** — Finding error handling, optimization, etc.
-5. **Assign difficulty** — Based on query specificity and semantic distance
+**v1 query design (frozen):**
+- 45 retrieval queries total
+- All 45 queries belong to the **test split only**
+- Train and validation splits contain **no retrieval queries**
+- Queries are generated against test code units and their semantic labels
+
+**Query generation methodology:**
+
+1. A **dedicated local query-generation model** generates candidate queries
+2. This model must be **separate from all benchmark models** (the models being evaluated)
+3. The query-generation model must **never** be one of the models under evaluation
+4. A human reviewer **validates and finalizes** all queries before freeze
+
+**Reproducibility requirements (mandatory):**
+- Model name and version of the query-generation model must be recorded
+- Prompt template version must be recorded
+- Deterministic seed must be recorded
+- All three are stored in dataset metadata
 
 **Query generation guidelines:**
 - Use question or imperative form
 - Reference actual concepts from the code (not generic)
-- Vary query style (not all identical patterns)
+- Vary query style (natural, technical, verbose, concise)
 - Ensure query is unambiguous for humans
-
-**Validation:**
 - A developer should find the relevant code unit in top-10 results
 - Avoid queries that could match multiple unrelated units
 
@@ -319,12 +338,25 @@ Dataset version: `MAJOR.MINOR.PATCH`
   "version": "1.0.0",
   "release_date": "2026-09-30",
   "repositories": ["repo001", "repo002", "repo003"],
+  "repository_commits": {
+    "repo001": "abc1234",
+    "repo002": "def5678",
+    "repo003": "ghi9012"
+  },
   "total_code_units": 450,
   "train_cases": 225,
   "validation_cases": 112,
   "test_cases": 113,
   "total_queries": 45,
+  "split_seed": 42,
+  "query_generation": {
+    "model_name": "TBD",
+    "model_version": "TBD",
+    "prompt_template_version": "TBD",
+    "seed": 42
+  },
   "schema_version": "1.0.0",
+  "parser": "python_ast",
   "frozen": true
 }
 ```
@@ -340,7 +372,7 @@ Dataset version: `MAJOR.MINOR.PATCH`
 
 **Freeze points:**
 
-1. **Initial dataset freeze** (end of Phase 3) → `dataset-v1.0.0`
+1. **Initial dataset freeze** (end of Phase 4) → `dataset-v1.0.0`
 2. **Before baseline benchmark** → Test set is frozen
 3. **Before specialization** → No test set changes
 
@@ -524,14 +556,18 @@ assert train_repos.isdisjoint(test_repos), "Repository leakage detected"
 
 ---
 
-## 10. Phase 3 Implementation Checklist
+## 10. Phase 4 Implementation Checklist
 
-- [ ] Select 3–5 source repositories
-- [ ] Extract code units (200+ functions)
-- [ ] Create semantic labels (human-reviewed)
-- [ ] Generate developer-style queries
+- [ ] Select 3–5 Python source repositories (2k–50k LoC each)
+- [ ] Record exact commit/tag for each repository
+- [ ] Extract code units (3–100 source lines, top-level only, no nested functions)
+- [ ] Deduplicate via content hashing (SHA256)
+- [ ] Create semantic labels (human-reviewed, all splits)
+- [ ] Generate 45 retrieval queries using dedicated query-generation model
+- [ ] Record model version, prompt version, seed in metadata
+- [ ] Human review and finalization of all queries
 - [ ] Assign ground-truth relevance
-- [ ] Create train/validation/test splits (repository-disjoint)
+- [ ] Create train/validation/test splits (repository-disjoint, seed=42)
 - [ ] Validate schema (Pydantic)
 - [ ] Validate referential integrity
 - [ ] Manual quality review (50 samples)

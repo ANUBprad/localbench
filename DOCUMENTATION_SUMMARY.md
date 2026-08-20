@@ -50,7 +50,7 @@ I have created **8 comprehensive, professional-grade documentation files** for y
 - Leakage detection & prevention
 - Comprehensive validation pipeline
 - Statistical coverage checks
-- Phase 3 implementation checklist
+- Phase 4 implementation checklist
 
 **Key insight:** Frozen test set + repository-disjoint splits ensure no data leakage between train/test, enabling fair evaluation.
 
@@ -84,7 +84,7 @@ I have created **8 comprehensive, professional-grade documentation files** for y
 **Defines:**
 - Training objective (specialize via LoRA)
 - Base model selection (phi-3-mini as primary target)
-- Training dataset construction (225 examples from Phase 3)
+- Training dataset construction (225 examples from Phase 4)
 - Prompt template standardization
 - LoRA configuration (rank=8, alpha=16, target attention layers)
 - Full training configuration (learning rate 5e-4, 3 epochs, batch size 16)
@@ -167,7 +167,7 @@ localbench compare run1 run2          # Compare results
 - Experimental design (variables, groups, controls)
 - Scientific rigor principles:
   - Baseline-first (establish before training)
-  - Test immutability (frozen after Phase 3)
+  - Test immutability (frozen after Phase 4)
   - Repository-disjoint splits (prevent leakage)
   - Negative results valid (null results publishable)
 - Statistical methodology (sample size, significance testing)
