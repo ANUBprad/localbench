@@ -31,6 +31,17 @@ from localbench.workloads.code_retrieval.schemas import (
     SemanticLabel,
     SourceRepositorySnapshot,
 )
+from localbench.workloads.code_retrieval.semantic_generator import (
+    LABEL_VERSION,
+    SemanticLabelGenerator,
+    SemanticLabelResult,
+    generate_semantic_label,
+)
+from localbench.workloads.code_retrieval.semantic_prompt import (
+    PROMPT_TEMPLATE_VERSION,
+    build_semantic_label_prompt,
+    get_system_prompt,
+)
 
 __all__ = [
     # Errors
@@ -60,4 +71,12 @@ __all__ = [
     "QueryRelevance",
     "SemanticLabel",
     "SourceRepositorySnapshot",
+    # Semantic label generation
+    "LABEL_VERSION",
+    "PROMPT_TEMPLATE_VERSION",
+    "SemanticLabelGenerator",
+    "SemanticLabelResult",
+    "build_semantic_label_prompt",
+    "generate_semantic_label",
+    "get_system_prompt",
 ]
