@@ -1,6 +1,8 @@
 """Verify public API exports from the code_retrieval package."""
 
 from localbench.workloads.code_retrieval import (
+    LABEL_VERSION,
+    PROMPT_TEMPLATE_VERSION,
     CheckoutFailedError,
     CloneFailedError,
     CodeUnit,
@@ -18,12 +20,17 @@ from localbench.workloads.code_retrieval import (
     RepositorySource,
     RevisionNotFoundError,
     SemanticLabel,
+    SemanticLabelGenerator,
+    SemanticLabelResult,
     SkippedFile,
     SourceRepositorySnapshot,
     WorkspaceError,
     acquire_repository,
+    build_semantic_label_prompt,
     discover_python_files,
     extract_code_units,
+    generate_semantic_label,
+    get_system_prompt,
 )
 
 
@@ -57,6 +64,15 @@ class TestPackageExports:
         assert SkippedFile is not None
         assert callable(extract_code_units)
         assert callable(discover_python_files)
+
+    def test_semantic_generation_exported(self):
+        assert SemanticLabelGenerator is not None
+        assert SemanticLabelResult is not None
+        assert callable(generate_semantic_label)
+        assert callable(build_semantic_label_prompt)
+        assert callable(get_system_prompt)
+        assert LABEL_VERSION == "1.0.0"
+        assert PROMPT_TEMPLATE_VERSION == "1.0.0"
 
     def test_all_matches_actual_exports(self):
         import localbench.workloads.code_retrieval as pkg
