@@ -7,6 +7,14 @@ from localbench.workloads.code_retrieval.errors import (
     RevisionNotFoundError,
     WorkspaceError,
 )
+from localbench.workloads.code_retrieval.extraction import (
+    ExtractedCodeUnit,
+    ExtractionResult,
+    ParseError,
+    SkippedFile,
+    discover_python_files,
+    extract_code_units,
+)
 from localbench.workloads.code_retrieval.repository import (
     GitRepository,
     RepositorySnapshot,
@@ -31,6 +39,13 @@ __all__ = [
     "RepositoryError",
     "RevisionNotFoundError",
     "WorkspaceError",
+    # Extraction
+    "ExtractedCodeUnit",
+    "ExtractionResult",
+    "ParseError",
+    "SkippedFile",
+    "discover_python_files",
+    "extract_code_units",
     # Repository ingestion
     "GitRepository",
     "RepositorySnapshot",
