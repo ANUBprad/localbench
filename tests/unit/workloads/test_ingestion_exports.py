@@ -3,6 +3,8 @@
 from localbench.workloads.code_retrieval import (
     LABEL_VERSION,
     PROMPT_TEMPLATE_VERSION,
+    QUERY_PROMPT_TEMPLATE_VERSION,
+    CandidateQuery,
     CheckoutFailedError,
     CloneFailedError,
     CodeUnit,
@@ -11,9 +13,13 @@ from localbench.workloads.code_retrieval import (
     ExtractedCodeUnit,
     ExtractionResult,
     GitRepository,
+    LeakageCheckResult,
     ParseError,
     QueryCase,
+    QueryGenerationInput,
     QueryGenerationMetadata,
+    QueryGenerationResult,
+    QueryGenerator,
     QueryRelevance,
     RepositoryError,
     RepositorySnapshot,
@@ -26,10 +32,14 @@ from localbench.workloads.code_retrieval import (
     SourceRepositorySnapshot,
     WorkspaceError,
     acquire_repository,
+    build_query_generation_prompt,
     build_semantic_label_prompt,
+    check_query_leakage,
     discover_python_files,
     extract_code_units,
+    generate_query,
     generate_semantic_label,
+    get_query_system_prompt,
     get_system_prompt,
 )
 
@@ -73,6 +83,18 @@ class TestPackageExports:
         assert callable(get_system_prompt)
         assert LABEL_VERSION == "1.0.0"
         assert PROMPT_TEMPLATE_VERSION == "1.0.0"
+
+    def test_query_generation_exported(self):
+        assert CandidateQuery is not None
+        assert QueryGenerationInput is not None
+        assert QueryGenerationResult is not None
+        assert QueryGenerator is not None
+        assert LeakageCheckResult is not None
+        assert callable(build_query_generation_prompt)
+        assert callable(get_query_system_prompt)
+        assert callable(check_query_leakage)
+        assert callable(generate_query)
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "1.0.0"
 
     def test_all_matches_actual_exports(self):
         import localbench.workloads.code_retrieval as pkg
