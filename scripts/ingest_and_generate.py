@@ -27,6 +27,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import subprocess
@@ -133,6 +134,16 @@ REPOSITORIES = [
     },
 ]
 
+
+def compute_manifest_hash() -> str:
+    """Deterministic identity of the repository manifest.
+
+    SHA-256 over the canonical JSON serialization (sorted keys) of the
+    manifest, so identical manifest content always yields the same hash.
+    """
+    canonical = json.dumps(REPOSITORIES, sort_keys=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
 # Generation config (frozen)
 MODEL_NAME = "qwen2.5-coder:7b"
 MODEL_VERSION = "7b"
@@ -231,6 +242,7 @@ def persist_dataset(
     all_units: list[ExtractedCodeUnit],
     splits: dict[str, list[ExtractedCodeUnit]],
     repo_metadata: list[dict],
+    duplicate_count: int,
 ) -> None:
     """Write dataset artifacts to disk."""
     DATASET_ROOT.mkdir(parents=True, exist_ok=True)
@@ -273,13 +285,20 @@ def persist_dataset(
         release_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         repositories=repos,
         repository_commits=repo_commits,
+        repository_splits={r["id"]: r["split"] for r in REPOSITORIES},
+        manifest_hash=compute_manifest_hash(),
         total_code_units=len(all_units),
+        extracted_code_units=len(all_units) + duplicate_count,
+        duplicate_code_units=duplicate_count,
         train_cases=len(splits["train"]),
         validation_cases=len(splits["validation"]),
         test_cases=len(splits["test"]),
         total_queries=0,  # Updated after generation
         split_seed=SPLIT_SEED,
         parser="python_ast",
+        extraction_version="1.0.0",
+        deduplication_method="sha256_of_stripped_source_utf8",
+        eligibility_rules={"min_source_lines": 3, "max_source_lines": 100},
         frozen=False,
     )
     with open(DATASET_ROOT / "meta" / "version.json", "w", encoding="utf-8") as f:
@@ -566,7 +585,7 @@ def main() -> None:
                 "description": repo["description"],
             }
         )
-    persist_dataset(unique_units, splits, repo_metadata)
+    persist_dataset(unique_units, splits, repo_metadata, duplicates)
 
     # Step 6: Generate candidate queries
     logger.info("\n--- Step 6: Generate candidate queries ---")
