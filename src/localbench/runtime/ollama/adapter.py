@@ -75,11 +75,20 @@ class OllamaAdapter:
             ) from exc
 
     def health_check(self) -> bool:
-        """Check if Ollama is reachable and responsive."""
+        """Check if Ollama is reachable and responsive.
+
+        Only verifies HTTP reachability. The root endpoint returns a
+        plain-text body, so the response is not parsed as JSON.
+        """
         try:
-            self._get("/")
+            response = self._client.get("/")
+            response.raise_for_status()
             return True
-        except OllamaUnavailableError:
+        except (
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.HTTPStatusError,
+        ):
             return False
 
     def discover_models(self) -> list[ModelInfo]:
