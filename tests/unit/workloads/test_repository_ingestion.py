@@ -160,6 +160,29 @@ class TestGitRepositoryAcquire:
         assert snap.commit == _commit_sha(local_git_repo, "v1.0")
         assert snap.reference == "v1.0"
 
+    def test_acquire_with_annotated_tag_resolves_commit(
+        self, local_git_repo: Path, tmp_path: Path
+    ):
+        commit = _commit_sha(local_git_repo, "v1.0^{commit}")
+        subprocess.run(
+            ["git", "tag", "-a", "v2.0", "-m", "annotated release", commit],
+            cwd=local_git_repo,
+            check=True,
+            capture_output=True,
+        )
+        tag_object = _commit_sha(local_git_repo, "v2.0")
+        assert tag_object != commit
+
+        workspace = tmp_path / "ws"
+        src = RepositorySource(
+            id="repo004",
+            url=str(local_git_repo),
+            revision="v2.0",
+        )
+        snap = GitRepository(src, workspace=workspace).acquire()
+
+        assert snap.commit == commit
+
     def test_acquire_with_explicit_sha(
         self, local_git_repo: Path, tmp_path: Path
     ):
