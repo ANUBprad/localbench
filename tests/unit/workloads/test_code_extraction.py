@@ -310,26 +310,59 @@ class TestSymbolPath:
 
 class TestCodeUnitId:
     def test_function(self) -> None:
-        result = _build_code_unit_id("repo001", "src/calc.py", "add")
-        assert result == "repo001_py_src_calc_py__add"
+        result = _build_code_unit_id("repo001", "src/calc.py", "add", "a" * 64)
+        assert result == "repo001_py_src_calc_py__add_" + "a" * 12
 
     def test_method(self) -> None:
         result = _build_code_unit_id(
             "repo001",
             "pkg/payments.py",
             "PaymentProcessor.process",
+            "b" * 64,
         )
-        assert result == "repo001_py_pkg_payments_py__PaymentProcessor_process"
+        expected = (
+            "repo001_py_pkg_payments_py__PaymentProcessor_process_" + "b" * 12
+        )
+        assert result == expected
 
     def test_same_symbol_different_modules_do_not_collide(self) -> None:
-        a = _build_code_unit_id("repo002", "examples/aliases/aliases.py", "cli")
-        b = _build_code_unit_id("repo002", "examples/repo/repo.py", "cli")
+        a = _build_code_unit_id(
+            "repo002", "examples/aliases/aliases.py", "cli", "a" * 64
+        )
+        b = _build_code_unit_id(
+            "repo002", "examples/repo/repo.py", "cli", "a" * 64
+        )
+        assert a != b
+
+    def test_repeated_definition_different_bodies_do_not_collide(self) -> None:
+        a = _build_code_unit_id(
+            "repo002", "src/click/core.py", "Context.invoke", "a" * 64
+        )
+        b = _build_code_unit_id(
+            "repo002", "src/click/core.py", "Context.invoke", "b" * 64
+        )
+        assert a != b
+
+    def test_identical_identity_fields_produce_identical_id(self) -> None:
+        a = _build_code_unit_id(
+            "repo003", "src/rich/console.py", "Console.print", "c" * 64
+        )
+        b = _build_code_unit_id(
+            "repo003", "src/rich/console.py", "Console.print", "c" * 64
+        )
+        assert a == b
+
+    def test_distinct_content_hashes_produce_distinct_ids(self) -> None:
+        a = _build_code_unit_id("repo001", "m.py", "f", "d" * 64)
+        b = _build_code_unit_id("repo001", "m.py", "f", "e" * 64)
         assert a != b
 
     def test_windows_separators_normalized(self) -> None:
-        a = _build_code_unit_id("repo001", "src\\click\\cli.py", "cli")
-        b = _build_code_unit_id("repo001", "src/click/cli.py", "cli")
-        assert a == b == "repo001_py_src_click_cli_py__cli"
+        a = _build_code_unit_id(
+            "repo001", "src\\click\\cli.py", "cli", "a" * 64
+        )
+        b = _build_code_unit_id("repo001", "src/click/cli.py", "cli", "a" * 64)
+        assert a == b == "repo001_py_src_click_cli_py__cli_" + "a" * 12
 
 
 class TestHashSource:
@@ -612,8 +645,12 @@ class TestExtractCodeUnits:
         self._write(tmp_path, "g.py", SIMPLE_FUNC)
         result = extract_code_units(tmp_path, "repo001", "c")
         u = result.code_units[0]
-        expected_id = _build_code_unit_id("repo001", u.file_path, u.symbol)
-        assert _build_code_unit_id("repo001", u.file_path, u.symbol) == expected_id
+        expected_id = _build_code_unit_id(
+            "repo001", u.file_path, u.symbol, u.content_hash
+        )
+        assert _build_code_unit_id(
+            "repo001", u.file_path, u.symbol, u.content_hash
+        ) == expected_id
 
     def test_content_hash_matches_direct(self, tmp_path: Path) -> None:
         self._write(tmp_path, "g.py", SIMPLE_FUNC)
