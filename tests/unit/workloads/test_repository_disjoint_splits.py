@@ -101,9 +101,7 @@ class TestCodeUnitInheritance:
 
 class TestNoRatioSplitting:
     def test_repository_with_n_units_keeps_all_n_in_one_split(self):
-        units = [
-            make_unit("repo005", f"sym{i}", f"hash{i:04d}") for i in range(10)
-        ]
+        units = [make_unit("repo005", f"sym{i}", f"hash{i:04d}") for i in range(10)]
         splits = ingest.create_splits(units)
         assert len(splits["validation"]) == 10
         assert sum(len(splits[name]) for name in ("train", "test")) == 0
