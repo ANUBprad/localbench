@@ -392,7 +392,9 @@ def generate_candidates(
     """
     adapter = OllamaAdapter(model_name=MODEL_NAME)
     policy = RetryPolicy(max_attempts=3)
-    generator = QueryGenerator(model=adapter, policy=policy)
+    generator = QueryGenerator(
+        model=adapter, policy=policy, top_p=TOP_P, seed=SEED
+    )
 
     successful: list[CandidateRecord] = []
     failed: list[CandidateRecord] = []
