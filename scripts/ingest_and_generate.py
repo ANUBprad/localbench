@@ -482,7 +482,9 @@ def generate_candidates(
 
 def _build_id(unit: ExtractedCodeUnit) -> str:
     """Build deterministic code unit ID via the canonical builder."""
-    return _build_code_unit_id(unit.repository, unit.file_path, unit.symbol)
+    return _build_code_unit_id(
+        unit.repository, unit.file_path, unit.symbol, unit.content_hash
+    )
 
 
 # ---------------------------------------------------------------------------
