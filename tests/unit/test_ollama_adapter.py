@@ -1,5 +1,6 @@
 """Tests for Ollama adapter (mocked HTTP)."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -49,6 +50,18 @@ class TestHealthCheck:
         """Health check returns True when Ollama responds."""
         a, mock_client = adapter
         mock_client.get.return_value = _mock_response({})
+        assert a.health_check() is True
+
+    def test_health_check_accepts_plain_text_body(self, adapter):
+        """Ollama's root endpoint returns text/plain, not JSON."""
+        a, mock_client = adapter
+        response = MagicMock()
+        response.status_code = 200
+        response.raise_for_status = MagicMock()
+        response.json.side_effect = json.JSONDecodeError(
+            "Expecting value", "Ollama is running", 0
+        )
+        mock_client.get.return_value = response
         assert a.health_check() is True
 
     def test_health_check_returns_false_when_ollama_unavailable(
