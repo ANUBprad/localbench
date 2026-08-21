@@ -103,16 +103,20 @@ class OllamaAdapter:
     def generate(self, request: GenerationRequest) -> GenerationResult:
         """Execute a generation request against Ollama."""
         try:
+            options = {
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens,
+                "top_p": request.top_p,
+            }
+            if request.seed is not None:
+                options["seed"] = request.seed
             response = self._post(
                 "/api/generate",
                 json={
                     "model": request.model,
                     "prompt": request.prompt,
                     "stream": False,
-                    "options": {
-                        "temperature": request.temperature,
-                        "num_predict": request.max_tokens,
-                    },
+                    "options": options,
                 },
             )
         except OllamaUnavailableError:
