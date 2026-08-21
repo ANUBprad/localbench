@@ -298,7 +298,11 @@ class DatasetMetadata(BaseModel):
     release_date: str = ""
     repositories: list[str] = Field(default_factory=list)
     repository_commits: dict[str, str] = Field(default_factory=dict)
+    repository_splits: dict[str, SplitType] = Field(default_factory=dict)
+    manifest_hash: str = ""
     total_code_units: int = 0
+    extracted_code_units: int = 0
+    duplicate_code_units: int = 0
     train_cases: int = 0
     validation_cases: int = 0
     test_cases: int = 0
@@ -306,6 +310,9 @@ class DatasetMetadata(BaseModel):
     split_seed: int = 42
     query_generation: QueryGenerationMetadata | None = None
     parser: str = "python_ast"
+    extraction_version: str = ""
+    deduplication_method: str = ""
+    eligibility_rules: dict[str, int] = Field(default_factory=dict)
     frozen: bool = False
 
     @model_validator(mode="after")
@@ -318,5 +325,14 @@ class DatasetMetadata(BaseModel):
                 f"train ({self.train_cases}) + validation "
                 f"({self.validation_cases}) + test ({self.test_cases}) "
                 f"= {expected}"
+            )
+        if self.extracted_code_units and (
+            self.extracted_code_units - self.duplicate_code_units
+            != self.total_code_units
+        ):
+            raise ValueError(
+                f"extracted_code_units ({self.extracted_code_units}) - "
+                f"duplicate_code_units ({self.duplicate_code_units}) != "
+                f"total_code_units ({self.total_code_units})"
             )
         return self
