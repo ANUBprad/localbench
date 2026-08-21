@@ -148,6 +148,8 @@ Thumbs.db
 # Project specific
 data/
 results/
+.clone_cache/
+dataset/
 *.jsonl
 *.json
 !pyproject.toml
