@@ -31,6 +31,8 @@ class GenerationRequest:
     model: str
     temperature: float = 0.3
     max_tokens: int = 256
+    top_p: float = 0.9
+    seed: int | None = None
 
 
 @dataclass
