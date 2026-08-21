@@ -66,7 +66,11 @@ def _run_git(
     cwd: str | Path | None = None,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a git command safely via subprocess argument list."""
+    """Run a git command safely via subprocess argument list.
+
+    The timeout must accommodate full clones of large upstream
+    repositories over slow networks, not just local fixture repos.
+    """
     cmd = ["git"] + args
     return subprocess.run(
         cmd,
@@ -74,7 +78,7 @@ def _run_git(
         capture_output=True,
         text=True,
         check=check,
-        timeout=120,
+        timeout=600,
     )
 
 
