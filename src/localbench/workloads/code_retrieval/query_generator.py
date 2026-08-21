@@ -144,6 +144,7 @@ class QueryGenerationResult:
     prompt_template_version: str = QUERY_PROMPT_TEMPLATE_VERSION
     total_generation_ms: float = 0.0
     total_validation_ms: float = 0.0
+    leakage: LeakageCheckResult | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +223,7 @@ class QueryGenerator:
                     model_name=self.model.name,
                     total_generation_ms=retry_result.total_generation_ms,
                     total_validation_ms=retry_result.total_validation_ms,
+                    leakage=leakage,
                 )
 
             return QueryGenerationResult(
@@ -231,6 +233,7 @@ class QueryGenerator:
                 model_name=self.model.name,
                 total_generation_ms=retry_result.total_generation_ms,
                 total_validation_ms=retry_result.total_validation_ms,
+                leakage=leakage,
             )
 
         return QueryGenerationResult(
