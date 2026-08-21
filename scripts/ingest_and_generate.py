@@ -1,7 +1,7 @@
 """Phase 4F-H: Dataset ingestion and candidate query generation.
 
 This script:
-1. Clones 3 Python repositories at pinned commits
+1. Clones 6 Python repositories at pinned commits
 2. Extracts code units via AST parsing
 3. Deduplicates by SHA-256 content hash
 4. Creates repository-disjoint splits (train/val/test, seed=42)
@@ -71,7 +71,7 @@ CLONE_ROOT = Path(__file__).resolve().parent.parent / ".clone_cache"
 SPLIT_SEED = 42
 SPLIT_RATIO = (0.50, 0.25, 0.25)  # train, validation, test
 
-# Repository selection: 3 well-known Python libraries, permissive license
+# Repository selection: 6 well-known Python libraries, permissive license
 REPOSITORIES = [
     {
         "id": "repo001",
@@ -99,6 +99,33 @@ REPOSITORIES = [
         "base_url": "https://github.com/Textualize/rich",
         "license": "MIT",
         "description": "Terminal formatting for Python",
+    },
+    {
+        "id": "repo004",
+        "name": "flask",
+        "url": "https://github.com/pallets/flask.git",
+        "commit": "3.0.3",
+        "base_url": "https://github.com/pallets/flask",
+        "license": "BSD-3-Clause",
+        "description": "Web framework for Python",
+    },
+    {
+        "id": "repo005",
+        "name": "pydantic",
+        "url": "https://github.com/pydantic/pydantic.git",
+        "commit": "v2.6.4",
+        "base_url": "https://github.com/pydantic/pydantic",
+        "license": "MIT",
+        "description": "Data validation for Python",
+    },
+    {
+        "id": "repo006",
+        "name": "pytest",
+        "url": "https://github.com/pytest-dev/pytest.git",
+        "commit": "8.1.1",
+        "base_url": "https://github.com/pytest-dev/pytest",
+        "license": "MIT",
+        "description": "Testing framework for Python",
     },
 ]
 
