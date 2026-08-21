@@ -172,11 +172,16 @@ def _ms_since(start: float) -> float:
 
 
 def _wrap_generation_error(exc: Exception) -> StructuredError:
-    """Wrap a non-retryable generation error as a StructuredError."""
+    """Wrap a non-retryable generation error as a StructuredError.
+
+    The original exception type name is kept in the message so callers
+    can distinguish provider failures (unavailable, timeout, model
+    error) from structured validation failures.
+    """
     from localbench.runtime.generation.failures import (
         StructuredError as BaseStructuredError,
     )
 
     if isinstance(exc, BaseStructuredError):
         return exc
-    return StructuredError(str(exc))
+    return StructuredError(f"{type(exc).__name__}: {exc}")
