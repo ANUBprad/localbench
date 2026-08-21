@@ -16,14 +16,19 @@ artifacts are written:
                                             §4.4.1 (opt-in via
                                             --update-meta)
 
-There is NO resume mechanism: results are written once, after all units
-complete. An interrupted run leaves the previous artifacts untouched;
-rerun from scratch (delete outputs first) to avoid duplicates.
+Persistence is INCREMENTAL: every completed CodeUnit (success or
+failure) is appended to its JSONL artifact and fsynced immediately.
+The two JSONL files double as the checkpoint — a restarted run skips
+already-completed CodeUnit IDs, so an interrupted run can be resumed
+without duplicates. A torn trailing line from a mid-write crash is
+truncated at load time; corrupt or duplicated records abort the run.
 
 Usage:
     python scripts/generate_query_candidates.py
     python scripts/generate_query_candidates.py --limit 1 \
         --output-dir <temp dir>          # smoke test, touches nothing
+    python scripts/generate_query_candidates.py --fresh  # discard
+        existing artifacts and regenerate from scratch
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from collections import Counter
@@ -44,6 +50,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from localbench.runtime.generation.attempt import AttemptRecord, AttemptStatus
 from localbench.runtime.generation.policy import DEFAULT_MAX_ATTEMPTS, RetryPolicy
 from localbench.runtime.ollama.adapter import OllamaAdapter
+from localbench.workloads.code_retrieval.candidate_store import CandidateStore
 from localbench.workloads.code_retrieval.extraction import (
     ExtractedCodeUnit,
     _build_code_unit_id,
@@ -305,25 +312,27 @@ _FAILURES_FILENAME = "candidate_failures.jsonl"
 _METADATA_FILENAME = "generation_metadata.json"
 
 
-def write_artifacts(
-    output_dir: Path,
-    successful: list[CandidateAuditRecord],
-    failed: list[CandidateAuditRecord],
-    metadata: dict,
-) -> None:
-    """Overwrite the three query-generation artifacts atomically-at-end."""
-    output_dir.mkdir(parents=True, exist_ok=True)
+def _atomic_write_json(path: Path, payload: dict) -> None:
+    """Write JSON via a temp file + atomic replace.
 
-    with open(output_dir / _CANDIDATES_FILENAME, "w", encoding="utf-8") as f:
-        for record in successful:
-            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+    An interrupted write can never leave a half-written artifact at the
+    target path.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, path)
 
-    with open(output_dir / _FAILURES_FILENAME, "w", encoding="utf-8") as f:
-        for record in failed:
-            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
-    with open(output_dir / _METADATA_FILENAME, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2)
+def filter_pending(
+    test_units: list[ExtractedCodeUnit],
+    completed_ids: set[str],
+) -> list[ExtractedCodeUnit]:
+    """Drop CodeUnits already recorded in the checkpoint (either outcome)."""
+    return [u for u in test_units if _unit_id(u) not in completed_ids]
 
 
 def update_dataset_metadata() -> None:
@@ -346,8 +355,7 @@ def update_dataset_metadata() -> None:
         "generation_params": {"temperature": TEMPERATURE, "top_p": TOP_P},
     }
 
-    with open(version_path, "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2)
+    _atomic_write_json(version_path, meta)
     logger.info("Updated query_generation block in %s", version_path)
 
 
@@ -380,7 +388,11 @@ def generate_all(
     provider_failure_limit: int,
     update_meta: bool,
 ) -> int:
-    """Run candidate generation for every test unit. Returns exit code."""
+    """Run candidate generation for every pending test unit.
+
+    Completed units (success or failure) are appended to the JSONL
+    artifacts immediately and skipped on restart.
+    """
     started = time.perf_counter()
 
     adapter = OllamaAdapter(model_name=MODEL_NAME)
@@ -390,109 +402,163 @@ def generate_all(
     model_runtime_metadata = discover_model_metadata(adapter)
     logger.info("Model runtime metadata: %s", model_runtime_metadata)
 
+    store = CandidateStore(
+        output_dir / _CANDIDATES_FILENAME,
+        output_dir / _FAILURES_FILENAME,
+    )
+    resumed_success, resumed_failed = store.load()
+    completed = store.completed_ids
+    pending = filter_pending(test_units, completed)
+    total = len(test_units)
+    logger.info(
+        "Checkpoint: %d completed (%d success / %d failed), "
+        "%d remaining of %d",
+        len(completed),
+        len(resumed_success),
+        len(resumed_failed),
+        len(pending),
+        total,
+    )
+
     policy = RetryPolicy(max_attempts=MAX_ATTEMPTS)
     generator = QueryGenerator(model=adapter, policy=policy, top_p=TOP_P, seed=SEED)
 
-    total = len(test_units)
-    successful: list[CandidateAuditRecord] = []
-    failed: list[CandidateAuditRecord] = []
+    fresh_success: list[CandidateAuditRecord] = []
+    fresh_failed: list[CandidateAuditRecord] = []
     consecutive_provider_failures = 0
+    exit_code = 0
 
-    for index, unit in enumerate(test_units, 1):
-        unit_id = _unit_id(unit)
-        result = generator.generate(unit)
-        record = _build_record(unit_id, result, datetime.now(timezone.utc).isoformat())
-
-        if record.success:
-            successful.append(record)
-            consecutive_provider_failures = 0
-        else:
-            failed.append(record)
-            logger.warning(
-                "[%d/%d] FAILED %s (%s): %s",
-                index,
-                total,
-                unit_id,
-                record.failure_category,
-                record.failure_reason,
+    try:
+        for index, unit in enumerate(pending, 1):
+            unit_id = _unit_id(unit)
+            result = generator.generate(unit)
+            record = _build_record(
+                unit_id, result, datetime.now(timezone.utc).isoformat()
             )
-            if record.failure_category in _PROVIDER_FAILURE_CATEGORIES:
-                consecutive_provider_failures += 1
-            else:
+            record_dict = asdict(record)
+
+            if record.success:
+                store.append_success(record_dict)
+                fresh_success.append(record)
                 consecutive_provider_failures = 0
+            else:
+                store.append_failure(record_dict)
+                fresh_failed.append(record)
+                logger.warning(
+                    "[%d/%d] FAILED %s (%s): %s",
+                    index,
+                    len(pending),
+                    unit_id,
+                    record.failure_category,
+                    record.failure_reason,
+                )
+                if record.failure_category in _PROVIDER_FAILURE_CATEGORIES:
+                    consecutive_provider_failures += 1
+                else:
+                    consecutive_provider_failures = 0
 
-        if consecutive_provider_failures >= provider_failure_limit:
-            logger.error(
-                "Aborting: %d consecutive provider failures suggest "
-                "Ollama is down. No artifacts written; rerun from scratch.",
-                consecutive_provider_failures,
-            )
-            adapter.close()
-            return 3
+            if consecutive_provider_failures >= provider_failure_limit:
+                logger.error(
+                    "Aborting after %d consecutive provider failures; "
+                    "Ollama appears to be down. All completed records "
+                    "are already persisted — rerun to resume.",
+                    consecutive_provider_failures,
+                )
+                exit_code = 3
+                break
 
-        if index % PROGRESS_LOG_INTERVAL == 0 or index == total:
-            elapsed = time.perf_counter() - started
-            rate = index / elapsed if elapsed > 0 else 0.0
-            eta_minutes = ((total - index) / rate / 60) if rate > 0 else 0.0
-            logger.info(
-                "[%d/%d] ok=%d failed=%d | %.1f units/min | ETA %.0f min",
-                index,
-                total,
-                len(successful),
-                len(failed),
-                rate * 60,
-                eta_minutes,
-            )
+            if index % PROGRESS_LOG_INTERVAL == 0 or index == len(pending):
+                elapsed = time.perf_counter() - started
+                rate = index / elapsed if elapsed > 0 else 0.0
+                eta_minutes = (
+                    ((len(pending) - index) / rate / 60) if rate > 0 else 0.0
+                )
+                logger.info(
+                    "[%d/%d] completed=%d ok=%d failed=%d remaining=%d | "
+                    "%.1f units/min | ETA %.0f min",
+                    index,
+                    len(pending),
+                    len(completed) + index,
+                    len(resumed_success) + len(fresh_success),
+                    len(resumed_failed) + len(fresh_failed),
+                    len(pending) - index,
+                    rate * 60,
+                    eta_minutes,
+                )
+    finally:
+        store.close()
+        adapter.close()
 
-    adapter.close()
-
+    successful = resumed_success + [asdict(r) for r in fresh_success]
+    failed = resumed_failed + [asdict(r) for r in fresh_failed]
     wall_clock = time.perf_counter() - started
-    metadata = build_metadata(
-        successful, failed, total, wall_clock, model_runtime_metadata
-    )
-    write_artifacts(output_dir, successful, failed, metadata)
-    logger.info("Artifacts written to %s", output_dir)
 
-    if update_meta:
+    metadata = build_metadata(
+        successful,
+        failed,
+        total,
+        wall_clock,
+        model_runtime_metadata,
+        resumed={
+            "successful": len(resumed_success),
+            "failed": len(resumed_failed),
+        },
+    )
+    _atomic_write_json(output_dir / _METADATA_FILENAME, metadata)
+    logger.info("Generation metadata written to %s", output_dir)
+
+    if update_meta and exit_code == 0:
         update_dataset_metadata()
 
+    all_records = successful + failed
     logger.info("=" * 60)
     logger.info("PHASE 4F-I-B CANDIDATE GENERATION COMPLETE")
     logger.info("=" * 60)
     logger.info("Test CodeUnits:        %d", total)
+    logger.info("Attempted (this pass): %d", len(fresh_success) + len(fresh_failed))
     logger.info("Successful candidates: %d", len(successful))
     logger.info("Failed candidates:     %d", len(failed))
-    all_count = sum(r.attempt_count for r in successful + failed)
-    logger.info("Total attempts:        %d", all_count)
-    logger.info("Wall clock:            %.1f s", wall_clock)
-    return 0
+    logger.info("Total attempts:        %d",
+                sum(r["attempt_count"] for r in all_records))
+    logger.info("Wall clock (this pass): %.1f s", wall_clock)
+    return exit_code
 
 
 def build_metadata(
-    successful: list[CandidateAuditRecord],
-    failed: list[CandidateAuditRecord],
+    successful: list[dict],
+    failed: list[dict],
     total: int,
     wall_clock_seconds: float,
     model_runtime_metadata: dict,
+    resumed: dict[str, int],
 ) -> dict:
-    """Aggregate reproducibility and statistics metadata."""
+    """Aggregate reproducibility and statistics metadata.
+
+    ``successful``/``failed`` include records restored from the
+    checkpoint so totals always describe the full candidate pool.
+    """
     all_records = successful + failed
-    total_attempts = sum(r.attempt_count for r in all_records)
-    categories = Counter(r.failure_category for r in failed)
-    styles = Counter(r.query_style for r in successful)
+    total_attempts = sum(r["attempt_count"] for r in all_records)
+    categories = Counter(r["failure_category"] for r in failed)
+    styles = Counter(r["query_style"] for r in successful)
     validation_failures = sum(
-        1 for r in failed if r.failure_category in _VALIDATION_ERROR_CATEGORIES.values()
+        1
+        for r in failed
+        if r["failure_category"] in _VALIDATION_ERROR_CATEGORIES.values()
     )
     provider_failures = sum(
-        1 for r in failed if r.failure_category in _PROVIDER_FAILURE_CATEGORIES
+        1
+        for r in failed
+        if r["failure_category"] in _PROVIDER_FAILURE_CATEGORIES
     )
     retry_exhausted = sum(
         1
         for r in failed
-        if r.attempt_count >= MAX_ATTEMPTS and r.failure_category != "leakage"
+        if r["attempt_count"] >= MAX_ATTEMPTS
+        and r["failure_category"] != "leakage"
     )
     avg_gen_ms = (
-        sum(r.generation_ms for r in successful) / len(successful)
+        sum(r["generation_ms"] for r in successful) / len(successful)
         if successful
         else 0.0
     )
@@ -508,6 +574,7 @@ def build_metadata(
             "attempted": len(all_records),
             "successful_candidates": len(successful),
             "failed_candidates": len(failed),
+            "resumed_from_checkpoint": resumed,
         },
         "model": {
             "name": MODEL_NAME,
@@ -568,6 +635,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=CONSECUTIVE_PROVIDER_FAILURE_LIMIT,
         help="Abort after N consecutive provider-level failures.",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Delete existing candidate artifacts in the output "
+        "directory before generating (otherwise resume).",
+    )
     return parser.parse_args(argv)
 
 
@@ -587,6 +660,17 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("No test CodeUnits loaded from %s", TEST_SPLIT_PATH)
         return 1
     logger.info("Loaded %d test CodeUnits from %s", len(test_units), TEST_SPLIT_PATH)
+
+    if args.fresh:
+        for filename in (
+            _CANDIDATES_FILENAME,
+            _FAILURES_FILENAME,
+            _METADATA_FILENAME,
+        ):
+            artifact = args.output_dir / filename
+            if artifact.exists():
+                artifact.unlink()
+                logger.warning("Deleted existing artifact %s", artifact)
 
     return generate_all(
         test_units=test_units,
