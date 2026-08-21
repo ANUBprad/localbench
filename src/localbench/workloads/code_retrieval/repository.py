@@ -185,10 +185,14 @@ class GitRepository:
             ) from exc
 
     def _resolve_revision(self, reference: str) -> str:
-        """Resolve *reference* to a full 40-char commit SHA."""
+        """Resolve *reference* to a full 40-char commit SHA.
+
+        ``^{commit}`` peels annotated tags to their commit so the
+        snapshot always records a checkout-able commit SHA.
+        """
         try:
             result = _run_git(
-                ["rev-parse", "--verify", reference],
+                ["rev-parse", "--verify", f"{reference}^{{commit}}"],
                 cwd=self.local_dir,
             )
             sha = result.stdout.strip()
