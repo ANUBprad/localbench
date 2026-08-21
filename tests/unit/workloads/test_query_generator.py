@@ -395,6 +395,46 @@ class TestQueryGenerator:
         assert result.success is False
         assert result.candidate is None
 
+    def test_success_preserves_leakage_outcome(self) -> None:
+        model = FakeModel()
+        gen = QueryGenerator(model)
+        unit = _make_code_unit()
+        result = gen.generate(unit)
+
+        assert result.success is True
+        assert result.leakage is not None
+        assert result.leakage.passed is True
+        assert result.leakage.violations == []
+
+    def test_leakage_failure_preserves_violations(self) -> None:
+        leaked_query = json.dumps(
+            {
+                "query": "Find PaymentProcessor.process_retry in repo001",
+                "query_style": "natural",
+                "query_intent": "find_implementation",
+            }
+        )
+        model = FakeModel(_responses=[leaked_query])
+        gen = QueryGenerator(model)
+        unit = _make_code_unit()
+        result = gen.generate(unit)
+
+        assert result.success is False
+        assert result.candidate is None
+        assert result.leakage is not None
+        assert result.leakage.passed is False
+        assert len(result.leakage.violations) >= 1
+
+    def test_validation_failure_has_no_leakage_outcome(self) -> None:
+        model = FakeModel(_responses=["not json", "not json", "not json"])
+        policy = RetryPolicy(max_attempts=3)
+        gen = QueryGenerator(model, policy=policy)
+        unit = _make_code_unit()
+        result = gen.generate(unit)
+
+        assert result.success is False
+        assert result.leakage is None
+
 
 # ===========================================================================
 # generate_query convenience
