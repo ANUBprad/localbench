@@ -45,6 +45,7 @@ from localbench.runtime.ollama.adapter import OllamaAdapter
 from localbench.workloads.code_retrieval.extraction import (
     ExtractedCodeUnit,
     ExtractionResult,
+    _build_code_unit_id,
     extract_code_units,
 )
 from localbench.workloads.code_retrieval.query_generator import (
@@ -480,9 +481,8 @@ def generate_candidates(
 
 
 def _build_id(unit: ExtractedCodeUnit) -> str:
-    """Build deterministic code unit ID."""
-    normalized = unit.symbol.replace(".", "_")
-    return f"{unit.repository}_py_{normalized}"
+    """Build deterministic code unit ID via the canonical builder."""
+    return _build_code_unit_id(unit.repository, unit.file_path, unit.symbol)
 
 
 # ---------------------------------------------------------------------------
