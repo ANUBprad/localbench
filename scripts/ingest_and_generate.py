@@ -217,6 +217,7 @@ def clone_repository(repo: dict) -> Path:
 def _unit_to_dict(unit: ExtractedCodeUnit) -> dict:
     """Convert ExtractedCodeUnit to a JSON-serializable dict."""
     return {
+        "id": _build_id(unit),
         "repository": unit.repository,
         "language": unit.language,
         "file_path": unit.file_path,
