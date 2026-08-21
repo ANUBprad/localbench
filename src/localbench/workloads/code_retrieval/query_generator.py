@@ -172,9 +172,13 @@ class QueryGenerator:
         self,
         model: LocalModel,
         policy: RetryPolicy | None = None,
+        top_p: float = 0.9,
+        seed: int | None = None,
     ) -> None:
         self.model = model
         self.policy = policy or RetryPolicy()
+        self.top_p = top_p
+        self.seed = seed
 
     def generate(self, code_unit: ExtractedCodeUnit) -> QueryGenerationResult:
         """Generate a candidate retrieval query for a single code unit.
@@ -267,6 +271,8 @@ class QueryGenerator:
                 model=model.name,
                 temperature=0.7,
                 max_tokens=128,
+                top_p=self.top_p,
+                seed=self.seed,
             )
             result = model.generate(request)
             if result.error:
