@@ -284,7 +284,7 @@ Retrieval queries are short developer-style questions used exclusively for evalu
 - 45 retrieval queries total
 - All 45 queries belong to the **test split only**
 - Train and validation splits contain **no retrieval queries**
-- Queries are generated against test code units and their semantic labels
+- Queries are generated against test code units (source code only; semantic labels are NOT provided to the query generator — see §4.4.1)
 
 **Query generation methodology:**
 
@@ -306,6 +306,8 @@ Retrieval queries are short developer-style questions used exclusively for evalu
 - Ensure query is unambiguous for humans
 - A developer should find the relevant code unit in top-10 results
 - Avoid queries that could match multiple unrelated units
+
+**Style diversity:** The guidelines encourage varying query style (natural, technical, verbose, concise) but do not impose numerical distribution quotas. The resulting distribution across the 45 final queries is recorded in dataset statistics (§8.1).
 
 ### 4.4.1 Query-Generation Model Selection (Decision Record)
 
@@ -338,9 +340,93 @@ Retrieval queries are short developer-style questions used exclusively for evalu
 - `seed`: 42
 - `generation_params`: {temperature: 0.7, top_p: 0.9}
 
+### 4.4.2 Candidate Coverage & Selection Pipeline
+
+**Coverage principle:** Generate one initial candidate for every eligible test CodeUnit. Do NOT pre-select a subset of CodeUnits before candidate generation.
+
+**Full pipeline:**
+
+```
+113 test CodeUnits
+        ↓
+candidate generation (one candidate per CodeUnit)
+        ↓
+automated validation (schema + leakage checks)
+        ↓
+human review (benchmark-blind — see §4.4.4)
+        ↓
+eligible candidate pool (may be < 113)
+        ↓
+deterministic seed-42 selection → 45 final queries
+        ↓
+ground-truth relevance assignment (after freeze — see §4.5)
+```
+
+**Selection method:** The final 45 queries are selected deterministically from the eligible candidate pool using seed=42. Selection must not observe benchmark results. The eligible pool must contain at least 45 candidates; if fewer than 45 candidates pass review, the dataset is incomplete and must be regenerated with adjusted parameters.
+
+**Stratification:** The canonical documentation does not mandate numerical stratification quotas by repository, symbol type, or query style. Diversity is encouraged (§4.4 guidelines) but not enforced via quotas. The resulting distribution is recorded in dataset statistics.
+
+### 4.4.3 Rejection & Regeneration Policy
+
+**Automated rejection triggers:**
+1. Schema validation failure (CandidateQuery does not parse)
+2. Leakage detection failure (check_query_leakage returns LEAK_DETECTED)
+3. Empty or trivially short query text
+
+**Bounded regeneration:** Maximum 3 generation attempts per CodeUnit. The existing Phase 3 retry infrastructure handles structured-generation failures (malformed JSON, missing fields). Semantic rejection (leakage, quality) is a separate post-generation decision.
+
+**Audit trail:** For every failed candidate, regardless of attempt number, retain:
+- Candidate text
+- Attempt number
+- Rejection reason (automated or human)
+- Automated validation result
+- Leakage check result
+- Generation metadata (model, seed, params)
+
+Failed candidates are never silently deleted. If all 3 attempts fail, the CodeUnit is marked as having no eligible candidate and excluded from the selection pool.
+
+**Semantic rejection criteria (human review):**
+- Query is incoherent or grammatically broken
+- Query does not reference identifiable code concepts
+- Query is too generic (would match many unrelated units)
+- Query leaks identifiers despite automated checks
+
+### 4.4.4 Human Review (Benchmark-Blind)
+
+Human review is mandatory before final query selection (§4.4 step 4). The reviewer must operate under **benchmark-result blindness**.
+
+**Reviewer may see:**
+- Candidate query text
+- Target CodeUnit (source code + context)
+- Permitted repository/source context
+- Automated validation results (schema pass/fail, leakage pass/fail)
+
+**Reviewer must NOT see:**
+- Benchmark model results (Hit@K, MRR, etc.)
+- Model rankings or performance comparisons
+- Information that could encourage selecting queries favorable to a particular benchmark model
+- Ground-truth relevance scores (assigned after review)
+
+**Review criteria (all must pass for acceptance):**
+
+| # | Criterion | Maps to |
+|---|-----------|---------|
+| 1 | Understandable — query is grammatically correct and clear | §4.4 guidelines |
+| 2 | Behaviorally relevant — query describes real code behavior | §4.4 "reference actual concepts" |
+| 3 | Sufficiently specific — not generic, grounded in this CodeUnit | §4.4 "avoid queries that match multiple unrelated units" |
+| 4 | Unambiguous — one clear interpretation | §4.4 "unambiguous for humans" |
+| 5 | No implementation leakage — no function/class/parameter names | §4.4.1 SemanticLabel visibility + leakage check |
+| 6 | Developer could locate code — relevant unit reachable in top-10 | §4.4 "developer should find relevant code in top-10" |
+
+**Outcome:** Accept or reject with documented reason. Rejected candidates trigger regeneration (§4.4.3). Maximum review iterations are bounded by the 3-attempt regeneration limit.
+
 ---
 
 ### 4.5 Ground-Truth Labeling
+
+**Timing:** Ground-truth relevance assignment occurs **after** final query selection and freeze. Never before.
+
+**Blindness:** Ground-truth assignment must not be influenced by benchmark model outputs. Relevance is assessed based on the query text and the CodeUnit source code alone.
 
 **Creating relevance relationships:**
 
@@ -598,10 +684,13 @@ assert train_repos.isdisjoint(test_repos), "Repository leakage detected"
 - [ ] Extract code units (3–100 source lines, top-level only, no nested functions)
 - [ ] Deduplicate via content hashing (SHA256)
 - [ ] Create semantic labels (human-reviewed, all splits)
-- [ ] Generate 45 retrieval queries using dedicated query-generation model
+- [ ] Generate candidate queries for all eligible test CodeUnits using dedicated query-generation model
+- [ ] Run automated validation (schema + leakage checks) on all candidates
+- [ ] Apply bounded regeneration (max 3 attempts) for failed candidates
+- [ ] Human review all candidates (benchmark-blind)
+- [ ] Select 45 final queries deterministically (seed=42) from eligible pool
 - [ ] Record model version, prompt version, seed in metadata
-- [ ] Human review and finalization of all queries
-- [ ] Assign ground-truth relevance
+- [ ] Assign ground-truth relevance (after query freeze, no benchmark influence)
 - [ ] Create train/validation/test splits (repository-disjoint, seed=42)
 - [ ] Validate schema (Pydantic)
 - [ ] Validate referential integrity
