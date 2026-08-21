@@ -251,14 +251,24 @@ def _build_symbol_path(
     return function_name
 
 
-def _build_code_unit_id(repository: str, symbol_path: str) -> str:
-    """Construct a deterministic code-unit identifier.
+def _build_code_unit_id(
+    repository: str,
+    file_path: str,
+    symbol_path: str,
+) -> str:
+    """Construct a deterministic, globally unique code-unit identifier.
 
-    Format: ``{repo_id}_py_{symbol_path}``
-    Dots are replaced with underscores.
+    Format: ``{repo_id}_py_{file_path}__{symbol_path}``
+
+    Path separators and dots collapse to underscores; the ``__``
+    delimiter marks the file/symbol boundary so identical symbol names
+    in different modules cannot collide.
     """
-    normalized = symbol_path.replace(".", "_")
-    return f"{repository}_py_{normalized}"
+    normalized_path = (
+        file_path.replace("\\", "_").replace("/", "_").replace(".", "_")
+    )
+    normalized_symbol = symbol_path.replace(".", "_")
+    return f"{repository}_py_{normalized_path}__{normalized_symbol}"
 
 
 def _hash_source(source_code: str) -> str:
