@@ -6,6 +6,8 @@ No speculative fields are added.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -36,6 +38,32 @@ QueryStyle = Literal["natural", "technical", "verbose", "concise"]
 
 Difficulty = Literal["easy", "medium", "hard"]
 """Query difficulty level (§3.3)."""
+
+
+# ---------------------------------------------------------------------------
+# Query generation input contract (§4.4 — source-only, no SemanticLabels)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class QueryGenerationInput:
+    """Source-only input to the query prompt builder.
+
+    Contains only the information the query generator is permitted to see.
+    Deliberately excludes: repository ID, file path, symbol path, source URL,
+    content hash, and SemanticLabel fields.
+
+    The prompt builder consumes ONLY this type, making accidental
+    SemanticLabel leakage structurally impossible.
+    """
+
+    source_code: str
+    docstring: str = ""
+    symbol_type: Literal["function", "method"] = "function"
+    class_name: str | None = None
+    module_docstring: str | None = None
+    imports: list[str] = dc_field(default_factory=list)
+    parent_methods: list[str] = dc_field(default_factory=list)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -201,6 +229,24 @@ class QueryRelevance(BaseModel):
     relevance_score: float = Field(ge=0.0, le=1.0)
     relevance_label: RelevanceLabel
     explanation: str
+
+
+# ---------------------------------------------------------------------------
+# Candidate query (model output from query generation, §4.4)
+# ---------------------------------------------------------------------------
+
+
+class CandidateQuery(BaseModel):
+    """Structured output from the query-generation model.
+
+    Contains only the fields the model produces.  Pipeline metadata
+    (id, relevant_code_units, split, difficulty, created_at) is added
+    later by the dataset assembly layer.
+    """
+
+    query: str
+    query_style: QueryStyle
+    query_intent: str
 
 
 # ---------------------------------------------------------------------------
