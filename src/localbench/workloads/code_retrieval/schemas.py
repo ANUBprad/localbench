@@ -280,6 +280,7 @@ class QueryGenerationMetadata(BaseModel):
     model_version: str
     prompt_template_version: str
     seed: int
+    generation_params: dict[str, float] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
