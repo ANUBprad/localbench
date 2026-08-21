@@ -354,6 +354,8 @@ GenerationFailure
 3. Assess impact on metrics (included or excluded?)
 4. Decide on remediation (retry threshold, prompt adjustment, etc.)
 
+**Query candidate failures:** The same recording discipline applies to query generation failures (schema validation, leakage detection, semantic rejection). Every failed candidate is retained with attempt number, rejection reason, and generation metadata (see DATASET_SPECIFICATION.md §4.4.3).
+
 **Inclusion in metrics:**
 - Failed cases **excluded** from Hit@K, MRR
 - Reliability = (successful cases / total cases)
