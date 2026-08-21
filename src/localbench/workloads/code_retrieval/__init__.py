@@ -15,6 +15,18 @@ from localbench.workloads.code_retrieval.extraction import (
     discover_python_files,
     extract_code_units,
 )
+from localbench.workloads.code_retrieval.query_generator import (
+    LeakageCheckResult,
+    QueryGenerationResult,
+    QueryGenerator,
+    check_query_leakage,
+    generate_query,
+)
+from localbench.workloads.code_retrieval.query_prompt import (
+    QUERY_PROMPT_TEMPLATE_VERSION,
+    build_query_generation_prompt,
+    get_query_system_prompt,
+)
 from localbench.workloads.code_retrieval.repository import (
     GitRepository,
     RepositorySnapshot,
@@ -22,10 +34,12 @@ from localbench.workloads.code_retrieval.repository import (
     acquire_repository,
 )
 from localbench.workloads.code_retrieval.schemas import (
+    CandidateQuery,
     CodeUnit,
     CodeUnitContext,
     DatasetMetadata,
     QueryCase,
+    QueryGenerationInput,
     QueryGenerationMetadata,
     QueryRelevance,
     SemanticLabel,
@@ -63,10 +77,12 @@ __all__ = [
     "RepositorySource",
     "acquire_repository",
     # Schemas
+    "CandidateQuery",
     "CodeUnit",
     "CodeUnitContext",
     "DatasetMetadata",
     "QueryCase",
+    "QueryGenerationInput",
     "QueryGenerationMetadata",
     "QueryRelevance",
     "SemanticLabel",
@@ -79,4 +95,13 @@ __all__ = [
     "build_semantic_label_prompt",
     "generate_semantic_label",
     "get_system_prompt",
+    # Query generation
+    "QUERY_PROMPT_TEMPLATE_VERSION",
+    "LeakageCheckResult",
+    "QueryGenerationResult",
+    "QueryGenerator",
+    "build_query_generation_prompt",
+    "check_query_leakage",
+    "generate_query",
+    "get_query_system_prompt",
 ]
