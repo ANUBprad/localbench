@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 import subprocess
 import sys
 from collections import Counter
@@ -69,7 +68,6 @@ logger = logging.getLogger(__name__)
 DATASET_ROOT = Path(__file__).resolve().parent.parent / "dataset"
 CLONE_ROOT = Path(__file__).resolve().parent.parent / ".clone_cache"
 SPLIT_SEED = 42
-SPLIT_RATIO = (0.50, 0.25, 0.25)  # train, validation, test
 
 # Repository selection: 6 well-known Python libraries, permissive license
 REPOSITORIES = [
@@ -81,6 +79,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/psf/requests",
         "license": "Apache-2.0",
         "description": "HTTP library for Python",
+        "split": "train",
     },
     {
         "id": "repo002",
@@ -90,6 +89,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/pallets/click",
         "license": "BSD-3-Clause",
         "description": "CLI toolkit for Python",
+        "split": "train",
     },
     {
         "id": "repo003",
@@ -99,6 +99,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/Textualize/rich",
         "license": "MIT",
         "description": "Terminal formatting for Python",
+        "split": "test",
     },
     {
         "id": "repo004",
@@ -108,6 +109,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/pallets/flask",
         "license": "BSD-3-Clause",
         "description": "Web framework for Python",
+        "split": "train",
     },
     {
         "id": "repo005",
@@ -117,6 +119,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/pydantic/pydantic",
         "license": "MIT",
         "description": "Data validation for Python",
+        "split": "validation",
     },
     {
         "id": "repo006",
@@ -126,6 +129,7 @@ REPOSITORIES = [
         "base_url": "https://github.com/pytest-dev/pytest",
         "license": "MIT",
         "description": "Testing framework for Python",
+        "split": "test",
     },
 ]
 
@@ -304,17 +308,15 @@ def persist_dataset(
 def create_splits(
     units: list[ExtractedCodeUnit],
 ) -> dict[str, list[ExtractedCodeUnit]]:
-    """Create repository-disjoint splits with deterministic seed.
+    """Assign every CodeUnit to its repository's fixed split.
 
-    Each repository's units are split independently, then combined.
-    This ensures repository-disjointness.
+    Assignment is repository-level and deterministic: all units from a
+    repository belong to that repository's single assigned split. The
+    authoritative assignment is the ``split`` field in REPOSITORIES.
+    Units must already be globally deduplicated so no content hash can
+    land in two splits.
     """
-    rng = random.Random(SPLIT_SEED)
-
-    # Group by repository
-    repo_units: dict[str, list[ExtractedCodeUnit]] = {}
-    for unit in units:
-        repo_units.setdefault(unit.repository, []).append(unit)
+    repo_split = {repo["id"]: repo["split"] for repo in REPOSITORIES}
 
     splits: dict[str, list[ExtractedCodeUnit]] = {
         "train": [],
@@ -322,26 +324,11 @@ def create_splits(
         "test": [],
     }
 
-    for repo_id in sorted(repo_units.keys()):
-        repo_list = repo_units[repo_id]
-        rng.shuffle(repo_list)
+    for unit in units:
+        splits[repo_split[unit.repository]].append(unit)
 
-        n = len(repo_list)
-        n_train = int(n * SPLIT_RATIO[0])
-        n_val = int(n * SPLIT_RATIO[1])
-
-        splits["train"].extend(repo_list[:n_train])
-        splits["validation"].extend(repo_list[n_train : n_train + n_val])
-        splits["test"].extend(repo_list[n_train + n_val :])
-
-        logger.info(
-            "  %s: %d units → train=%d, val=%d, test=%d",
-            repo_id,
-            n,
-            n_train,
-            n_val,
-            n - n_train - n_val,
-        )
+    for split_name, split_units in splits.items():
+        logger.info("  %s: %d units", split_name, len(split_units))
 
     return splits
 
