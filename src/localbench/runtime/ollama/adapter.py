@@ -23,9 +23,22 @@ class OllamaAdapter:
     Ollama's HTTP API. All Ollama-specific logic is isolated here.
     """
 
-    def __init__(self, base_url: str = "http://localhost:11434") -> None:
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        model_name: str = "",
+    ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._model_name = model_name
         self._client = httpx.Client(base_url=self._base_url, timeout=60.0)
+
+    @property
+    def name(self) -> str:
+        return self._model_name
+
+    @property
+    def metadata(self) -> ModelInfo:
+        return ModelInfo(name=self._model_name)
 
     def _get(self, path: str) -> dict:
         """Make a GET request to Ollama.
