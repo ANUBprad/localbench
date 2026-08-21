@@ -255,20 +255,27 @@ def _build_code_unit_id(
     repository: str,
     file_path: str,
     symbol_path: str,
+    content_hash: str,
 ) -> str:
     """Construct a deterministic, globally unique code-unit identifier.
 
-    Format: ``{repo_id}_py_{file_path}__{symbol_path}``
+    Format: ``{repo_id}_py_{file_path}__{symbol_path}_{hash12}``
 
     Path separators and dots collapse to underscores; the ``__``
-    delimiter marks the file/symbol boundary so identical symbol names
-    in different modules cannot collide.
+    delimiter marks the file/symbol boundary. The trailing 12-hex
+    content-hash fragment disambiguates repeated definitions of the
+    same symbol within one module (legal Python), keeping the ID a
+    pure function of the unit's identity fields and independent of
+    extraction order.
     """
     normalized_path = (
         file_path.replace("\\", "_").replace("/", "_").replace(".", "_")
     )
     normalized_symbol = symbol_path.replace(".", "_")
-    return f"{repository}_py_{normalized_path}__{normalized_symbol}"
+    return (
+        f"{repository}_py_{normalized_path}__{normalized_symbol}_"
+        f"{content_hash[:12]}"
+    )
 
 
 def _hash_source(source_code: str) -> str:
