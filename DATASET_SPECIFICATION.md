@@ -251,7 +251,7 @@ A **relevance relationship** maps queries to code units.
 
 ### 4.3 Semantic Labeling
 
-Semantic labels describe what each code unit does. They exist for all code units across all splits (train, validation, test). Labels are used for training data (code → description pairs) and as context for query generation.
+Semantic labels describe what each code unit does. They exist for all code units across all splits (train, validation, test). Labels are used for training data (code → description pairs). Retrieval queries (§4.4) are generated from source code only, without labels.
 
 **Human labeling process:**
 
