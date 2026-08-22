@@ -23,6 +23,11 @@ already-completed CodeUnit IDs, so an interrupted run can be resumed
 without duplicates. A torn trailing line from a mid-write crash is
 truncated at load time; corrupt or duplicated records abort the run.
 
+Concurrency: an output directory admits exactly one generation process.
+The run holds a fail-fast exclusive lock for its whole duration; a
+second invocation against the same directory exits immediately without
+touching artifacts or contacting Ollama (see run_lock.py).
+
 Usage:
     python scripts/generate_query_candidates.py
     python scripts/generate_query_candidates.py --limit 1 \
@@ -59,6 +64,10 @@ from localbench.workloads.code_retrieval.extraction import (
 from localbench.workloads.code_retrieval.query_generator import QueryGenerator
 from localbench.workloads.code_retrieval.query_prompt import (
     QUERY_PROMPT_TEMPLATE_VERSION,
+)
+from localbench.workloads.code_retrieval.run_lock import (
+    GenerationLockError,
+    generation_run_lock,
 )
 from localbench.workloads.code_retrieval.schemas import (
     CodeUnitContext,
@@ -710,24 +719,31 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     logger.info("Loaded %d test CodeUnits from %s", len(test_units), TEST_SPLIT_PATH)
 
-    if args.fresh:
-        for filename in (
-            _CANDIDATES_FILENAME,
-            _FAILURES_FILENAME,
-            _METADATA_FILENAME,
-        ):
-            artifact = args.output_dir / filename
-            if artifact.exists():
-                artifact.unlink()
-                logger.warning("Deleted existing artifact %s", artifact)
+    try:
+        with generation_run_lock(args.output_dir):
+            if args.fresh:
+                for filename in (
+                    _CANDIDATES_FILENAME,
+                    _FAILURES_FILENAME,
+                    _METADATA_FILENAME,
+                ):
+                    artifact = args.output_dir / filename
+                    if artifact.exists():
+                        artifact.unlink()
+                        logger.warning(
+                            "Deleted existing artifact %s", artifact
+                        )
 
-    return generate_all(
-        test_units=test_units,
-        output_dir=args.output_dir,
-        provider_failure_limit=args.provider_failure_limit,
-        update_meta=args.update_meta,
-        workers=max(1, args.workers),
-    )
+            return generate_all(
+                test_units=test_units,
+                output_dir=args.output_dir,
+                provider_failure_limit=args.provider_failure_limit,
+                update_meta=args.update_meta,
+                workers=max(1, args.workers),
+            )
+    except GenerationLockError as exc:
+        logger.error("%s", exc)
+        return 4
 
 
 if __name__ == "__main__":
