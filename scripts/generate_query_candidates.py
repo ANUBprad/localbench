@@ -670,6 +670,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Generate for only the first N test units (smoke testing).",
     )
     parser.add_argument(
+        "--test-split",
+        type=Path,
+        default=TEST_SPLIT_PATH,
+        help="Input split JSONL (defaults to the canonical test split); "
+        "used for controlled regeneration subsets.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=DATASET_ROOT / "queries",
@@ -711,13 +718,13 @@ def main(argv: list[str] | None = None) -> int:
 
     verify_input_blindness()
 
-    test_units = load_test_units(TEST_SPLIT_PATH)
+    test_units = load_test_units(args.test_split)
     if args.limit is not None:
         test_units = test_units[: args.limit]
     if not test_units:
-        logger.error("No test CodeUnits loaded from %s", TEST_SPLIT_PATH)
+        logger.error("No test CodeUnits loaded from %s", args.test_split)
         return 1
-    logger.info("Loaded %d test CodeUnits from %s", len(test_units), TEST_SPLIT_PATH)
+    logger.info("Loaded %d test CodeUnits from %s", len(test_units), args.test_split)
 
     try:
         with generation_run_lock(args.output_dir):
