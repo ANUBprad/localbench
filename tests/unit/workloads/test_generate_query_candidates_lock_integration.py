@@ -208,3 +208,32 @@ class TestResumeUnderLockIntegration:
         ).load()
         assert len(successful) == len(_UNITS)
         assert failed == []
+
+
+class TestInputSplitOverride:
+    def test_custom_test_split_generates_only_that_subset(self, harness):
+        subset_path = harness.tmp / "subset_split.jsonl"
+        subset_path.write_text(
+            json.dumps(_split_row("repo009", "gamma")) + "\n",
+            encoding="utf-8",
+        )
+        subset_out = harness.tmp / "subset-out"
+
+        exit_code = _run(
+            harness,
+            output_dir=subset_out,
+            extra_args=["--test-split", str(subset_path)],
+        )
+
+        assert exit_code == 0
+        assert [unit.symbol for unit in harness.state.generated] == ["gamma"]
+        successful, failed = CandidateStore(
+            subset_out / "candidates.jsonl",
+            subset_out / "candidate_failures.jsonl",
+        ).load()
+        assert [r["code_unit_id"] for r in successful] == [
+            _script._build_code_unit_id(
+                "repo009", "pkg/module.py", "gamma", "hash-repo009-gamma"
+            )
+        ]
+        assert failed == []
