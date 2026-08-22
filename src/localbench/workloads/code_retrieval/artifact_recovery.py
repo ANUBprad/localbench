@@ -282,3 +282,50 @@ def serialize_records(records: list[dict]) -> str:
         seen.add(unit_id)
         lines.append(json.dumps(record, ensure_ascii=False))
     return "".join(line + "\n" for line in lines)
+
+
+def build_conflict_report(
+    conflicts: list[Conflict],
+    candidates: list[dict],
+    failures: list[dict],
+) -> dict:
+    """Machine-readable audit of every CodeUnit excluded from recovery.
+
+    Preserves each original record belonging to a conflicted CodeUnit so
+    quarantine decisions remain auditable without consulting backups.
+    The content is fully deterministic — no wall-clock data and stable
+    ordering throughout — so re-deriving a report yields equal bytes.
+    """
+    conflicted_ids = sorted({conflict.code_unit_id for conflict in conflicts})
+    id_set = set(conflicted_ids)
+
+    def quarantined(records: list[dict]) -> list[dict]:
+        return sorted(
+            (
+                record
+                for record in records
+                if record["code_unit_id"] in id_set
+            ),
+            key=lambda record: (
+                record["code_unit_id"],
+                json.dumps(record, sort_keys=True),
+            ),
+        )
+
+    return {
+        "conflicted_unit_ids": conflicted_ids,
+        "conflicts": [
+            {
+                "kind": conflict.kind,
+                "code_unit_id": conflict.code_unit_id,
+                "detail": conflict.detail,
+            }
+            for conflict in sorted(
+                conflicts, key=lambda c: (c.kind, c.code_unit_id)
+            )
+        ],
+        "quarantined_records": {
+            "candidates": quarantined(candidates),
+            "failures": quarantined(failures),
+        },
+    }
