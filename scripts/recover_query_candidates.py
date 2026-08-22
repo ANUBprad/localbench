@@ -8,6 +8,11 @@ in ``localbench.workloads.code_retrieval.artifact_recovery``.
 Safety properties:
 - Read-only planning first: semantic candidate conflicts or ambiguous
   cross-file outcomes abort with exit code 2 and touch nothing.
+- With ``--isolate-conflicts REPORT_PATH`` the conflicted CodeUnits are
+  instead quarantined into a deterministic machine-readable report
+  (including their original records) and every remaining unit is
+  recovered. The report is written only after the artifacts were fully
+  replaced; an interrupted run is stopped by the existing backup guard.
 - Originals are copied to ``<name>.pre-recovery.bak`` before any
   change; an existing backup aborts instead of being overwritten.
 - Recovered content is written to temporary files in the same
@@ -18,11 +23,14 @@ Safety properties:
 Usage:
     python scripts/recover_query_candidates.py --dry-run
     python scripts/recover_query_candidates.py
+    python scripts/recover_query_candidates.py \
+        --isolate-conflicts dataset/queries/conflict_report.json
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import shutil
@@ -33,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from localbench.workloads.code_retrieval.artifact_recovery import (
     ArtifactRecoveryError,
+    build_conflict_report,
     cross_file_overview,
     file_stats,
     plan_recovery,
@@ -72,6 +81,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Plan and report only; never write.",
     )
+    parser.add_argument(
+        "--isolate-conflicts",
+        type=Path,
+        default=None,
+        metavar="REPORT_PATH",
+        help="Quarantine conflicted CodeUnits into REPORT_PATH and "
+        "recover all remaining units instead of refusing.",
+    )
     return parser.parse_args(argv)
 
 
@@ -93,7 +110,9 @@ def _validate_pair(candidates_path: Path, failures_path: Path) -> tuple[int, int
     return len(successful), len(failed)
 
 
-def recover(queries_dir: Path, dry_run: bool) -> int:
+def recover(
+    queries_dir: Path, dry_run: bool, isolate_report_path: Path | None = None
+) -> int:
     candidates_path = queries_dir / CANDIDATES_FILENAME
     failures_path = queries_dir / FAILURES_FILENAME
 
@@ -111,22 +130,34 @@ def recover(queries_dir: Path, dry_run: bool) -> int:
     )
 
     plan = plan_recovery(candidates, failures)
+    report_payload = None
     if not plan.recoverable:
-        logger.error(
-            "Recovery refused: %d unresolved conflict(s). Nothing was "
-            "written; decide each case explicitly before retrying:",
-            len(plan.conflicts),
-        )
-        for conflict in sorted(
-            plan.conflicts, key=lambda c: (c.kind, c.code_unit_id)
-        ):
+        if isolate_report_path is None:
             logger.error(
-                "  [%s] %s: %s",
-                conflict.kind,
-                conflict.code_unit_id,
-                conflict.detail,
+                "Recovery refused: %d unresolved conflict(s). Nothing was "
+                "written; decide each case explicitly before retrying:",
+                len(plan.conflicts),
             )
-        return EXIT_CONFLICTS
+            for conflict in sorted(
+                plan.conflicts, key=lambda c: (c.kind, c.code_unit_id)
+            ):
+                logger.error(
+                    "  [%s] %s: %s",
+                    conflict.kind,
+                    conflict.code_unit_id,
+                    conflict.detail,
+                )
+            return EXIT_CONFLICTS
+        logger.warning(
+            "Isolating %d conflicted CodeUnit(s); recovering the "
+            "remaining %d candidate / %d failure units",
+            len(plan.conflicts),
+            len(plan.candidates),
+            len(plan.failures),
+        )
+        report_payload = build_conflict_report(
+            plan.conflicts, candidates, failures
+        )
 
     new_candidates = serialize_records(plan.candidates)
     new_failures = serialize_records(plan.failures)
@@ -161,7 +192,17 @@ def recover(queries_dir: Path, dry_run: bool) -> int:
         len(plan.superseded),
     )
     if dry_run:
-        logger.info("Dry run: no files were modified.")
+        if report_payload is not None:
+            logger.info(
+                "Dry run: %d conflicted unit(s) with %d original record(s) "
+                "would be quarantined to %s; no files were modified.",
+                len(report_payload["conflicted_unit_ids"]),
+                len(report_payload["quarantined_records"]["candidates"])
+                + len(report_payload["quarantined_records"]["failures"]),
+                isolate_report_path,
+            )
+        else:
+            logger.info("Dry run: no files were modified.")
         return EXIT_OK
 
     for artifact in (candidates_path, failures_path):
@@ -203,13 +244,25 @@ def recover(queries_dir: Path, dry_run: bool) -> int:
         final_success,
         final_failed,
     )
+
+    if report_payload is not None:
+        report_temp = _write_temp(
+            isolate_report_path,
+            json.dumps(report_payload, indent=2, ensure_ascii=False) + "\n",
+        )
+        os.replace(report_temp, isolate_report_path)
+        logger.info(
+            "Conflict report for %d quarantined CodeUnit(s) written to %s",
+            len(report_payload["conflicted_unit_ids"]),
+            isolate_report_path,
+        )
     return EXIT_OK
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        return recover(args.queries_dir, args.dry_run)
+        return recover(args.queries_dir, args.dry_run, args.isolate_conflicts)
     except ArtifactRecoveryError as exc:
         logger.error("%s", exc)
         return EXIT_ERROR
