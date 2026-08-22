@@ -40,6 +40,7 @@ import os
 import sys
 import time
 from collections import Counter
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -382,16 +383,31 @@ def discover_model_metadata(adapter: OllamaAdapter) -> dict:
     return {}
 
 
+def _generate_one(
+    generator: QueryGenerator, unit: ExtractedCodeUnit
+) -> CandidateAuditRecord:
+    """Generate one candidate record (thread-safe: no shared mutation)."""
+    unit_id = _unit_id(unit)
+    result = generator.generate(unit)
+    return _build_record(
+        unit_id, result, datetime.now(timezone.utc).isoformat()
+    )
+
+
 def generate_all(
     test_units: list[ExtractedCodeUnit],
     output_dir: Path,
     provider_failure_limit: int,
     update_meta: bool,
+    workers: int = 1,
 ) -> int:
     """Run candidate generation for every pending test unit.
 
     Completed units (success or failure) are appended to the JSONL
-    artifacts immediately and skipped on restart.
+    artifacts immediately and skipped on restart. With ``workers > 1``
+    inference runs on a thread pool while persistence stays serialized
+    on this thread; record content per CodeUnit is identical for any
+    worker count (only append order varies).
     """
     started = time.perf_counter()
 
@@ -427,64 +443,90 @@ def generate_all(
     fresh_failed: list[CandidateAuditRecord] = []
     consecutive_provider_failures = 0
     exit_code = 0
+    processed = 0
 
     try:
-        for index, unit in enumerate(pending, 1):
-            unit_id = _unit_id(unit)
-            result = generator.generate(unit)
-            record = _build_record(
-                unit_id, result, datetime.now(timezone.utc).isoformat()
-            )
-            record_dict = asdict(record)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(_generate_one, generator, unit): unit
+                for unit in pending
+            }
+            outstanding = set(futures)
+            aborted = False
 
-            if record.success:
-                store.append_success(record_dict)
-                fresh_success.append(record)
-                consecutive_provider_failures = 0
-            else:
-                store.append_failure(record_dict)
-                fresh_failed.append(record)
-                logger.warning(
-                    "[%d/%d] FAILED %s (%s): %s",
-                    index,
-                    len(pending),
-                    unit_id,
-                    record.failure_category,
-                    record.failure_reason,
+            while outstanding:
+                done, outstanding = wait(
+                    outstanding, return_when=FIRST_COMPLETED
                 )
-                if record.failure_category in _PROVIDER_FAILURE_CATEGORIES:
-                    consecutive_provider_failures += 1
-                else:
-                    consecutive_provider_failures = 0
+                for future in done:
+                    record = future.result()
+                    record_dict = asdict(record)
+                    processed += 1
 
-            if consecutive_provider_failures >= provider_failure_limit:
-                logger.error(
-                    "Aborting after %d consecutive provider failures; "
-                    "Ollama appears to be down. All completed records "
-                    "are already persisted — rerun to resume.",
-                    consecutive_provider_failures,
-                )
-                exit_code = 3
-                break
+                    if record.success:
+                        store.append_success(record_dict)
+                        fresh_success.append(record)
+                        consecutive_provider_failures = 0
+                    else:
+                        store.append_failure(record_dict)
+                        fresh_failed.append(record)
+                        logger.warning(
+                            "[%d/%d] FAILED %s (%s): %s",
+                            processed,
+                            len(pending),
+                            record.code_unit_id,
+                            record.failure_category,
+                            record.failure_reason,
+                        )
+                        if (
+                            record.failure_category
+                            in _PROVIDER_FAILURE_CATEGORIES
+                        ):
+                            consecutive_provider_failures += 1
+                        else:
+                            consecutive_provider_failures = 0
 
-            if index % PROGRESS_LOG_INTERVAL == 0 or index == len(pending):
-                elapsed = time.perf_counter() - started
-                rate = index / elapsed if elapsed > 0 else 0.0
-                eta_minutes = (
-                    ((len(pending) - index) / rate / 60) if rate > 0 else 0.0
-                )
-                logger.info(
-                    "[%d/%d] completed=%d ok=%d failed=%d remaining=%d | "
-                    "%.1f units/min | ETA %.0f min",
-                    index,
-                    len(pending),
-                    len(completed) + index,
-                    len(resumed_success) + len(fresh_success),
-                    len(resumed_failed) + len(fresh_failed),
-                    len(pending) - index,
-                    rate * 60,
-                    eta_minutes,
-                )
+                    if (
+                        not aborted
+                        and consecutive_provider_failures
+                        >= provider_failure_limit
+                    ):
+                        logger.error(
+                            "Aborting after %d consecutive provider "
+                            "failures; Ollama appears to be down. All "
+                            "completed records are already persisted — "
+                            "rerun to resume.",
+                            consecutive_provider_failures,
+                        )
+                        aborted = True
+                        exit_code = 3
+                        for queued in outstanding:
+                            queued.cancel()
+
+                    if (
+                        index := processed
+                    ) % PROGRESS_LOG_INTERVAL == 0 or processed == len(
+                        pending
+                    ):
+                        elapsed = time.perf_counter() - started
+                        rate = index / elapsed if elapsed > 0 else 0.0
+                        eta_minutes = (
+                            ((len(pending) - index) / rate / 60)
+                            if rate > 0
+                            else 0.0
+                        )
+                        logger.info(
+                            "[%d/%d] completed=%d ok=%d failed=%d "
+                            "remaining=%d | %.1f units/min | ETA %.0f min",
+                            index,
+                            len(pending),
+                            len(completed) + index,
+                            len(resumed_success) + len(fresh_success),
+                            len(resumed_failed) + len(fresh_failed),
+                            len(pending) - index,
+                            rate * 60,
+                            eta_minutes,
+                        )
     finally:
         store.close()
         adapter.close()
@@ -641,6 +683,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Delete existing candidate artifacts in the output "
         "directory before generating (otherwise resume).",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Concurrent inference requests (persistence stays "
+        "serialized; record content is worker-count independent).",
+    )
     return parser.parse_args(argv)
 
 
@@ -677,6 +726,7 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         provider_failure_limit=args.provider_failure_limit,
         update_meta=args.update_meta,
+        workers=max(1, args.workers),
     )
 
 
