@@ -12,6 +12,7 @@ import pytest
 
 from localbench.workloads.code_retrieval.artifact_recovery import (
     ArtifactRecoveryError,
+    build_conflict_report,
     cross_file_overview,
     file_stats,
     plan_recovery,
@@ -264,6 +265,58 @@ class TestStatsAndOverview:
         assert overview["verdicts"]["x"] == "success_is_later"
 
 
+class TestBuildConflictReport:
+    def test_report_lists_conflicts_and_all_original_records(self):
+        dup_a = success("u1", "2026-08-22T01:00:00+00:00", query="X")
+        dup_b = success("u1", "2026-08-22T02:00:00+00:00", query="Y")
+        clean = success("u2", "2026-08-22T03:00:00+00:00")
+        report = build_conflict_report(
+            plan_recovery([dup_a, dup_b, clean], []).conflicts,
+            [dup_a, dup_b, clean],
+            [],
+        )
+        assert report["conflicted_unit_ids"] == ["u1"]
+        assert report["conflicts"][0]["kind"] == "semantic_candidate_conflict"
+        quarantined = report["quarantined_records"]
+        assert quarantined["candidates"] == [dup_a, dup_b]
+        assert quarantined["failures"] == []
+
+    def test_quarantine_includes_cross_file_failure_history(self):
+        victory = success("u3", "2026-08-22T05:50:46+00:00")
+        regression = failure("u3", "2026-08-22T05:51:35+00:00")
+        report = build_conflict_report(
+            plan_recovery([victory], [regression]).conflicts,
+            [victory],
+            [regression],
+        )
+        assert report["conflicted_unit_ids"] == ["u3"]
+        assert (
+            report["quarantined_records"]["candidates"] == [victory]
+            and report["quarantined_records"]["failures"] == [regression]
+        )
+
+    def test_report_bytes_are_independent_of_input_order(self):
+        records_c = [
+            success("b", "t2"),
+            success("a", "t2", query="X"),
+            success("a", "t1", query="Y"),
+        ]
+        rng = random.Random(5)
+        reference = None
+        for _ in range(5):
+            shuffled = records_c[:]
+            rng.shuffle(shuffled)
+            payload = json.dumps(
+                build_conflict_report(
+                    plan_recovery(shuffled, []).conflicts, shuffled, []
+                ),
+                sort_keys=True,
+            )
+            if reference is None:
+                reference = payload
+            assert payload == reference
+
+
 def _write_pair(directory: Path, candidates, failures) -> tuple[Path, Path]:
     cand_path = directory / "candidates.jsonl"
     fail_path = directory / "candidate_failures.jsonl"
@@ -372,3 +425,86 @@ class TestRecoveryScript:
         original = (corrupted_dir / "candidates.jsonl").read_bytes()
         assert self._run(corrupted_dir) == _script.EXIT_ERROR
         assert (corrupted_dir / "candidates.jsonl").read_bytes() == original
+
+
+class TestIsolationMode:
+    @pytest.fixture
+    def conflicted_dir(self, tmp_path):
+        directory = tmp_path / "queries"
+        directory.mkdir()
+        _write_pair(
+            directory,
+            [
+                success("u_ok", "2026-08-22T01:00:00+00:00"),
+                success("u_ok", "2026-08-22T02:00:00+00:00"),
+                success("u_sem", "2026-08-22T01:00:00+00:00", query="X"),
+                success("u_sem", "2026-08-22T02:00:00+00:00", query="Y"),
+                success("u_reg", "2026-08-22T05:00:00+00:00"),
+            ],
+            [failure("u_reg", "2026-08-22T06:00:00+00:00")],
+        )
+        return directory
+
+    def _run(self, directory, *extra_args):
+        return _script.main(
+            ["--queries-dir", str(directory), *extra_args]
+        )
+
+    def test_without_flag_conflicts_still_refuse_the_run(
+        self, conflicted_dir
+    ):
+        before = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        assert self._run(conflicted_dir) == 2
+        after = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        assert after == before
+
+    def test_isolation_recovers_clean_units_and_quarantines_rest(
+        self, conflicted_dir, tmp_path
+    ):
+        report_path = tmp_path / "conflict_report.json"
+        assert (
+            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
+            == 0
+        )
+        successful, failed = CandidateStore(
+            conflicted_dir / "candidates.jsonl",
+            conflicted_dir / "candidate_failures.jsonl",
+        ).load()
+        assert [r["code_unit_id"] for r in successful] == ["u_ok"]
+        assert failed == []
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        assert payload["conflicted_unit_ids"] == ["u_reg", "u_sem"]
+        quarantined = payload["quarantined_records"]
+        assert len(quarantined["candidates"]) == 3
+        assert len(quarantined["failures"]) == 1
+        assert (conflicted_dir / "candidates.jsonl.pre-recovery.bak").exists()
+
+    def test_isolation_rerun_is_a_noop(self, conflicted_dir, tmp_path):
+        report_path = tmp_path / "conflict_report.json"
+        assert (
+            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
+            == 0
+        )
+        snapshot = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        report_bytes = report_path.read_bytes()
+        assert (
+            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
+            == 0
+        )
+        after = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        assert after == snapshot
+        assert report_path.read_bytes() == report_bytes
+
+    def test_isolation_dry_run_writes_nothing(self, conflicted_dir, tmp_path):
+        before = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        assert (
+            self._run(
+                conflicted_dir,
+                "--dry-run",
+                "--isolate-conflicts",
+                str(tmp_path / "report.json"),
+            )
+            == 0
+        )
+        after = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
+        assert after == before
