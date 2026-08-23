@@ -97,13 +97,13 @@ def build_eligible_pool(
 def pool_hash(ordered_candidates: Sequence[dict[str, Any]]) -> str:
     """SHA-256 of the canonical pool representation (frozen serialization).
 
-    Records are serialized with ``sort_keys=True``, ``separators=(",", ":")``,
-    ``ensure_ascii=False``, joined with ``"\\n"``, UTF-8 encoded; no trailing
-    newline participates.
+    Records are sorted by ``code_unit_id`` ascending, serialized with
+    ``sort_keys=True``, ``separators=(",", ":")``, ``ensure_ascii=False``,
+    joined with ``"\\n"``, UTF-8 encoded; no trailing newline participates.
     """
     payload = "\n".join(
         json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        for candidate in ordered_candidates
+        for candidate in sorted(ordered_candidates, key=lambda c: c["code_unit_id"])
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
