@@ -63,7 +63,7 @@ def _load_jsonl(path: Path) -> list[dict]:
 
 
 def _split_ids(name: str) -> set[str]:
-    return {record["code_unit_id"] for record in _load_jsonl(SPLITS_DIR / name)}
+    return {record["id"] for record in _load_jsonl(SPLITS_DIR / name)}
 
 
 def main() -> int:
@@ -78,9 +78,7 @@ def main() -> int:
     logger.info("loaded %d candidate records", len(candidates))
     train_ids = _split_ids("train.jsonl")
     validation_ids = _split_ids("validation.jsonl")
-    test_records = {
-        r["code_unit_id"]: r for r in _load_jsonl(SPLITS_DIR / "test.jsonl")
-    }
+    test_records = {r["id"]: r for r in _load_jsonl(SPLITS_DIR / "test.jsonl")}
     logger.info(
         "splits: train=%d validation=%d test=%d",
         len(train_ids),
