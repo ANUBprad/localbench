@@ -426,6 +426,8 @@ Human review is mandatory before final query selection (§4.4 step 4). The revie
 
 **Status:** Frozen methodology resolution (Phase 4F-I-C1, 2026-08-23). Codifies the §4.4.2 requirement ("deterministically … using seed=42") into an exact, reproducible algorithm. Selection remains benchmark-blind per §4.4.4.
 
+**Approved amendment (Phase 4F-I-C2 preparation, 2026-08-23):** human-review scope is changed from *all eligible candidates* to *the selected 45*. This subsection supersedes the review-before-selection ordering shown in the §4.4.2 pipeline diagram; all other §4.4–§4.5 provisions are unaffected. No new selection balancing criteria are introduced.
+
 **Eligible pool.** A candidate enters the eligible pool only if all of the following hold:
 
 1. Structured/schema validation passed.
@@ -474,7 +476,34 @@ This is uniform sampling without replacement. Because IDs are unique and the ord
 
 Selected IDs are recorded explicitly so the artifact is independently auditable. The record must NOT contain benchmark metrics, model rankings, Hit@K/MRR/latency values, or ground-truth relevance.
 
-**Human-review scope.** The documented procedure remains review-all-before-selection (§4.4.2, §4.4.4): every candidate in the eligible pool is reviewed before the deterministic draw. At the 2026-08-23 artifact state the automated-pass pool holds 2,077 candidates (versus the original 113-unit planning figure), so full pre-selection review is a substantial manual effort. Any scope reduction (for example, reviewing only the eventual 45) requires an explicit, documented amendment BEFORE selection executes; no such amendment is currently approved.
+**Human-review scope — approved amendment (2026-08-23).** The review-all-before-selection requirement predates the corpus expansion (planned ≈113 test CodeUnits versus the actual 2,493 canonical test units / 2,077 eligible candidates). An explicit, approved methodology amendment moves benchmark-blind human review from all eligible candidates to the deterministically selected 45. This preserves benchmark blindness, human validation before evaluation-set freeze, deterministic selection, seed=42, zero benchmark influence, zero ground-truth influence, the automated leakage/schema gates, and reproducibility; only the operational review scope changes.
+
+**Updated pipeline (normative).**
+
+```
+generation
+→ automated eligibility
+→ deterministic selection of 45
+→ benchmark-blind human review of the selected 45
+→ freeze
+→ ground truth
+```
+
+**Reviewer visibility (selected-45 review).** The reviewer sees only the 45 selected candidate queries, each with its target CodeUnit source and permitted context, plus the automated validation results. The reviewer must NOT see Hit@K, MRR, latency, benchmark rankings, benchmark model outputs, ground-truth relevance, or any other benchmark performance information (consistent with §4.4.4). The six acceptance criteria of §4.4.4 apply unchanged. Freeze and ground-truth labeling (§4.5) proceed only after all 45 are accepted.
+
+**Rejection handling.** A selected candidate rejected during review is never replaced by a manually chosen candidate. The existing frozen policy governs: rejection triggers bounded regeneration attempts under §4.4.3, reviewed under §4.4.4 criteria. An accepted replacement enters the eligible pool only after passing the automated gates, after which selection is re-executed deterministically per this subsection against the updated eligible pool — canonical order and seed unchanged. Prior selection records are retained unmodified so the complete audit history survives.
+
+**Eligible-pool hash serialization (normative).** `eligible_pool_sha256` in the selection record is computed over the canonical eligible-pool representation as follows:
+
+1. Filter to eligible successful terminal candidates (conditions above).
+2. Sort by `code_unit_id` ascending.
+3. Serialize each complete canonical candidate record as JSON with `sort_keys=True`, `separators=(",", ":")`, `ensure_ascii=False`.
+4. Join the serialized records with `"\n"`.
+5. Encode the joined string as UTF-8.
+6. Compute SHA-256 over those bytes.
+7. No trailing newline participates in the hash.
+
+The hash must NOT include timestamps, filesystem ordering, benchmark information, human-review information, ground truth, or selection results.
 
 ---
 
