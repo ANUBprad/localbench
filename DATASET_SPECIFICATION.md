@@ -422,6 +422,62 @@ Human review is mandatory before final query selection (§4.4 step 4). The revie
 
 ---
 
+### 4.4.5 Final-45 Selection Procedure
+
+**Status:** Frozen methodology resolution (Phase 4F-I-C1, 2026-08-23). Codifies the §4.4.2 requirement ("deterministically … using seed=42") into an exact, reproducible algorithm. Selection remains benchmark-blind per §4.4.4.
+
+**Eligible pool.** A candidate enters the eligible pool only if all of the following hold:
+
+1. Structured/schema validation passed.
+2. Leakage screening passed (`check_query_leakage`).
+3. Non-trivial-query check passed (query text non-empty).
+4. The target CodeUnit belongs to the canonical test split.
+5. Its `code_unit_id` is unique within the pool.
+
+Failure records are never eligible. If any duplicate `code_unit_id` is encountered during selection, selection aborts with an error; duplicates are never silently resolved.
+
+**Canonical order.** The eligible pool is sorted by `code_unit_id` ascending using Python string ordering. This sorted sequence is the sole input order to sampling.
+
+**PRNG.** Python standard-library `random.Random(42)`. No NumPy RNG, hash randomization, system entropy, timestamps, or unordered-set iteration may influence selection.
+
+**Sampling.** Exactly 45 candidates are drawn with:
+
+```python
+random.Random(42).sample(ordered_eligible_candidates, 45)
+```
+
+This is uniform sampling without replacement. Because IDs are unique and the ordering is canonical, no secondary tie-break rule is required.
+
+**Prohibited influences.** No repository quotas, no query-style quotas, no symbol-type quotas, no length quotas, no manually chosen candidates, and no observation of benchmark results or model performance. Resulting repository/style distributions are observations recorded after the draw, never constraints.
+
+**Selection record.** Every selection execution writes a reproducible record containing at minimum:
+
+```json
+{
+  "selection_version": "<string>",
+  "seed": 42,
+  "prng": "python.random.Random",
+  "python_version": "<runtime version>",
+  "sampling_method": "sample_without_replacement",
+  "canonical_order": "code_unit_id_lexicographic_ascending",
+  "eligible_candidate_count": 0,
+  "eligible_pool_sha256": "<sha256>",
+  "selected_count": 45,
+  "selected_code_unit_ids": ["<id>", "..."],
+  "selected_candidate_ids": ["<id>", "..."],
+  "selected_repository_distribution": {"<repo>": <int>},
+  "selected_query_style_distribution": {"<style>": <int>},
+  "generation_source_commit": "<commit>",
+  "selection_created_utc": "<iso8601>"
+}
+```
+
+Selected IDs are recorded explicitly so the artifact is independently auditable. The record must NOT contain benchmark metrics, model rankings, Hit@K/MRR/latency values, or ground-truth relevance.
+
+**Human-review scope.** The documented procedure remains review-all-before-selection (§4.4.2, §4.4.4): every candidate in the eligible pool is reviewed before the deterministic draw. At the 2026-08-23 artifact state the automated-pass pool holds 2,077 candidates (versus the original 113-unit planning figure), so full pre-selection review is a substantial manual effort. Any scope reduction (for example, reviewing only the eventual 45) requires an explicit, documented amendment BEFORE selection executes; no such amendment is currently approved.
+
+---
+
 ### 4.5 Ground-Truth Labeling
 
 **Timing:** Ground-truth relevance assignment occurs **after** final query selection and freeze. Never before.
