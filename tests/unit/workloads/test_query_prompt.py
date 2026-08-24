@@ -56,7 +56,7 @@ class TestQueryPromptTemplateVersion:
         assert len(parts) == 3
 
     def test_version_value(self) -> None:
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "1.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "1.1.0"
 
 
 # ===========================================================================
@@ -81,6 +81,19 @@ class TestGetQuerySystemPrompt:
         assert "Do NOT include" in prompt
         assert "file paths" in prompt
         assert "function names" in prompt
+
+    def test_mentions_critical_anti_leakage(self) -> None:
+        prompt = get_query_system_prompt()
+        assert "CRITICAL" in prompt
+        assert "ANTI-LEAKAGE" in prompt
+
+    def test_mentions_never_use_class_names(self) -> None:
+        prompt = get_query_system_prompt()
+        assert "NEVER use class names" in prompt
+
+    def test_mentions_describe_behavior(self) -> None:
+        prompt = get_query_system_prompt()
+        assert "Describe WHAT the code does" in prompt
 
     def test_deterministic(self) -> None:
         assert get_query_system_prompt() == get_query_system_prompt()
@@ -188,3 +201,11 @@ class TestBuildQueryGenerationPrompt:
     def test_no_embedding_mention(self) -> None:
         prompt = build_query_generation_prompt(_make_input())
         assert "embedding" not in prompt.lower()
+
+    def test_user_template_has_reminder(self) -> None:
+        prompt = build_query_generation_prompt(_make_input())
+        assert "REMINDER: Do NOT use any class names" in prompt
+
+    def test_user_template_reminds_behavior(self) -> None:
+        prompt = build_query_generation_prompt(_make_input())
+        assert "Describe the behavior in plain language only" in prompt
