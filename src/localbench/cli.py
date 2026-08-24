@@ -1,5 +1,8 @@
 """Command-line interface for LocalBench."""
 
+import json
+from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -132,6 +135,171 @@ def ask(
         raise typer.Exit(1) from exc
     finally:
         adapter.close()
+
+
+review_app = typer.Typer(help="Human review workflow for the selected 45 queries.")
+app.add_typer(review_app, name="review")
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REVIEW_ARTIFACT_PATH = REPO_ROOT / "dataset" / "queries" / "review_artifact.json"
+SELECTION_PATH = REPO_ROOT / "dataset" / "queries" / "final_45_selection.json"
+CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates.jsonl"
+TEST_SPLIT_PATH = REPO_ROOT / "dataset" / "splits" / "test.jsonl"
+TRAIN_SPLIT_PATH = REPO_ROOT / "dataset" / "splits" / "train.jsonl"
+VALIDATION_SPLIT_PATH = REPO_ROOT / "dataset" / "splits" / "validation.jsonl"
+
+
+def _load_jsonl(path: Path) -> list[dict]:
+    records = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                records.append(json.loads(line))
+    return records
+
+
+@review_app.command("build")
+def review_build() -> None:
+    """Build the benchmark-blind review artifact for the selected 45."""
+    from localbench.workloads.code_retrieval.review import (
+        ReviewArtifactError,
+        build_review_artifact,
+        validate_review_artifact,
+    )
+
+    console.print("Loading selection record …")
+    with open(SELECTION_PATH, encoding="utf-8") as f:
+        selection_record = json.load(f)
+
+    console.print("Loading candidates …")
+    all_candidates = _load_jsonl(CANDIDATES_PATH)
+    candidates_by_id = {c["candidate_id"]: c for c in all_candidates}
+
+    console.print("Loading test CodeUnits …")
+    test_units = _load_jsonl(TEST_SPLIT_PATH)
+    units_by_id = {u["id"]: u for u in test_units}
+    test_code_unit_ids = {u["id"] for u in test_units}
+
+    console.print("Loading train/val CodeUnits for leakage check …")
+    train_units = _load_jsonl(TRAIN_SPLIT_PATH) if TRAIN_SPLIT_PATH.exists() else []
+    validation_units = (
+        _load_jsonl(VALIDATION_SPLIT_PATH) if VALIDATION_SPLIT_PATH.exists() else []
+    )
+    train_ids = {u["id"] for u in train_units}
+    validation_ids = {u["id"] for u in validation_units}
+
+    console.print("Building review artifact …")
+    try:
+        artifact = build_review_artifact(
+            selection_record=selection_record,
+            candidates_by_id=candidates_by_id,
+            units_by_id=units_by_id,
+            test_code_unit_ids=test_code_unit_ids,
+            train_code_unit_ids=train_ids,
+            validation_code_unit_ids=validation_ids,
+        )
+    except ReviewArtifactError as exc:
+        console.print(f"[red]ERROR:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print("Validating review artifact …")
+    errors = validate_review_artifact(artifact)
+    if errors:
+        for err in errors:
+            console.print(f"  [red]VIOLATION:[/red] {err}")
+        raise typer.Exit(1)
+
+    REVIEW_ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(REVIEW_ARTIFACT_PATH, "w", encoding="utf-8") as f:
+        json.dump(artifact, f, indent=2, ensure_ascii=False)
+
+    console.print(f"[green]Review artifact written to {REVIEW_ARTIFACT_PATH}[/green]")
+    console.print(f"  Items: {len(artifact['items'])}")
+    all_pending = all(
+        item["review"]["state"] == "pending" for item in artifact["items"]
+    )
+    console.print(f"  All pending: {all_pending}")
+
+
+@review_app.command("status")
+def review_status() -> None:
+    """Show review progress for the selected 45."""
+    from localbench.workloads.code_retrieval.review import review_progress
+
+    if not REVIEW_ARTIFACT_PATH.exists():
+        msg = "No review artifact found. Run 'localbench review build' first."
+        console.print(f"[yellow]{msg}[/yellow]")
+        raise typer.Exit(1)
+
+    with open(REVIEW_ARTIFACT_PATH, encoding="utf-8") as f:
+        artifact = json.load(f)
+
+    progress = review_progress(artifact)
+    table = Table(title="Review Progress")
+    table.add_column("State", style="cyan")
+    table.add_column("Count", justify="right")
+    for state in ("pending", "accepted", "rejected"):
+        table.add_row(state, str(progress[state]))
+    table.add_row("total", str(progress["total"]))
+    console.print(table)
+
+
+@review_app.command("show")
+def review_show(
+    position: int = typer.Argument(..., help="Item position (1-45)."),
+) -> None:
+    """Display a single review item for human inspection."""
+    if not REVIEW_ARTIFACT_PATH.exists():
+        msg = "No review artifact found. Run 'localbench review build' first."
+        console.print(f"[yellow]{msg}[/yellow]")
+        raise typer.Exit(1)
+
+    with open(REVIEW_ARTIFACT_PATH, encoding="utf-8") as f:
+        artifact = json.load(f)
+
+    if position < 1 or position > len(artifact["items"]):
+        console.print(f"[red]Position must be 1–{len(artifact['items'])}[/red]")
+        raise typer.Exit(1)
+
+    item = artifact["items"][position - 1]
+    target = item["target"]
+    review = item["review"]
+
+    console.print(f"[bold]Item {item['position']} of {len(artifact['items'])}[/bold]")
+    console.print(f"  Candidate ID:  {item['candidate_id']}")
+    console.print(f"  Code Unit ID:  {item['code_unit_id']}")
+    console.print(f"  Query Style:   {item['query_style']}")
+    console.print(f"  Query Intent:  {item['query_intent']}")
+    console.print()
+    console.print("[bold cyan]Query:[/bold cyan]")
+    console.print(f"  {item['query']}")
+    console.print()
+    console.print("[bold cyan]Target CodeUnit:[/bold cyan]")
+    console.print(f"  Repository:    {target['repository']}")
+    console.print(f"  File:          {target['file_path']}")
+    console.print(f"  Symbol:        {target['symbol']}")
+    console.print(f"  Symbol Type:   {target['symbol_type']}")
+    if target.get("docstring"):
+        console.print(f"  Docstring:     {target['docstring']}")
+    console.print()
+    console.print("[bold cyan]Source Code:[/bold cyan]")
+    console.print(target["source_code"])
+    console.print()
+    av = item["automated_validation"]
+    console.print(
+        f"[bold cyan]Automated Validation:[/bold cyan] "
+        f"schema={'PASS' if av['validation_passed'] else 'FAIL'}, "
+        f"leakage={'PASS' if av['leakage_passed'] else 'FAIL'}"
+    )
+    console.print()
+    state_color = {"pending": "yellow", "accepted": "green", "rejected": "red"}
+    color = state_color.get(review["state"], "white")
+    state_str = review["state"]
+    console.print(f"[bold]Review State:[/bold] [{color}]{state_str}[/{color}]")
+    if review.get("notes"):
+        console.print(f"  Notes: {review['notes']}")
 
 
 if __name__ == "__main__":
