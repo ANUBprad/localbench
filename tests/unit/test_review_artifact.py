@@ -44,7 +44,14 @@ def selection_record() -> dict:
 
 @pytest.fixture(scope="module")
 def candidates_by_id() -> dict[str, dict]:
-    return {c["candidate_id"]: c for c in _load_jsonl(CANDIDATES_PATH)}
+    by_id: dict[str, dict] = {}
+    for c in _load_jsonl(CANDIDATES_PATH):
+        by_id[c["candidate_id"]] = c
+    v2_path = REPO_ROOT / "dataset" / "queries" / "candidates_v2.jsonl"
+    if v2_path.exists():
+        for c in _load_jsonl(v2_path):
+            by_id[c["candidate_id"]] = c
+    return by_id
 
 
 @pytest.fixture(scope="module")
