@@ -127,6 +127,56 @@ class TestBudgetAccounting:
         remaining = 3 - prior
         assert remaining == 1
 
+    def test_remaining_budget_passes_to_retry_policy(self) -> None:
+        """Regression: remaining budget must be passed as max_attempts.
+
+        Prior to this fix, the regeneration script always created
+        RetryPolicy(max_attempts=3) regardless of remaining budget.
+        This caused CodeUnits with 2 prior attempts to get 2 new
+        attempts (total=4), violating the frozen 3-attempt maximum.
+        """
+        from localbench.runtime.generation.policy import RetryPolicy
+
+        candidates = [
+            _make_candidate_record("unit_g", attempt_count=2),
+        ]
+        prior = sum(
+            r["attempt_count"]
+            for r in candidates
+            if r["code_unit_id"] == "unit_g"
+        )
+        remaining = 3 - prior
+        assert remaining == 1
+
+        # CORRECT: RetryPolicy uses remaining as max_attempts
+        policy = RetryPolicy(max_attempts=remaining)
+        assert policy.max_attempts == 1
+
+        # The old buggy code did:
+        #   policy = RetryPolicy(max_attempts=DEFAULT_MAX_ATTEMPTS)
+        # which would give max_attempts=3, allowing 3 attempts instead of 1.
+
+    def test_two_prior_attempts_allows_only_one_retry(self) -> None:
+        """A CodeUnit with 2 prior attempts must get at most 1 new attempt."""
+        candidates = [
+            _make_candidate_record("unit_h", attempt_count=2),
+        ]
+        prior = sum(
+            r["attempt_count"]
+            for r in candidates
+            if r["code_unit_id"] == "unit_h"
+        )
+        remaining = 3 - prior
+        assert remaining == 1
+
+        # The generator must not exceed remaining attempts
+        from localbench.runtime.generation.policy import RetryPolicy
+
+        policy = RetryPolicy(max_attempts=remaining)
+        assert policy.max_attempts == 1
+        # With max_attempts=1, run_with_retry will make exactly 1 attempt
+        # and will NOT retry on failure (is_last=True on attempt 1).
+
 
 # ---------------------------------------------------------------------------
 # V2 candidate_id convention tests

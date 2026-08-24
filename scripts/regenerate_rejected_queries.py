@@ -222,9 +222,6 @@ def regenerate(
     store = CandidateStore(V2_CANDIDATES_PATH, V2_FAILURES_PATH)
     store.load()
 
-    policy = RetryPolicy(max_attempts=MAX_ATTEMPTS)
-    generator = QueryGenerator(model=adapter, policy=policy, top_p=TOP_P, seed=SEED)
-
     new_success = 0
     new_failed = 0
     budget_violations = []
@@ -241,6 +238,10 @@ def regenerate(
                 "Regenerating %s (remaining=%d)...", uid, remaining
             )
 
+            policy = RetryPolicy(max_attempts=remaining)
+            generator = QueryGenerator(
+                model=adapter, policy=policy, top_p=TOP_P, seed=SEED,
+            )
             result = generator.generate(eu)
             success = result.success and result.candidate is not None
 
