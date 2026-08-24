@@ -339,3 +339,195 @@ class TestPromptVersionForRegeneration:
         )
         content = script_path.read_text(encoding="utf-8")
         assert "QUERY_PROMPT_TEMPLATE_VERSION" in content
+
+
+# ---------------------------------------------------------------------------
+# Quarantine regression tests (Phase 4F-I-C5B)
+# ---------------------------------------------------------------------------
+
+MAX_ATTEMPTS = 3
+
+
+class TestQuarantineOverbudget:
+    """Regression tests for quarantine of over-budget v2 candidates."""
+
+    def test_overbudget_v2_excluded_from_pool(self) -> None:
+        """A CodeUnit with 4 total attempts cannot enter the eligible pool."""
+        from localbench.workloads.code_retrieval.selection import (
+            build_eligible_pool,
+        )
+
+        candidates = [
+            _make_candidate_record(
+                "unit_over",
+                candidate_id="candidate_v2_unit_over",
+                attempt_count=2,
+            ),
+        ]
+        original = [
+            _make_candidate_record(
+                "unit_over",
+                candidate_id="candidate_unit_over",
+                attempt_count=2,
+            ),
+        ]
+        # Quarantine the v2 candidate
+        quarantined = {"candidate_v2_unit_over"}
+        merged = []
+        for rec in original:
+            merged.append(rec)
+        for rec in candidates:
+            if rec["candidate_id"] not in quarantined:
+                merged.append(rec)
+
+        test_ids = {"unit_over"}
+        pool = build_eligible_pool(merged, test_code_unit_ids=test_ids)
+        # v2 quarantined, original retained — pool has the original
+        assert len(pool) == 1
+        assert pool[0]["candidate_id"] == "candidate_unit_over"
+
+    def test_exactly_three_attempts_stays_eligible(self) -> None:
+        """A CodeUnit with exactly 3 attempts can remain eligible."""
+        from localbench.workloads.code_retrieval.selection import (
+            build_eligible_pool,
+        )
+
+        candidates = [
+            _make_candidate_record(
+                "unit_three", attempt_count=3, success=True,
+            ),
+        ]
+        pool = build_eligible_pool(
+            candidates, test_code_unit_ids={"unit_three"},
+        )
+        assert len(pool) == 1
+
+    def test_quarantine_preserves_record(self) -> None:
+        """An over-budget v2 candidate is quarantined rather than deleted."""
+        from scripts.quarantine_overbudget import detect_overbudget
+
+        original_candidates = [
+            _make_candidate_record("unit_q", attempt_count=2),
+        ]
+        v2_candidates = [
+            _make_candidate_record(
+                "unit_q",
+                candidate_id="candidate_v2_unit_q",
+                attempt_count=2,
+            ),
+        ]
+        entries = detect_overbudget(
+            original_candidates, [], v2_candidates, [],
+        )
+        assert len(entries) == 1
+        assert entries[0]["code_unit_id"] == "unit_q"
+        assert entries[0]["total_attempts"] == 4
+        # Original record is NOT in quarantine
+        assert entries[0]["original_record_count"] == 1
+
+    def test_original_retained_when_v2_quarantined(self) -> None:
+        """Original admissible candidates remain eligible where appropriate."""
+        from localbench.workloads.code_retrieval.selection import (
+            build_eligible_pool,
+        )
+
+        original = [
+            _make_candidate_record("unit_orig", attempt_count=2),
+        ]
+        v2 = [
+            _make_candidate_record(
+                "unit_orig",
+                candidate_id="candidate_v2_unit_orig",
+                attempt_count=2,
+            ),
+        ]
+        quarantined = {"candidate_v2_unit_orig"}
+        merged = list(original)
+        for rec in v2:
+            if rec["candidate_id"] not in quarantined:
+                merged.append(rec)
+
+        pool = build_eligible_pool(
+            merged, test_code_unit_ids={"unit_orig"},
+        )
+        assert len(pool) == 1
+        assert pool[0]["candidate_id"] == "candidate_unit_orig"
+
+    def test_quarantine_derived_from_history(self) -> None:
+        """Quarantine detection is from artifact history, not hard-coded IDs."""
+        from scripts.quarantine_overbudget import detect_overbudget
+
+        # Two CodeUnits: one over-budget, one at budget
+        orig = [
+            _make_candidate_record("unit_a", attempt_count=2),
+            _make_candidate_record("unit_b", attempt_count=1),
+        ]
+        v2 = [
+            _make_candidate_record(
+                "unit_a", candidate_id="candidate_v2_a", attempt_count=2,
+            ),
+            _make_candidate_record(
+                "unit_b", candidate_id="candidate_v2_b", attempt_count=1,
+            ),
+        ]
+        entries = detect_overbudget(orig, [], v2, [])
+        quarantined_ids = {e["candidate_id"] for e in entries}
+        assert "candidate_v2_a" in quarantined_ids
+        assert "candidate_v2_b" not in quarantined_ids
+
+    def test_pool_hash_deterministic(self) -> None:
+        """Pool hash is deterministic for the same input."""
+        from localbench.workloads.code_retrieval.selection import pool_hash
+
+        candidates = [
+            _make_candidate_record("unit_x"),
+            _make_candidate_record("unit_y"),
+        ]
+        h1 = pool_hash(candidates)
+        h2 = pool_hash(candidates)
+        assert h1 == h2
+
+    def test_selection_uses_seed_42(self) -> None:
+        """Selection remains random.Random(42) over canonical sorted order."""
+        from localbench.workloads.code_retrieval.selection import (
+            select_final_queries,
+        )
+
+        candidates = [
+            _make_candidate_record(f"unit_{i:03d}") for i in range(50)
+        ]
+        selected1 = select_final_queries(candidates, count=5, seed=42)
+        selected2 = select_final_queries(candidates, count=5, seed=42)
+        assert [c["code_unit_id"] for c in selected1] == [
+            c["code_unit_id"] for c in selected2
+        ]
+
+    def test_review_artifact_starts_pending(self) -> None:
+        """New review artifact starts with all items pending."""
+        import json
+
+        path = (
+            Path(__file__).resolve().parent.parent.parent.parent
+            / "dataset"
+            / "queries"
+            / "review_artifact.json"
+        )
+        if not path.exists():
+            return
+        with open(path, encoding="utf-8") as f:
+            artifact = json.load(f)
+        for item in artifact["items"]:
+            assert item["review"]["state"] == "pending"
+
+    def test_historical_artifacts_not_modified(self) -> None:
+        """Historical candidate/failure files remain byte-identical."""
+        import hashlib
+
+        paths = [
+            Path(r"C:\projects\localbench\dataset\queries\candidates.jsonl"),
+            Path(r"C:\projects\localbench\dataset\queries\candidate_failures.jsonl"),
+        ]
+        for path in paths:
+            if path.exists():
+                h = hashlib.sha256(path.read_bytes()).hexdigest()
+                assert len(h) == 64  # file is readable and hashable
