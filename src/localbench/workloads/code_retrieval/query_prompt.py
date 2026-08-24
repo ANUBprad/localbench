@@ -22,13 +22,21 @@ from __future__ import annotations
 
 from localbench.workloads.code_retrieval.schemas import QueryGenerationInput
 
-QUERY_PROMPT_TEMPLATE_VERSION = "1.0.0"
+QUERY_PROMPT_TEMPLATE_VERSION = "1.1.0"
 """Version of the query prompt template.  Increment when wording changes."""
 
 _SYSTEM_PROMPT = (
     "You are a code search assistant. "
     "Given a Python function or method, generate a single natural language "
     "retrieval query that a developer might use to find this code.\n"
+    "\n"
+    "CRITICAL - ANTI-LEAKAGE RULE (MUST FOLLOW):\n"
+    "- NEVER use class names, method names, function names, parameter names, "
+    "variable names, or any identifiers from the source code in your query.\n"
+    "- NEVER reference the code's location (file path, module, repository).\n"
+    "- Describe WHAT the code does (behavior, purpose, effect), not WHO or WHERE "
+    "it is.\n"
+    "- If you include any identifier from the source, the query is INVALID.\n"
     "\n"
     "Rules:\n"
     "- The query must describe WHAT the code does, not its name or location.\n"
@@ -57,6 +65,9 @@ _USER_TEMPLATE = (
     "{source_code}\n"
     "```\n"
     "{context_block}"
+    "\n"
+    "REMINDER: Do NOT use any class names, method names, or identifiers from "
+    "the code or context above. Describe the behavior in plain language only.\n"
     "\n"
     "Return a JSON object with: query, query_style, query_intent."
 )
