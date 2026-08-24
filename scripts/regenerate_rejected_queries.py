@@ -60,6 +60,8 @@ TEST_SPLIT_PATH = DATASET_ROOT / "splits" / "test.jsonl"
 REVIEW_ARTIFACT_PATH = DATASET_ROOT / "queries" / "review_artifact.json"
 CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates.jsonl"
 FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures.jsonl"
+V2_CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates_v2.jsonl"
+V2_FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures_v2.jsonl"
 
 MODEL_NAME = "qwen2.5-coder:7b"
 MODEL_VERSION = "7b"
@@ -171,11 +173,15 @@ def regenerate(
     test_units = _load_test_units()
     candidates = _load_jsonl(CANDIDATES_PATH)
     failures = _load_jsonl(FAILURES_PATH)
+    v2_candidates = _load_jsonl(V2_CANDIDATES_PATH)
+    v2_failures = _load_jsonl(V2_FAILURES_PATH)
+    all_candidates = candidates + v2_candidates
+    all_failures = failures + v2_failures
 
     # Budget check: count prior attempts
     budget_info = {}
     for uid in rejected_ids:
-        prior = _count_prior_attempts(uid, candidates, failures)
+        prior = _count_prior_attempts(uid, all_candidates, all_failures)
         remaining = MAX_ATTEMPTS - prior
         budget_info[uid] = {"prior": prior, "remaining": remaining}
 
@@ -211,7 +217,7 @@ def regenerate(
         logger.error("Ollama is not reachable at localhost:11434")
         return 2
 
-    store = CandidateStore(CANDIDATES_PATH, FAILURES_PATH)
+    store = CandidateStore(V2_CANDIDATES_PATH, V2_FAILURES_PATH)
     store.load()
 
     policy = RetryPolicy(max_attempts=MAX_ATTEMPTS)
