@@ -80,6 +80,8 @@ V2_CANDIDATE_PREFIX = "candidate_v2_"
 
 def _load_jsonl(path: Path) -> list[dict]:
     records = []
+    if not path.exists():
+        return records
     with open(path, encoding="utf-8") as f:
         for line in f:
             if line.strip():
