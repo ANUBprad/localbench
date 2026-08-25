@@ -15,6 +15,9 @@ from localbench.workloads.code_retrieval.query_generator import (
     LeakageCheckResult,
     QueryGenerationResult,
     QueryGenerator,
+    _extract_identifier_parts,
+    _extract_param_names,
+    _make_identifier_pattern,
     check_query_leakage,
     generate_query,
 )
@@ -201,6 +204,276 @@ class TestCheckQueryLeakage:
             "Check gitlab.com for the function", unit
         )
         assert result.passed is False
+
+    # ----------------------------------------------------------------
+    # Regression: individual identifier-part leakage (Phase C6)
+    # ----------------------------------------------------------------
+
+    def test_class_name_detected_in_query(self) -> None:
+        unit = _make_code_unit(
+            symbol="Color.downgrade",
+            context=CodeUnitContext(class_name="Color"),
+        )
+        result = check_query_leakage(
+            "How to downgrade a color system in the Color class?", unit
+        )
+        assert result.passed is False
+        assert any("Color" in v for v in result.violations)
+
+    def test_method_name_detected_in_query(self) -> None:
+        unit = _make_code_unit(
+            symbol="PromptBase.render_default",
+            context=CodeUnitContext(class_name="PromptBase"),
+        )
+        result = check_query_leakage(
+            "How does the render_default method work?", unit
+        )
+        assert result.passed is False
+        assert any("render_default" in v for v in result.violations)
+
+    def test_class_name_from_symbol_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="ConsoleOptions.ascii_only",
+            context=CodeUnitContext(),
+        )
+        result = check_query_leakage(
+            "Is the ascii_only property of the ConsoleOptions class set to True?",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_standalone_function_name_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="process_retry",
+            context=CodeUnitContext(),
+            symbol_type="function",
+        )
+        result = check_query_leakage(
+            "Find the process_retry function that handles retries.",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_dunder_method_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="Console.__enter__",
+            context=CodeUnitContext(class_name="Console"),
+        )
+        result = check_query_leakage(
+            "Implement a context manager method in the Console class "
+            "to enter a buffer context.",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_parameter_name_detected_in_query(self) -> None:
+        unit = _make_code_unit(
+            symbol="TimeRemainingColumn.__init__",
+            context=CodeUnitContext(class_name="TimeRemainingColumn"),
+            source_code=(
+                "def __init__(self, compact, elapsed_when_finished,\n"
+                "              table_column=None):\n"
+                "    pass\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Create a method with parameters compact and elapsed_when_finished.",
+            unit,
+        )
+        assert result.passed is False
+        assert any("compact" in v for v in result.violations)
+
+    def test_clean_query_with_similar_words_passes(self) -> None:
+        unit = _make_code_unit(
+            symbol="SomeClass.some_method",
+            context=CodeUnitContext(class_name="SomeClass"),
+        )
+        result = check_query_leakage(
+            "Find the function that processes data efficiently.",
+            unit,
+        )
+        assert result.passed is True
+
+    def test_short_identifier_not_flagged(self) -> None:
+        unit = _make_code_unit(
+            symbol="Foo.bar",
+            context=CodeUnitContext(),
+            source_code="def bar(self, ok, id):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "Is the operation ok to proceed?", unit
+        )
+        assert result.passed is True
+
+    def test_context_class_name_checked(self) -> None:
+        unit = _make_code_unit(
+            symbol="load",
+            context=CodeUnitContext(class_name="LocalPath"),
+            symbol_type="function",
+        )
+        result = check_query_leakage(
+            "How can I unpickle an object using the LocalPath class?", unit
+        )
+        assert result.passed is False
+        assert any("LocalPath" in v for v in result.violations)
+
+    def test_docstring_class_name_detected(self) -> None:
+        # Regression: Item #3 — query reproduces docstring text containing
+        # a Sphinx :class: reference (pytest.Config).
+        unit = _make_code_unit(
+            symbol="pytest_cmdline_parse",
+            context=CodeUnitContext(),
+            symbol_type="function",
+            docstring=(
+                "Return an initialized :class:`~pytest.Config`, "
+                "parsing the specified args.\n\n"
+                "Stops at first non-None result."
+            ),
+            source_code=(
+                "def pytest_cmdline_parse(pluginmanager, args):\n"
+                '    """Return an initialized :class:`~pytest.Config`.\n'
+                '    Stops at first non-None result."""\n'
+            ),
+        )
+        result = check_query_leakage(
+            "Return an initialized pytest.Config, parsing the "
+            "specified args. Stops at first non-None result.",
+            unit,
+        )
+        assert result.passed is False
+        assert any("Config" in v for v in result.violations)
+
+    def test_docstring_class_name_no_false_positive(self) -> None:
+        # A clean query that does NOT reproduce docstring identifiers
+        # should pass even when docstring contains :class: references.
+        unit = _make_code_unit(
+            symbol="pytest_cmdline_parse",
+            context=CodeUnitContext(),
+            symbol_type="function",
+            docstring=(
+                "Return an initialized :class:`~pytest.Config`, "
+                "parsing the specified args."
+            ),
+            source_code=(
+                "def pytest_cmdline_parse(pluginmanager, args):\n"
+                "    pass\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Parse command line arguments and return a config object.",
+            unit,
+        )
+        assert result.passed is True
+
+
+# ===========================================================================
+# _extract_identifier_parts
+# ===========================================================================
+
+
+class TestExtractIdentifierParts:
+    def test_splits_symbol_on_dot(self) -> None:
+        unit = _make_code_unit(
+            symbol="PaymentProcessor.process_retry",
+            context=CodeUnitContext(),
+        )
+        parts = _extract_identifier_parts(unit)
+        assert "PaymentProcessor" in parts
+        assert "process_retry" in parts
+
+    def test_includes_context_class_name(self) -> None:
+        unit = _make_code_unit(
+            symbol="render_default",
+            context=CodeUnitContext(class_name="PromptBase"),
+            symbol_type="function",
+        )
+        parts = _extract_identifier_parts(unit)
+        assert "PromptBase" in parts
+        assert "render_default" in parts
+
+    def test_deduplicates_class_from_symbol_and_context(self) -> None:
+        unit = _make_code_unit(
+            symbol="Color.downgrade",
+            context=CodeUnitContext(class_name="Color"),
+        )
+        parts = _extract_identifier_parts(unit)
+        assert parts.count("Color") == 1
+
+    def test_excludes_short_parts(self) -> None:
+        unit = _make_code_unit(
+            symbol="AB.cd",
+            context=CodeUnitContext(),
+        )
+        parts = _extract_identifier_parts(unit)
+        assert "AB" not in parts
+        assert "cd" not in parts
+
+    def test_empty_symbol(self) -> None:
+        unit = _make_code_unit(
+            symbol="",
+            context=CodeUnitContext(),
+        )
+        parts = _extract_identifier_parts(unit)
+        assert parts == []
+
+
+# ===========================================================================
+# _extract_param_names
+# ===========================================================================
+
+
+class TestExtractParamNames:
+    def test_extracts_parameters(self) -> None:
+        src = "def foo(self, bar, baz_qux):\n    pass\n"
+        params = _extract_param_names(src)
+        assert "bar" not in params  # too short (< 4)
+        assert "baz_qux" in params
+
+    def test_ignores_self_cls(self) -> None:
+        src = "def method(self, cls, max_retries):\n    pass\n"
+        params = _extract_param_names(src)
+        assert "self" not in params
+        assert "cls" not in params
+        assert "max_retries" in params  # valid param, kept
+
+    def test_handles_default_values(self) -> None:
+        src = "def foo(self, max_retries=3, timeout=None):\n    pass\n"
+        params = _extract_param_names(src)
+        assert "max_retries" in params
+        assert "timeout" in params
+
+    def test_handles_star_args(self) -> None:
+        src = "def foo(self, *args, **kwargs):\n    pass\n"
+        params = _extract_param_names(src)
+        assert "args" not in params
+        assert "kwargs" not in params
+
+    def test_no_match_returns_empty(self) -> None:
+        params = _extract_param_names("not a function def")
+        assert params == []
+
+
+# ===========================================================================
+# _make_identifier_pattern
+# ===========================================================================
+
+
+class TestMakeIdentifierPattern:
+    def test_matches_whole_word(self) -> None:
+        pat = _make_identifier_pattern("Color")
+        assert pat.search("the Color class")
+        assert pat.search("the Color.")
+        assert pat.search("the Color's")
+
+    def test_no_partial_match(self) -> None:
+        pat = _make_identifier_pattern("Color")
+        assert pat.search("Colorful") is None
+        assert pat.search("disColor") is None
+
+    def test_case_sensitive(self) -> None:
+        pat = _make_identifier_pattern("Color")
+        assert pat.search("color") is None
+        assert pat.search("COLOR") is None
 
 
 # ===========================================================================

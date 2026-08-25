@@ -67,6 +67,19 @@ _LEAKAGE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\w+_test\.py\b", re.IGNORECASE),
 )
 
+_MIN_IDENTIFIER_LENGTH = 4
+"""Minimum identifier length to check for word-boundary matches.
+
+Short identifiers (e.g. ``id``, ``ok``, ``abs``) are too common in
+natural language and cause unacceptable false-positive rates.
+"""
+
+_PARAM_PATTERN = re.compile(
+    r"def\s+\w+\s*\(([^)]*)\)",
+    re.DOTALL,
+)
+"""Matches a Python function/method signature to extract parameter names."""
+
 
 @dataclass(frozen=True)
 class LeakageCheckResult:
@@ -76,6 +89,100 @@ class LeakageCheckResult:
     violations: list[str] = field(default_factory=list)
 
 
+def _extract_identifier_parts(code_unit: ExtractedCodeUnit) -> list[str]:
+    """Extract individual identifier parts from the code unit.
+
+    Returns a deduplicated list of identifier parts extracted from:
+    - The symbol path (split on ``.``)
+    - The class name from context (if different from the first symbol part)
+
+    Parts shorter than ``_MIN_IDENTIFIER_LENGTH`` are excluded.
+    """
+    parts: list[str] = []
+
+    if code_unit.symbol:
+        for segment in code_unit.symbol.split("."):
+            if len(segment) >= _MIN_IDENTIFIER_LENGTH:
+                parts.append(segment)
+
+    ctx_class = code_unit.context.class_name if code_unit.context else None
+    if ctx_class and len(ctx_class) >= _MIN_IDENTIFIER_LENGTH:
+        if ctx_class not in parts:
+            parts.append(ctx_class)
+
+    return list(dict.fromkeys(parts))
+
+
+_PARAM_NAME_BLACKLIST = frozenset({
+    "self", "cls", "args", "kwargs",
+    # Common English words that appear as parameter/attribute names
+    # and cause unacceptable false-positive rates.
+    "padding", "link", "size", "name", "type", "value", "key",
+    "item", "data", "text", "path", "mode", "error", "result",
+    "status", "option", "config", "format", "table", "column",
+    "width", "height", "color", "level", "count", "index",
+    "first", "last", "next", "prev", "start", "end",
+})
+"""Parameter names that are never flagged as leaked identifiers."""
+
+
+_DUNDER_PATTERN = re.compile(r"\b__\w+__\b")
+"""Matches dunder references (e.g. ``__init__``, ``__new__``) in query text."""
+
+_SPHINX_CLASS_PATTERN = re.compile(
+    r":class:`~?([^`]+)`",
+)
+"""Extracts class names from Sphinx ``:class:`` cross-references in docstrings."""
+
+
+def _extract_param_names(source_code: str) -> list[str]:
+    """Extract parameter names from a function/method signature.
+
+    Returns parameter identifiers longer than ``_MIN_IDENTIFIER_LENGTH``
+    that are not in ``_PARAM_NAME_BLACKLIST``.
+    """
+    match = _PARAM_PATTERN.search(source_code)
+    if not match:
+        return []
+
+    raw = match.group(1)
+    names: list[str] = []
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        # Strip leading * or ** for *args / **kwargs
+        stripped = token.lstrip("*")
+        name = stripped.split("=")[0].strip()
+        if name in _PARAM_NAME_BLACKLIST or not name:
+            continue
+        if len(name) >= _MIN_IDENTIFIER_LENGTH:
+            names.append(name)
+    return list(dict.fromkeys(names))
+
+
+def _make_identifier_pattern(identifier: str) -> re.Pattern[str]:
+    """Build a word-boundary regex for a case-sensitive identifier match."""
+    escaped = re.escape(identifier)
+    return re.compile(rf"\b{escaped}\b")
+
+
+def _extract_docstring_class_names(docstring: str) -> list[str]:
+    """Extract class names from Sphinx ``:class:`` cross-references.
+
+    Returns the trailing class name portion (e.g. ``Config`` from
+    ``:class:`~pytest.Config```), deduplicated, excluding short names.
+    """
+    names: list[str] = []
+    for match in _SPHINX_CLASS_PATTERN.finditer(docstring):
+        full_ref = match.group(1)
+        # Take the last component after the final dot (e.g. "pytest.Config" -> "Config")
+        short_name = full_ref.rsplit(".", 1)[-1]
+        if len(short_name) >= _MIN_IDENTIFIER_LENGTH:
+            names.append(short_name)
+    return list(dict.fromkeys(names))
+
+
 def check_query_leakage(
     query: str,
     code_unit: ExtractedCodeUnit,
@@ -83,7 +190,9 @@ def check_query_leakage(
     """Check if a generated query leaks forbidden identifiers.
 
     Inspects the query text for common leakage patterns: file paths,
-    repository references, file extensions, and URL patterns.
+    repository references, file extensions, URL patterns, and
+    individual identifier parts (class names, method names,
+    parameter names) extracted from the code unit.
 
     This is a heuristic check.  It does NOT guarantee absence of all
     possible information leakage — that requires human review per the
@@ -111,6 +220,46 @@ def check_query_leakage(
         violations.append(
             f"Query contains symbol path: {code_unit.symbol}"
         )
+
+    # Check individual identifier parts from symbol and context class name
+    for part in _extract_identifier_parts(code_unit):
+        if part in _PARAM_NAME_BLACKLIST:
+            continue
+        pat = _make_identifier_pattern(part)
+        if pat.search(query):
+            violations.append(
+                f"Query contains identifier part: {part}"
+            )
+
+    # Check for dunder references (e.g. __init__, __new__) in the query.
+    # Dunders are implementation-specific identifiers regardless of whether
+    # they match the exact code unit symbol.
+    if _DUNDER_PATTERN.search(query):
+        violations.append(
+            "Query contains dunder method reference"
+        )
+
+    # Check parameter names extracted from source code signature
+    if code_unit.source_code:
+        for param in _extract_param_names(code_unit.source_code):
+            pat = _make_identifier_pattern(param)
+            if pat.search(query):
+                violations.append(
+                    f"Query contains parameter name: {param}"
+                )
+
+    # Check class names from Sphinx :class: cross-references in the docstring.
+    # These are implementation-specific type names that should not appear in
+    # natural language queries (e.g. "pytest.Config" leaked from docstring).
+    if code_unit.docstring:
+        for cls_name in _extract_docstring_class_names(code_unit.docstring):
+            if cls_name in _PARAM_NAME_BLACKLIST:
+                continue
+            pat = _make_identifier_pattern(cls_name)
+            if pat.search(query):
+                violations.append(
+                    f"Query contains docstring class name: {cls_name}"
+                )
 
     return LeakageCheckResult(
         passed=len(violations) == 0,
