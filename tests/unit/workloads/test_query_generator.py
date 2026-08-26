@@ -945,3 +945,141 @@ class TestReproducibility:
         )
 
         assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+
+
+# ===========================================================================
+# check_query_provenance tests
+# ===========================================================================
+
+
+class TestCheckQueryProvenance:
+    def test_clean_query_passes(self) -> None:
+        result = check_query_provenance(
+            "find a function that retries with exponential backoff",
+            "Retry a failed transaction with exponential backoff.",
+        )
+        assert result.passed is True
+        assert result.violations == []
+
+    def test_exact_copy_detected(self) -> None:
+        result = check_query_provenance(
+            "retry a failed transaction with exponential backoff",
+            "Retry a failed transaction with exponential backoff.",
+        )
+        assert result.passed is False
+        assert len(result.violations) >= 1
+
+    def test_distinctive_phrase_detected(self) -> None:
+        result = check_query_provenance(
+            "exponential backoff retry mechanism for transactions",
+            "Implements exponential backoff retry mechanism for transactions.",
+        )
+        assert result.passed is False
+
+    def test_empty_docstring_passes(self) -> None:
+        result = check_query_provenance(
+            "find a retry function", ""
+        )
+        assert result.passed is True
+
+    def test_no_false_positive_on_legitimate_similarity(self) -> None:
+        """A query that legitimately describes the same behavior should not fail."""
+        result = check_query_provenance(
+            "find a method that retries failed operations",
+            "Retry a failed transaction with backoff.",
+        )
+        assert result.passed is True
+
+    def test_high_ngram_overlap_detected(self) -> None:
+        result = check_query_provenance(
+            "retry a failed transaction with backoff on exception in python",
+            "Retry a failed transaction with backoff on exception.",
+        )
+        assert result.passed is False
+
+
+# ===========================================================================
+# check_meta_query tests
+# ===========================================================================
+
+
+class TestCheckMetaQuery:
+    def test_clean_query_not_meta(self) -> None:
+        assert check_meta_query("find a function that validates input") is False
+
+    def test_i_need_a_query_detected(self) -> None:
+        assert check_meta_query("I need a query") is True
+
+    def test_generate_retrieval_detected(self) -> None:
+        assert check_meta_query("generate a retrieval query") is True
+
+    def test_write_code_detected(self) -> None:
+        assert check_meta_query("write a python function") is True
+
+    def test_def_keyword_detected(self) -> None:
+        assert check_meta_query("def my_func(x):") is True
+
+    def test_here_is_the_query_detected(self) -> None:
+        assert check_meta_query("here is the query: ...") is True
+
+    def test_as_an_ai_detected(self) -> None:
+        assert check_meta_query("As an AI, I cannot ...") is True
+
+    def test_legitimate_query_not_flagged(self) -> None:
+        assert check_meta_query(
+            "find code that handles retry logic with backoff"
+        ) is False
+
+
+# ===========================================================================
+# Docstring provenance leakage end-to-end
+# ===========================================================================
+
+
+class TestDocstringProvenanceLeakage:
+    def test_v2_prompt_no_docstring_text(self) -> None:
+        """The v2 prompt must not contain the original docstring text."""
+        from localbench.workloads.code_retrieval.query_prompt import (
+            build_query_generation_prompt_v2,
+        )
+        from localbench.workloads.code_retrieval.schemas import (
+            StructuredBehaviorFacts,
+        )
+
+        facts = StructuredBehaviorFacts(
+            primary_purpose="retries an operation",
+            input_summary="takes a single parameter",
+            output_summary="returns a computed value",
+        )
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code=(
+                'def process_retry(self, tid):\n'
+                '    """THIS_UNIQUE_SENTENCE_DO_NOT_PARAPHRASE."""\n'
+                "    pass\n"
+            ),
+            symbol_type="method",
+        )
+        assert "THIS_UNIQUE_SENTENCE_DO_NOT_PARAPHRASE" not in prompt
+
+    def test_v2_prompt_no_source_code_identifiers(self) -> None:
+        """The v2 prompt must not contain function/method names from source."""
+        from localbench.workloads.code_retrieval.query_prompt import (
+            build_query_generation_prompt_v2,
+        )
+        from localbench.workloads.code_retrieval.schemas import (
+            StructuredBehaviorFacts,
+        )
+
+        facts = StructuredBehaviorFacts(
+            primary_purpose="validates input",
+            input_summary="takes a single parameter",
+            output_summary="has return statements",
+        )
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def validate_input(self, token):\n    pass",
+            symbol_type="method",
+        )
+        assert "validate_input" not in prompt
+        assert "token" not in prompt
