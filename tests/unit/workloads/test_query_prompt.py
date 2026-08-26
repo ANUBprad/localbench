@@ -8,9 +8,13 @@ from __future__ import annotations
 from localbench.workloads.code_retrieval.query_prompt import (
     QUERY_PROMPT_TEMPLATE_VERSION,
     build_query_generation_prompt,
+    build_query_generation_prompt_v2,
     get_query_system_prompt,
 )
-from localbench.workloads.code_retrieval.schemas import QueryGenerationInput
+from localbench.workloads.code_retrieval.schemas import (
+    QueryGenerationInput,
+    StructuredBehaviorFacts,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -209,3 +213,133 @@ class TestBuildQueryGenerationPrompt:
     def test_user_template_reminds_behavior(self) -> None:
         prompt = build_query_generation_prompt(_make_input())
         assert "Describe the behavior in plain language only" in prompt
+
+
+# ===========================================================================
+# build_query_generation_prompt_v2 — docstring provenance tests
+# ===========================================================================
+
+
+def _make_facts(**overrides) -> StructuredBehaviorFacts:
+    defaults = {
+        "primary_purpose": "retries an operation with error handling",
+        "input_summary": "takes 2 parameters, at least one with a default value",
+        "output_summary": "returns a computed value",
+        "side_effects": ["modifies instance state"],
+        "key_operations": ["performs 1 method call(s)"],
+        "error_handling": "catches Exception",
+        "control_flow": "while loop",
+        "raises": ["RuntimeError"],
+    }
+    defaults.update(overrides)
+    return StructuredBehaviorFacts(**defaults)
+
+
+class TestBuildQueryGenerationPromptV2:
+    def test_docstring_absent_from_v2_prompt(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code='def foo():\n    """THIS_UNIQUE_SENTENCE."""\n    pass',
+            symbol_type="function",
+        )
+        assert "THIS_UNIQUE_SENTENCE" not in prompt
+
+    def test_source_code_absent_from_v2_prompt(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def secret_function(self, token):\n    pass",
+            symbol_type="function",
+        )
+        assert "secret_function" not in prompt
+        assert "def secret" not in prompt
+
+    def test_module_docstring_absent_from_v2_prompt(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def foo():\n    pass",
+            symbol_type="function",
+            module_docstring="SECRET_MODULE_DESCRIPTION",
+        )
+        assert "SECRET_MODULE_DESCRIPTION" not in prompt
+
+    def test_v2_prompt_contains_behavioral_facts(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def foo():\n    pass",
+            symbol_type="function",
+        )
+        assert "retries an operation" in prompt
+        assert "takes 2 parameters" in prompt
+        assert "while loop" in prompt
+
+    def test_v2_prompt_version_is_3(self) -> None:
+        from localbench.workloads.code_retrieval.query_prompt import (
+            QUERY_PROMPT_TEMPLATE_VERSION,
+        )
+
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+
+    def test_v2_context_class_name_preserved(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def foo():\n    pass",
+            symbol_type="method",
+            class_name="MyClass",
+        )
+        assert "Class: MyClass" in prompt
+
+    def test_v2_context_imports_preserved(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def foo():\n    pass",
+            symbol_type="function",
+            imports=["logging", "os"],
+        )
+        assert "Imports: logging, os" in prompt
+
+    def test_v2_context_parent_methods_preserved(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def foo():\n    pass",
+            symbol_type="method",
+            parent_methods=["__init__", "close"],
+        )
+        assert "Sibling methods" in prompt
+
+    def test_v2_deterministic(self) -> None:
+        facts = _make_facts()
+        p1 = build_query_generation_prompt_v2(
+            facts, source_code="def foo():\n    pass"
+        )
+        p2 = build_query_generation_prompt_v2(
+            facts, source_code="def foo():\n    pass"
+        )
+        assert p1 == p2
+
+    def test_v2_no_docstring_keyword(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code='def foo():\n    """Some docstring."""\n    pass',
+            symbol_type="function",
+        )
+        assert "Some docstring" not in prompt
+
+    def test_v2_no_identifiers_in_template(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code="def process_data(self, token, timeout=30):\n    pass",
+            symbol_type="method",
+            class_name="DataProcessor",
+        )
+        assert "process_data" not in prompt
+        assert "token" not in prompt
+        assert "timeout" not in prompt

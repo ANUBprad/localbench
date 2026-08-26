@@ -148,3 +148,95 @@ class TestStructuredBehaviorFactsSchema:
 
         with pytest.raises(AttributeError):
             facts.primary_purpose = "changed"  # type: ignore[misc]
+
+
+# ===========================================================================
+# Provenance: no implementation identifiers in extracted facts
+# ===========================================================================
+
+
+import re
+
+# Pattern matching Python identifiers (snake_case, camelCase, PascalCase)
+_IDENTIFIER_PATTERN = re.compile(
+    r"\b(self|cls|[A-Z][a-zA-Z0-9]+|"
+    r"[a-z][a-z_]+_[a-z][a-z_]+|"
+    r"_[a-z][a-z_]+)\b"
+)
+
+
+def _contains_identifier(text: str) -> bool:
+    """Check if text contains a Python identifier (name-like string)."""
+    return bool(_IDENTIFIER_PATTERN.search(text))
+
+
+class TestNoIdentifiersInExtractedFacts:
+    """Ensure extracted facts are free of implementation identifiers."""
+
+    def test_primary_purpose_no_function_name(self) -> None:
+        src = (
+            "def process_retry(self, tid, max_attempts=3):\n"
+            '    """Retry a failed transaction."""\n'
+            "    attempts = 0\n"
+            "    while attempts < max_attempts:\n"
+            "        try:\n"
+            "            return self._do_process(tid)\n"
+            "        except Exception:\n"
+            "            attempts += 1\n"
+            '    raise RuntimeError("Failed")\n'
+        )
+        facts = extract_behavior_facts(src)
+        assert "process_retry" not in facts.primary_purpose
+
+    def test_input_summary_no_param_names(self) -> None:
+        src = (
+            "def fetch(url, timeout=30, retries=3):\n"
+            "    pass\n"
+        )
+        facts = extract_behavior_facts(src)
+        assert "url" not in facts.input_summary
+        assert "timeout" not in facts.input_summary
+        assert "retries" not in facts.input_summary
+
+    def test_side_effects_no_attribute_names(self) -> None:
+        src = (
+            "def update_state(self):\n"
+            "    self.counter += 1\n"
+            "    self.log.append('updated')\n"
+        )
+        facts = extract_behavior_facts(src)
+        for se in facts.side_effects:
+            assert "self.counter" not in se
+            assert "self.log" not in se
+
+    def test_key_operations_no_call_names(self) -> None:
+        src = (
+            "def process(data):\n"
+            "    result = transform(data)\n"
+            "    return result\n"
+        )
+        facts = extract_behavior_facts(src)
+        for op in facts.key_operations:
+            assert "transform" not in op
+
+    def test_raises_still_contains_exception_names(self) -> None:
+        """Exception class names are domain identifiers, not implementation identifiers."""
+        src = (
+            "def validate(x):\n"
+            "    if x < 0:\n"
+            '        raise ValueError("negative")\n'
+        )
+        facts = extract_behavior_facts(src)
+        assert "ValueError" in facts.raises
+
+    def test_error_handling_still_contains_exception_names(self) -> None:
+        """Exception class names in error handling are domain identifiers."""
+        src = (
+            "def safe_divide(a, b):\n"
+            "    try:\n"
+            "        return a / b\n"
+            "    except ZeroDivisionError:\n"
+            '        return 0\n'
+        )
+        facts = extract_behavior_facts(src)
+        assert "ZeroDivisionError" in facts.error_handling
