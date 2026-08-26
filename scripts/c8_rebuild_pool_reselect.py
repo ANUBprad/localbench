@@ -46,6 +46,14 @@ REVIEW_ARTIFACT_PATH = DATASET_ROOT / "queries" / "review_artifact.json"
 
 SOURCE_COMMIT = "32b9078"
 
+# CodeUnit IDs excluded due to exhausted regeneration budget (3 attempts used).
+# Item 9: Criterion #5 leakage (get_public_names, fixturenames) — exhausted.
+# Item 35: Criterion #2 meta-task query — exhausted.
+EXCLUDED_IDS: set[str] = {
+    "repo006_py_testing_python_fixtures_py__TestRequestBasic_test_request_fixturenames_8a99467f2139",
+    "repo006_py_testing_python_metafunc_py__TestMetafuncFunctional_test_two_functions_a584c3632477",
+}
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -157,6 +165,8 @@ def main() -> int:
     passing_candidates = []
     for c in deduped:
         uid = c["code_unit_id"]
+        if uid in EXCLUDED_IDS:
+            continue
         eu = test_units.get(uid)
         if eu is None:
             continue
