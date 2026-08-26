@@ -47,11 +47,27 @@ REVIEW_ARTIFACT_PATH = DATASET_ROOT / "queries" / "review_artifact.json"
 SOURCE_COMMIT = "32b9078"
 
 # CodeUnit IDs excluded due to exhausted regeneration budget (3 attempts used).
-# Item 9: Criterion #5 leakage (get_public_names, fixturenames) — exhausted.
-# Item 35: Criterion #2 meta-task query — exhausted.
+# All 15 rejected items from C8 human review are now exhausted.
 EXCLUDED_IDS: set[str] = {
+    # Originally exhausted (from C8 remediation):
     "repo006_py_testing_python_fixtures_py__TestRequestBasic_test_request_fixturenames_8a99467f2139",
     "repo006_py_testing_python_metafunc_py__TestMetafuncFunctional_test_two_functions_a584c3632477",
+    # Definitive rejection remediation (15 rejected items, all exhausted):
+    "repo006_py_testing_python_collect_py__TestFunction_test_parametrize_skipif_no_skip_dacc6989c9ea",
+    "repo006_py_testing_python_fixtures_py__TestRequestScopeAccess_test_funcarg_6d3208cec168",
+    "repo003_py_rich_layout_py__Layout_refresh_screen_8534c5b870f4",
+    "repo006_py_doc_en_example_assertion_failure_demo_py__TestSpecialisedExplanations_test_not_in_text_single_long_67a857a02b4e",
+    "repo006_py_extra_get_issues_py__get_issues_099bbcaf3729",
+    "repo006_py_src__pytest_pytester_py__Pytester_syspathinsert_598ab7bcda17",
+    "repo006_py_testing_python_approx_py__TestApprox_test_list_decimal_1db5442935ac",
+    "repo006_py_testing_python_fixtures_py__TestFixtureMarker_test_scope_module_uses_session_34e8e2ab887e",
+    "repo006_py_testing_python_fixtures_py__TestFillFixtures_test_override_parametrized_fixture_with_new_parametrized_fixture_e2b1d1b56d33",
+    "repo006_py_src__pytest_logging_py__DatetimeFormatter_formatTime_b4fe23657218",
+    "repo006_py_doc_en_example_assertion_failure_demo_py__test_attribute_failure_a42ab9379818",
+    "repo006_py_testing_python_approx_py__TestApprox_test_allow_ordered_sequences_only_5dc7a5e575c2",
+    "repo006_py_src__pytest__py_path_py__LocalPath_purebasename_5a582f7d8c91",
+    "repo006_py_testing_python_metafunc_py__TestMetafunc_test_high_scoped_parametrize_reordering_1674970858f0",
+    "repo006_py_testing_python_fixtures_py__test_getfuncargnames_partial_1331ae77d604",
 }
 
 # ---------------------------------------------------------------------------
