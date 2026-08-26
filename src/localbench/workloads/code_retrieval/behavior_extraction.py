@@ -34,7 +34,6 @@ import ast
 
 from localbench.workloads.code_retrieval.schemas import StructuredBehaviorFacts
 
-
 # ---------------------------------------------------------------------------
 # AST helpers
 # ---------------------------------------------------------------------------
