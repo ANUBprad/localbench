@@ -13,6 +13,7 @@ from localbench.runtime.model import GenerationRequest, ModelInfo
 from localbench.workloads.code_retrieval.extraction import ExtractedCodeUnit
 from localbench.workloads.code_retrieval.query_generator import (
     LeakageCheckResult,
+    ProvenanceCheckResult,
     QueryGenerationResult,
     QueryGenerator,
     _extract_identifier_parts,
@@ -20,7 +21,9 @@ from localbench.workloads.code_retrieval.query_generator import (
     _extract_sphinx_ref_names,
     _extract_docstring_content,
     _make_identifier_pattern,
+    check_meta_query,
     check_query_leakage,
+    check_query_provenance,
     generate_query,
 )
 from localbench.workloads.code_retrieval.schemas import (
@@ -672,8 +675,8 @@ class TestQueryGenerator:
         gen.generate(unit)
 
         assert len(model._calls) == 1
-        assert "process_retry" in model._calls[0].prompt
-        assert "def process_retry" in model._calls[0].prompt
+        assert "Behavioral Facts" in model._calls[0].prompt
+        assert "process_retry" not in model._calls[0].prompt
 
     def test_model_uses_correct_config(self) -> None:
         model = FakeModel()
@@ -779,7 +782,7 @@ class TestQueryGenerator:
         unit = _make_code_unit()
         result = gen.generate(unit)
 
-        assert result.prompt_template_version == "1.1.0"
+        assert result.prompt_template_version == "3.0.0"
 
     def test_timing_recorded(self) -> None:
         model = FakeModel()
@@ -941,4 +944,4 @@ class TestReproducibility:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "1.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"

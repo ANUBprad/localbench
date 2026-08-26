@@ -56,7 +56,7 @@ class TestQueryPromptTemplateVersion:
         assert len(parts) == 3
 
     def test_version_value(self) -> None:
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "1.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
 
 
 # ===========================================================================
