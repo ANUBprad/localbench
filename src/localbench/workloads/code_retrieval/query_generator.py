@@ -122,6 +122,13 @@ _PARAM_NAME_BLACKLIST = frozenset({
     "status", "option", "config", "format", "table", "column",
     "width", "height", "color", "level", "count", "index",
     "first", "last", "next", "prev", "start", "end",
+    # Common English words found in docstrings that are not identifiers
+    "Refresh", "Overriding", "Return", "Check", "Create", "Find",
+    "Get", "Set", "Add", "Remove", "Update", "Delete", "Insert",
+    "Move", "Copy", "Split", "Join", "Merge", "Sort", "Filter",
+    "Test", "Run", "Execute", "Parse", "Build", "Generate", "Write",
+    "Read", "Load", "Save", "Import", "Export", "Convert", "Format",
+    "Display", "Print", "Show", "Hide", "Enable", "Disable",
 })
 """Parameter names that are never flagged as leaked identifiers."""
 
@@ -133,6 +140,36 @@ _SPHINX_CLASS_PATTERN = re.compile(
     r":class:`~?([^`]+)`",
 )
 """Extracts class names from Sphinx ``:class:`` cross-references in docstrings."""
+
+_SPHINX_ATTR_PATTERN = re.compile(
+    r":attr:`~?([^`]+)`",
+)
+"""Extracts attribute names from Sphinx ``:attr:`` cross-references in docstrings."""
+
+_SPHINX_METH_PATTERN = re.compile(
+    r":meth:`~?([^`]+)`",
+)
+"""Extracts method names from Sphinx ``:meth:`` cross-references in docstrings."""
+
+_SPHINX_FUNC_PATTERN = re.compile(
+    r":func:`~?([^`]+)`",
+)
+"""Extracts function names from Sphinx ``:func:`` cross-references in docstrings."""
+
+_META_TASK_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bi need a (technical )?query\b", re.IGNORECASE),
+    re.compile(r"\bgenerate (a )?(retrieval )?query\b", re.IGNORECASE),
+    re.compile(r"\bretrieve the source code\b", re.IGNORECASE),
+    re.compile(r"\bfind the (source )?code for\b", re.IGNORECASE),
+    re.compile(r"\bwrite (a )?retrieval query\b", re.IGNORECASE),
+    re.compile(r"\bcreate (a )?query\b", re.IGNORECASE),
+    re.compile(r"\bquery to (find|retrieve|get)\b", re.IGNORECASE),
+    re.compile(r"\bhow (can|do) i (write|create|generate|find) (a )?query\b", re.IGNORECASE),
+    re.compile(r"\bpytest\s+--collect-only\b", re.IGNORECASE),
+    re.compile(r"\bpytest\s+-\s*-\s*collect\s*-\s*only\b", re.IGNORECASE),
+)
+"""Patterns that indicate the model generated a meta-task query
+(requesting query generation) instead of an actual retrieval query."""
 
 
 def _extract_param_names(source_code: str) -> list[str]:
@@ -183,6 +220,74 @@ def _extract_docstring_class_names(docstring: str) -> list[str]:
     return list(dict.fromkeys(names))
 
 
+def _extract_sphinx_ref_names(docstring: str) -> list[str]:
+    """Extract names from all Sphinx cross-reference types in the docstring.
+
+    Checks ``:class:``, ``:attr:``, ``:meth:``, and ``:func:`` directives.
+    Returns the trailing name portion (e.g. ``path`` from
+    ``:attr:`~pytest.pytester.Pytester.path``), deduplicated, excluding
+    short names.
+    """
+    patterns = [
+        _SPHINX_CLASS_PATTERN,
+        _SPHINX_ATTR_PATTERN,
+        _SPHINX_METH_PATTERN,
+        _SPHINX_FUNC_PATTERN,
+    ]
+    names: list[str] = []
+    for pat in patterns:
+        for match in pat.finditer(docstring):
+            full_ref = match.group(1)
+            short_name = full_ref.rsplit(".", 1)[-1]
+            if len(short_name) >= _MIN_IDENTIFIER_LENGTH:
+                names.append(short_name)
+    return list(dict.fromkeys(names))
+
+
+def _extract_docstring_content(docstring: str) -> list[str]:
+    """Extract significant phrases from docstring for reproduction checks.
+
+    Returns normalized sentences from the docstring that are long enough
+    to be meaningful for matching against queries.  Excludes Sphinx
+    directives and very short fragments.
+    """
+    if not docstring:
+        return []
+    phrases: list[str] = []
+    for line in docstring.splitlines():
+        stripped = line.strip()
+        # Skip Sphinx directives, empty lines, very short lines
+        if not stripped or stripped.startswith(":") or len(stripped) < 15:
+            continue
+        # Skip lines that are mostly punctuation or markup
+        alpha_ratio = sum(c.isalpha() or c.isspace() for c in stripped) / len(stripped)
+        if alpha_ratio < 0.6:
+            continue
+        phrases.append(stripped.lower())
+    return phrases
+
+
+def _extract_source_identifiers(source_code: str) -> list[str]:
+    """Extract significant identifiers from source code body.
+
+    Looks for method calls, attribute accesses, and variable names
+    that are longer than ``_MIN_IDENTIFIER_LENGTH`` and could be
+    implementation-specific identifiers.
+    """
+    identifiers: list[str] = []
+    # Match method calls like obj.method_name() or Class.method_name()
+    for match in re.finditer(r"\b([A-Z]\w+)\.(\w+)\s*\(", source_code):
+        for part in match.groups():
+            if len(part) >= _MIN_IDENTIFIER_LENGTH:
+                identifiers.append(part)
+    # Match standalone function/method calls
+    for match in re.finditer(r"\b(\w{4,})\s*\(", source_code):
+        name = match.group(1)
+        if name[0].isupper() or "_" in name:
+            identifiers.append(name)
+    return list(dict.fromkeys(identifiers))
+
+
 def check_query_leakage(
     query: str,
     code_unit: ExtractedCodeUnit,
@@ -193,6 +298,10 @@ def check_query_leakage(
     repository references, file extensions, URL patterns, and
     individual identifier parts (class names, method names,
     parameter names) extracted from the code unit.
+
+    Also detects meta-task queries (the model asking to generate a
+    query) and docstring reproduction (the query reproducing
+    docstring text verbatim).
 
     This is a heuristic check.  It does NOT guarantee absence of all
     possible information leakage — that requires human review per the
@@ -248,18 +357,116 @@ def check_query_leakage(
                     f"Query contains parameter name: {param}"
                 )
 
-    # Check class names from Sphinx :class: cross-references in the docstring.
-    # These are implementation-specific type names that should not appear in
-    # natural language queries (e.g. "pytest.Config" leaked from docstring).
-    if code_unit.docstring:
-        for cls_name in _extract_docstring_class_names(code_unit.docstring):
-            if cls_name in _PARAM_NAME_BLACKLIST:
+        # Check for method/function names from the source code body
+        # that appear in the query (e.g. runpytest, fnmatch_lines, formatTime)
+        for ident in _extract_source_identifiers(code_unit.source_code):
+            if ident in _PARAM_NAME_BLACKLIST:
                 continue
-            pat = _make_identifier_pattern(cls_name)
+            pat = _make_identifier_pattern(ident)
             if pat.search(query):
                 violations.append(
-                    f"Query contains docstring class name: {cls_name}"
+                    f"Query contains source code identifier: {ident}"
                 )
+
+    # Check all Sphinx cross-reference names (:class:, :attr:, :meth:, :func:)
+    # from the docstring.  These are implementation-specific identifiers.
+    if code_unit.docstring:
+        for ref_name in _extract_sphinx_ref_names(code_unit.docstring):
+            if ref_name in _PARAM_NAME_BLACKLIST:
+                continue
+            pat = _make_identifier_pattern(ref_name)
+            if pat.search(query):
+                violations.append(
+                    f"Query contains docstring reference name: {ref_name}"
+                )
+            # Also check if the Sphinx directive itself appears in the query
+            # (e.g. :attr:`path`, :meth:`formatTime`)
+            for directive in (":attr:", ":meth:", ":func:", ":class:"):
+                sphinx_ref = f"{directive}`{ref_name}`"
+                if sphinx_ref in query:
+                    violations.append(
+                        f"Query contains Sphinx directive: {sphinx_ref}"
+                    )
+                    break
+
+    # Check for meta-task queries (model asking to generate a query)
+    for pattern in _META_TASK_PATTERNS:
+        if pattern.search(query):
+            violations.append(
+                f"Query is a meta-task query: {pattern.pattern}"
+            )
+            break  # One meta-task violation is sufficient
+
+    # Check for docstring reproduction: if the query contains a significant
+    # portion of docstring text, or if the docstring contains the query text,
+    # it's likely reproducing the docstring.
+    if code_unit.docstring:
+        query_lower = query.lower()
+        doc_lower = code_unit.docstring.lower()
+        # Check if query reproduces docstring text (query contains docstring phrase)
+        for phrase in _extract_docstring_content(code_unit.docstring):
+            if phrase in query_lower:
+                violations.append(
+                    "Query reproduces docstring text"
+                )
+                break
+        # Check if docstring contains the query text (query is a subset of docstring)
+        # This catches cases like "pytest.approx() should raise..." matching
+        # docstring "pytest.approx() should raise an error on unordered sequences (#9692)."
+        if not violations:
+            query_stripped = query_lower.strip().rstrip(".")
+            if len(query_stripped) > 20 and query_stripped in doc_lower:
+                violations.append(
+                    "Query reproduces docstring text"
+                )
+
+    # Check for function/method names mentioned in docstrings
+    # (e.g. "getfuncargnames" in docstring "Check getfuncargnames for...")
+    if code_unit.docstring and not violations:
+        # Extract identifiers from docstring that look like function/method names
+        # (contain underscore, camelCase, or are PascalCase)
+        doc_identifiers = set()
+        for word in re.findall(r"\b([a-zA-Z_]\w{3,})\b", code_unit.docstring):
+            # Only flag words that look like code identifiers:
+            # - snake_case (contains underscore)
+            # - camelCase (contains lowercase followed by uppercase)
+            # - PascalCase (starts with uppercase)
+            # Skip common English words and Sphinx directive names
+            if word.lower() in {"this", "that", "with", "from", "then", "when",
+                                "class", "attr", "meth", "func", "param",
+                                "returns", "raise", "value", "type", "args",
+                                "true", "false", "none", "self", "cls",
+                                "return", "check", "create", "find", "get",
+                                "set", "add", "remove", "update", "delete",
+                                "insert", "move", "copy", "split", "join",
+                                "merge", "sort", "filter", "test", "run",
+                                "execute", "parse", "build", "generate",
+                                "write", "read", "load", "save", "import",
+                                "export", "convert", "format", "display",
+                                "print", "show", "hide", "enable", "disable",
+                                "refresh", "overriding", "failed", "passed",
+                                "error", "result", "item", "name", "type",
+                                "value", "path", "mode", "data", "text",
+                                "size", "status", "option", "config",
+                                "table", "column", "width", "height",
+                                "color", "level", "count", "index",
+                                "first", "last", "next", "prev", "start",
+                                "end", "padding", "link", "key"}:
+                continue
+            # Must look like a code identifier (snake_case or camelCase)
+            has_underscore = "_" in word
+            has_camel = any(c.isupper() for c in word[1:]) and any(c.islower() for c in word)
+            if has_underscore or has_camel:
+                doc_identifiers.add(word)
+        for word in doc_identifiers:
+            if word in _PARAM_NAME_BLACKLIST:
+                continue
+            pat = _make_identifier_pattern(word)
+            if pat.search(query):
+                violations.append(
+                    f"Query contains docstring function name: {word}"
+                )
+                break
 
     return LeakageCheckResult(
         passed=len(violations) == 0,

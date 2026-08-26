@@ -17,6 +17,8 @@ from localbench.workloads.code_retrieval.query_generator import (
     QueryGenerator,
     _extract_identifier_parts,
     _extract_param_names,
+    _extract_sphinx_ref_names,
+    _extract_docstring_content,
     _make_identifier_pattern,
     check_query_leakage,
     generate_query,
@@ -361,6 +363,151 @@ class TestCheckQueryLeakage:
         )
         result = check_query_leakage(
             "Parse command line arguments and return a config object.",
+            unit,
+        )
+        assert result.passed is True
+
+    # ----------------------------------------------------------------
+    # Regression: meta-task query detection (Phase C8 remediation)
+    # ----------------------------------------------------------------
+
+    def test_meta_task_query_i_need_a_query_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "I need a technical query to retrieve all issues from a paginated API",
+            unit,
+        )
+        assert result.passed is False
+        assert any("meta-task" in v for v in result.violations)
+
+    def test_meta_task_query_generate_retrieval_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "Generate a retrieval query for the payment processor",
+            unit,
+        )
+        assert result.passed is False
+        assert any("meta-task" in v for v in result.violations)
+
+    def test_meta_task_query_pytest_collect_only_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "pytest --collect-only",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_clean_query_not_flagged_as_meta_task(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "How can I find the closest matching color in a palette?",
+            unit,
+        )
+        assert result.passed is True
+
+    # ----------------------------------------------------------------
+    # Regression: docstring reproduction detection (Phase C8 remediation)
+    # ----------------------------------------------------------------
+
+    def test_docstring_reproduction_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="test_scope_module_uses_session",
+            context=CodeUnitContext(class_name="TestFixtureMarker"),
+            docstring=(
+                "pytester makes a pyfile with a pytest fixture and tests "
+                "that use the fixture, then pytester runs the tests and "
+                "asserts that all tests passed."
+            ),
+            source_code=(
+                "def test_scope_module_uses_session(self, pytester):\n"
+                "    pass\n"
+            ),
+        )
+        result = check_query_leakage(
+            "pytester makes a pyfile with a pytest fixture and tests that "
+            "use the fixture, then pytester runs the tests and asserts that "
+            "all tests passed.",
+            unit,
+        )
+        assert result.passed is False
+        assert any("docstring" in v for v in result.violations)
+
+    def test_docstring_reproduction_partial_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="test_funcarg",
+            context=CodeUnitContext(class_name="TestRequestScopeAccess"),
+            docstring=(
+                "Overriding a parametrized fixture with a new parametrized "
+                "fixture and requesting the overwritten fixture as a parameter "
+                "yields the same value as request.param."
+            ),
+            source_code=(
+                "def test_funcarg(self, pytester, scope, ok, error):\n"
+                "    pass\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Overriding a parametrized fixture with a new parametrized fixture "
+            "and requesting the overwritten fixture as a parameter yields the "
+            "same value as request.param.",
+            unit,
+        )
+        assert result.passed is False
+        assert any("docstring" in v for v in result.violations)
+
+    def test_clean_query_not_flagged_as_docstring_reproduction(self) -> None:
+        unit = _make_code_unit(
+            symbol="test_something",
+            context=CodeUnitContext(),
+            docstring="A function that processes data efficiently.",
+            source_code="def test_something():\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How can I process data efficiently in Python?",
+            unit,
+        )
+        assert result.passed is True
+
+    # ----------------------------------------------------------------
+    # Regression: Sphinx :attr:/:meth:/:func: detection (Phase C8)
+    # ----------------------------------------------------------------
+
+    def test_sphinx_attr_reference_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="syspathinsert",
+            context=CodeUnitContext(class_name="Pytester"),
+            docstring=(
+                "Prepend a directory to sys.path, defaults to "
+                ":attr:`path`. This is undone automatically when this "
+                "object dies at the end of each test."
+            ),
+            source_code=(
+                "def syspathinsert(self, path=None):\n"
+                "    pass\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Prepend a directory to sys.path, defaults to :attr:`path`. "
+            "This is undone automatically when this object dies at the end "
+            "of each test.",
+            unit,
+        )
+        assert result.passed is False
+        # Detected either via Sphinx directive match or docstring reproduction
+        assert any(
+            "Sphinx directive" in v or "reference name" in v or "docstring" in v
+            for v in result.violations
+        )
+
+    def test_clean_query_no_sphinx_false_positive(self) -> None:
+        unit = _make_code_unit(
+            symbol="some_method",
+            context=CodeUnitContext(),
+            docstring="Do something with :attr:`some_attr`.",
+            source_code="def some_method():\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How can I do something with an attribute?",
             unit,
         )
         assert result.passed is True
