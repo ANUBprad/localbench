@@ -65,6 +65,44 @@ class QueryGenerationInput:
     imports: list[str] = dc_field(default_factory=list)
     parent_methods: list[str] = dc_field(default_factory=list)
 
+
+@dataclass(frozen=True)
+class StructuredBehaviorFacts:
+    """Deterministic behavioral facts extracted from source code.
+
+    Stage A output: feeds into the docstring-blind Stage B prompt.
+    All fields are derived from AST analysis — no docstring, no LLM.
+
+    Provenance constraint: fields must NOT contain class names, function
+    names, method names, parameter identifiers, variable identifiers,
+    file paths, repository names, or any implementation-specific
+    identifiers.  Descriptions must be generic behavioral summaries.
+    """
+
+    primary_purpose: str
+    """Generic verb-phrase describing what the code does (no identifiers)."""
+
+    input_summary: str
+    """Human-readable summary of parameter count and roles (no names)."""
+
+    output_summary: str
+    """What the function returns or raises."""
+
+    side_effects: list[str] = dc_field(default_factory=list)
+    """Detected side effects (generic descriptions, no attribute names)."""
+
+    key_operations: list[str] = dc_field(default_factory=list)
+    """Key operation categories (no call names)."""
+
+    error_handling: str = ""
+    """Error handling pattern."""
+
+    control_flow: str = ""
+    """Control flow summary."""
+
+    raises: list[str] = dc_field(default_factory=list)
+    """Exception types explicitly raised."""
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
