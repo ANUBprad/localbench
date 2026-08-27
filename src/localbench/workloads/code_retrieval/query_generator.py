@@ -383,6 +383,32 @@ def check_query_leakage(
                     f"Query contains source code identifier: {ident}"
                 )
 
+    # Check sibling method names from context.parent_methods.  These are
+    # implementation identifiers the model may reproduce from the "Sibling
+    # methods" prompt context (e.g. test_show_fixtures, runpytest_subprocess).
+    # Only flag names that clearly look like code identifiers (underscored or
+    # camel/Pascal-cased), reusing the same heuristic applied to source-body
+    # names, so common English/method words (run, spawn, request) are not
+    # falsely rejected.
+    if code_unit.context and code_unit.context.parent_methods:
+        for sibling in code_unit.context.parent_methods:
+            if sibling in _PARAM_NAME_BLACKLIST:
+                continue
+            if len(sibling) < _MIN_IDENTIFIER_LENGTH:
+                continue
+            has_underscore = "_" in sibling
+            has_camel = any(c.isupper() for c in sibling[1:]) and any(
+                c.islower() for c in sibling
+            )
+            if not (has_underscore or has_camel):
+                continue
+            pat = _make_identifier_pattern(sibling)
+            if pat.search(query):
+                violations.append(
+                    f"Query contains sibling method name: {sibling}"
+                )
+                break
+
     # Check all Sphinx cross-reference names (:class:, :attr:, :meth:, :func:)
     # from the docstring.  These are implementation-specific identifiers.
     if code_unit.docstring:
