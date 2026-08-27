@@ -34,9 +34,13 @@ from localbench.workloads.code_retrieval.schemas import (
     StructuredBehaviorFacts,
 )
 
-QUERY_PROMPT_TEMPLATE_VERSION = "3.1.0"
+QUERY_PROMPT_TEMPLATE_VERSION = "3.2.0"
 """Version of the query prompt template.  Increment when wording changes.
 
+v3.2: Strengthened the anti-leakage reminder so the model never repeats the
+class, sibling-method, import, or raised-exception identifiers rendered on the
+'Class' / 'Sibling methods' / 'Imports' / 'Raises' context lines, targeting the
+observed Testdir and PytestPluginManager class-name leakage regressions.
 v3.1: Added identifier-free domain concepts and observable effects to the
 Stage-B prompt, added a discriminative-instruction line, and tightened the
 query_style enum so the model returns exactly one of the four allowed values.
@@ -104,8 +108,11 @@ _USER_TEMPLATE_V2 = (
     "{raises_block}"
     "{context_block}"
     "\n"
-    "REMINDER: Do NOT use any class names, method names, or identifiers from "
-    "the context above. Describe the behavior in plain language only.\n"
+    "REMINDER — ANTI-LEAKAGE: The 'Class', 'Sibling methods', 'Imports', and "
+    "'Raises' lines above are context for understanding ONLY. NEVER repeat any "
+    "of the class, method, or other identifier names from those lines in the "
+    "query. Describe the behavior and observable effects in plain language "
+    "only.\n"
     "Do NOT copy the behavioral facts — rephrase as a natural question.\n"
     "The query should be specific enough to distinguish THIS code from any "
     "other function that merely shares a domain (e.g. mention the concrete "
