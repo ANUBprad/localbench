@@ -103,6 +103,23 @@ class StructuredBehaviorFacts:
     raises: list[str] = dc_field(default_factory=list)
     """Exception types explicitly raised."""
 
+    domain_concepts: list[str] = dc_field(default_factory=list)
+    """Generic identifier-free domain concepts grounded in source signals.
+
+    Derived deterministically from imports, called API families, decorators,
+    literals, and observable operations.  Expresses *what domain* the code
+    operates in (e.g. "terminal cursor positioning", "subprocess execution",
+    "tabulated console rendering") — never an implementation identifier
+    (class / method / function / parameter / variable / attribute name).
+    """
+
+    observable_effects: list[str] = dc_field(default_factory=list)
+    """Identifier-free externally observable effects of the code.
+
+    What a caller or end-user would observe (e.g. "moves the terminal
+    cursor", "captures standard output/error", "renders a table to the
+    console").  Emitted only when the source evidence supports the effect."""
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
