@@ -5,6 +5,13 @@ using a dedicated local model via the ``LocalModel`` protocol.  Reuses
 existing Phase 2 (structured validation) and Phase 3 (bounded retry)
 infrastructure.
 
+Two-stage generation (v2):
+  Stage A: Deterministic AST-based behavior extraction (no LLM)
+  Stage B: Docstring-blind prompt using StructuredBehaviorFacts + source
+
+This eliminates docstring-provenance leakage — the LLM never sees
+the docstring during query generation.
+
 Scope (Phase 4F):
 - CandidateQuery generation for ExtractedCodeUnit objects
 - Configurable model selection (no hardcoded model name)
@@ -12,6 +19,7 @@ Scope (Phase 4F):
 - Prompt construction via query_prompt module
 - Structured validation against CandidateQuery schema
 - Query quality / leakage validation
+- Provenance validation (docstring-provenance leakage detection)
 - Bounded retry with attempt recording
 - Generation metadata for reproducibility
 
@@ -37,14 +45,18 @@ from localbench.runtime.generation.executor import (
 )
 from localbench.runtime.generation.policy import RetryPolicy
 from localbench.runtime.model import GenerationRequest, LocalModel
+from localbench.workloads.code_retrieval.behavior_extraction import (
+    extract_behavior_facts,
+)
 from localbench.workloads.code_retrieval.extraction import ExtractedCodeUnit
 from localbench.workloads.code_retrieval.query_prompt import (
     QUERY_PROMPT_TEMPLATE_VERSION,
-    build_query_generation_prompt,
+    build_query_generation_prompt_v2,
 )
 from localbench.workloads.code_retrieval.schemas import (
     CandidateQuery,
     QueryGenerationInput,
+    StructuredBehaviorFacts,
 )
 
 logger = logging.getLogger(__name__)
@@ -164,7 +176,10 @@ _META_TASK_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bwrite (a )?retrieval query\b", re.IGNORECASE),
     re.compile(r"\bcreate (a )?query\b", re.IGNORECASE),
     re.compile(r"\bquery to (find|retrieve|get)\b", re.IGNORECASE),
-    re.compile(r"\bhow (can|do) i (write|create|generate|find) (a )?query\b", re.IGNORECASE),
+    re.compile(
+        r"\bhow (can|do) i (write|create|generate|find) (a )?query\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\bpytest\s+--collect-only\b", re.IGNORECASE),
     re.compile(r"\bpytest\s+-\s*-\s*collect\s*-\s*only\b", re.IGNORECASE),
 )
@@ -475,6 +490,180 @@ def check_query_leakage(
 
 
 # ---------------------------------------------------------------------------
+# Provenance validation
+# ---------------------------------------------------------------------------
+
+_MIN_PROVENANCE_NGRAM = 4
+"""Minimum n-gram length for provenance overlap detection."""
+
+_MIN_PROVENANCE_PHRASE_LENGTH = 20
+"""Minimum character length for distinctive phrase matching."""
+
+
+@dataclass(frozen=True)
+class ProvenanceCheckResult:
+    """Outcome of query provenance validation.
+
+    Checks whether the generated query reproduces docstring text
+    verbatim or via high n-gram overlap, indicating the model is
+    paraphrasing the docstring rather than reasoning about code behavior.
+    """
+
+    passed: bool
+    violations: list[str] = field(default_factory=list)
+
+
+def _extract_ngrams(text: str, n: int) -> set[str]:
+    """Extract character n-grams from text."""
+    words = text.lower().split()
+    ngrams: set[str] = set()
+    for i in range(len(words) - n + 1):
+        ngram = " ".join(words[i : i + n])
+        ngrams.add(ngram)
+    return ngrams
+
+
+def _extract_distinctive_phrases(docstring: str) -> list[str]:
+    """Extract distinctive phrases from docstring for provenance checks.
+
+    Returns phrases that are long enough and specific enough to
+    indicate provenance copying if they appear in the query.
+    """
+    if not docstring:
+        return []
+
+    phrases: list[str] = []
+    for sentence in re.split(r"[.!?\n]", docstring):
+        stripped = sentence.strip()
+        # Skip very short, Sphinx directives, and non-alphabetic
+        if len(stripped) < _MIN_PROVENANCE_PHRASE_LENGTH:
+            continue
+        if stripped.startswith(":"):
+            continue
+        alpha_ratio = sum(c.isalpha() or c.isspace() for c in stripped) / len(
+            stripped
+        )
+        if alpha_ratio < 0.7:
+            continue
+        phrases.append(stripped.lower())
+    return phrases
+
+
+def check_query_provenance(
+    query: str,
+    docstring: str,
+) -> ProvenanceCheckResult:
+    """Check if a query reproduces docstring text (provenance leakage).
+
+    Detects three types of provenance leakage:
+    1. Exact copy: query contains a docstring sentence verbatim
+    2. High n-gram overlap: query shares many n-grams with docstring
+    3. Distinctive phrase: query contains a distinctive docstring phrase
+
+    Parameters
+    ----------
+    query:
+        The generated query text.
+    docstring:
+        The source code docstring.
+
+    Returns
+    -------
+    A ``ProvenanceCheckResult`` indicating pass/fail and violations.
+    """
+    if not docstring:
+        return ProvenanceCheckResult(passed=True)
+
+    violations: list[str] = []
+    query_lower = query.lower().strip().rstrip(".")
+    doc_lower = docstring.lower().strip()
+
+    # 1. Exact copy: query is a substring of docstring or vice versa
+    if len(query_lower) > 20 and query_lower in doc_lower:
+        violations.append("Query reproduces docstring text (exact substring)")
+    elif len(query_lower) > 20 and doc_lower in query_lower:
+        violations.append("Query contains full docstring text")
+
+    # 2. Distinctive phrase matching
+    for phrase in _extract_distinctive_phrases(docstring):
+        if phrase in query_lower:
+            violations.append(
+                f"Query contains distinctive docstring phrase: "
+                f"'{phrase[:50]}...'"
+            )
+            break
+
+    # 3. N-gram overlap (4-gram)
+    if not violations:
+        query_ngrams = _extract_ngrams(query_lower, _MIN_PROVENANCE_NGRAM)
+        doc_ngrams = _extract_ngrams(doc_lower, _MIN_PROVENANCE_NGRAM)
+        if query_ngrams and doc_ngrams:
+            overlap = len(query_ngrams & doc_ngrams)
+            total = min(len(query_ngrams), len(doc_ngrams))
+            if total > 0 and overlap / total > 0.6:
+                violations.append(
+                    f"High n-gram overlap with docstring "
+                    f"({overlap}/{total} = {overlap / total:.0%})"
+                )
+
+    return ProvenanceCheckResult(
+        passed=len(violations) == 0,
+        violations=violations,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Meta-query validation (strengthened)
+# ---------------------------------------------------------------------------
+
+_META_QUERY_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Direct meta-task requests
+    re.compile(r"\bi need a (technical )?query\b", re.IGNORECASE),
+    re.compile(r"\bgenerate (a )?(retrieval )?query\b", re.IGNORECASE),
+    re.compile(r"\bretrieve the source code\b", re.IGNORECASE),
+    re.compile(r"\bfind the (source )?code for\b", re.IGNORECASE),
+    re.compile(r"\bwrite (a )?retrieval query\b", re.IGNORECASE),
+    re.compile(r"\bcreate (a )?query\b", re.IGNORECASE),
+    re.compile(r"\bquery to (find|retrieve|get)\b", re.IGNORECASE),
+    re.compile(
+        r"\bhow (can|do) i (write|create|generate|find) (a )?query\b",
+        re.IGNORECASE,
+    ),
+    # pytest meta-commands
+    re.compile(r"\bpytest\s+--collect-only\b", re.IGNORECASE),
+    re.compile(r"\bpytest\s+-\s*-\s*collect\s*-\s*only\b", re.IGNORECASE),
+    # Task-inappropriate patterns
+    re.compile(r"\bwrite (a )?(python )?(function|script|code)\b", re.IGNORECASE),
+    re.compile(r"\bimplement (a )?(function|class|method)\b", re.IGNORECASE),
+    re.compile(r"\bdef\s+\w+\s*\(", re.IGNORECASE),
+    re.compile(r"\bclass\s+\w+\s*[\(:]", re.IGNORECASE),
+    # Instruction-following patterns (model explaining what it will do)
+    re.compile(r"\bhere is (a )?(the )?query\b", re.IGNORECASE),
+    re.compile(r"\bthe (retrieval )?query is\b", re.IGNORECASE),
+    re.compile(r"\bsure,?\s*(here|i can|i'll)\b", re.IGNORECASE),
+    re.compile(r"\bokay,?\s*(here|i can|i'll)\b", re.IGNORECASE),
+    re.compile(r"\bcertainly,?\s*(here|i can|i'll)\b", re.IGNORECASE),
+    # Self-referential patterns
+    re.compile(r"\bas (an )?ai\b", re.IGNORECASE),
+    re.compile(r"\bas a (language )?model\b", re.IGNORECASE),
+    re.compile(r"\bi (cannot|can't|am unable to)\b", re.IGNORECASE),
+)
+
+
+def check_meta_query(query: str) -> bool:
+    """Check if a query is a meta-query (not a real retrieval query).
+
+    Returns True if the query matches any meta-query pattern,
+    indicating the model generated a meta-task response instead
+    of a real retrieval query.
+    """
+    for pattern in _META_QUERY_PATTERNS:
+        if pattern.search(query):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
 
@@ -501,6 +690,8 @@ class QueryGenerationResult:
     total_generation_ms: float = 0.0
     total_validation_ms: float = 0.0
     leakage: LeakageCheckResult | None = None
+    provenance: ProvenanceCheckResult | None = None
+    behavior_facts: StructuredBehaviorFacts | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -540,8 +731,9 @@ class QueryGenerator:
     def generate(self, code_unit: ExtractedCodeUnit) -> QueryGenerationResult:
         """Generate a candidate retrieval query for a single code unit.
 
-        Pipeline: convert to source-only input -> build prompt ->
-        model generate -> validate -> leakage check -> retry
+        Two-stage pipeline:
+          Stage A: Extract StructuredBehaviorFacts from source code (AST-based)
+          Stage B: Build docstring-blind prompt, generate query, validate
 
         Parameters
         ----------
@@ -552,8 +744,20 @@ class QueryGenerator:
         -------
         A ``QueryGenerationResult`` with the outcome and full attempt history.
         """
-        gen_input = _to_query_input(code_unit)
-        prompt = build_query_generation_prompt(gen_input)
+        # Stage A: Deterministic behavior extraction (no LLM, no docstring)
+        behavior_facts = extract_behavior_facts(code_unit.source_code)
+
+        # Stage B: Docstring-blind prompt using behavior facts
+        context = code_unit.context
+        prompt = build_query_generation_prompt_v2(
+            facts=behavior_facts,
+            source_code=code_unit.source_code,
+            symbol_type=code_unit.symbol_type,
+            class_name=context.class_name if context else None,
+            module_docstring=context.module_docstring if context else None,
+            imports=context.imports if context else None,
+            parent_methods=context.parent_methods if context else None,
+        )
         generate_fn = self._make_generate_fn()
 
         retry_result = run_with_retry(
@@ -567,6 +771,7 @@ class QueryGenerator:
             candidate = retry_result.result.data
             assert isinstance(candidate, CandidateQuery)
 
+            # Leakage check
             leakage = check_query_leakage(candidate.query, code_unit)
             if not leakage.passed:
                 logger.warning(
@@ -580,6 +785,38 @@ class QueryGenerator:
                     total_generation_ms=retry_result.total_generation_ms,
                     total_validation_ms=retry_result.total_validation_ms,
                     leakage=leakage,
+                    behavior_facts=behavior_facts,
+                )
+
+            # Provenance check (docstring-provenance leakage)
+            provenance = check_query_provenance(
+                candidate.query, code_unit.docstring
+            )
+            if not provenance.passed:
+                logger.warning(
+                    "Query failed provenance check: %s",
+                    "; ".join(provenance.violations),
+                )
+                return QueryGenerationResult(
+                    success=False,
+                    attempts=retry_result.attempts,
+                    model_name=self.model.name,
+                    total_generation_ms=retry_result.total_generation_ms,
+                    total_validation_ms=retry_result.total_validation_ms,
+                    provenance=provenance,
+                    behavior_facts=behavior_facts,
+                )
+
+            # Meta-query check
+            if check_meta_query(candidate.query):
+                logger.warning("Query is a meta-query")
+                return QueryGenerationResult(
+                    success=False,
+                    attempts=retry_result.attempts,
+                    model_name=self.model.name,
+                    total_generation_ms=retry_result.total_generation_ms,
+                    total_validation_ms=retry_result.total_validation_ms,
+                    behavior_facts=behavior_facts,
                 )
 
             return QueryGenerationResult(
@@ -590,6 +827,8 @@ class QueryGenerator:
                 total_generation_ms=retry_result.total_generation_ms,
                 total_validation_ms=retry_result.total_validation_ms,
                 leakage=leakage,
+                provenance=provenance,
+                behavior_facts=behavior_facts,
             )
 
         return QueryGenerationResult(
@@ -598,6 +837,7 @@ class QueryGenerator:
             model_name=self.model.name,
             total_generation_ms=retry_result.total_generation_ms,
             total_validation_ms=retry_result.total_validation_ms,
+            behavior_facts=behavior_facts,
         )
 
     def generate_batch(
