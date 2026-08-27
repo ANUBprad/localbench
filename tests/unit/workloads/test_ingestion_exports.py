@@ -94,7 +94,7 @@ class TestPackageExports:
         assert callable(get_query_system_prompt)
         assert callable(check_query_leakage)
         assert callable(generate_query)
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
 
     def test_all_matches_actual_exports(self):
         import localbench.workloads.code_retrieval as pkg

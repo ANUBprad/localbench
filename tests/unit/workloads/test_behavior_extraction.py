@@ -6,6 +6,8 @@ No LLM is involved.
 
 from __future__ import annotations
 
+import ast as _ast
+
 from localbench.workloads.code_retrieval.behavior_extraction import (
     extract_behavior_facts,
 )
@@ -137,6 +139,8 @@ class TestStructuredBehaviorFactsSchema:
         assert facts.error_handling == ""
         assert facts.control_flow == ""
         assert facts.raises == []
+        assert facts.domain_concepts == []
+        assert facts.observable_effects == []
 
     def test_frozen_dataclass(self) -> None:
         facts = StructuredBehaviorFacts(
@@ -536,3 +540,275 @@ class TestInvestigationDerivedRegression:
         assert facts.primary_purpose != "parses as invalid code"
         assert "delegates" in facts.primary_purpose
         assert "pytester" not in facts.primary_purpose
+
+
+# ===========================================================================
+# v3.2 regression: identifier-free domain concepts & observable effects
+# ===========================================================================
+
+
+class TestDomainConceptsExtraction:
+    """Domain concepts derived from imports and call patterns are generic and
+    deterministic and never surface implementation identifiers."""
+
+    def test_empty_without_imports(self) -> None:
+        src = "def f():\n    pass\n"
+        facts = extract_behavior_facts(src)
+        assert facts.domain_concepts == []
+
+    def test_rich_console_import(self) -> None:
+        src = "def render():\n    console.print('hi')\n"
+        facts = extract_behavior_facts(src, imports=["rich.console"])
+        assert "terminal/console rendering" in facts.domain_concepts
+
+    def test_subprocess_import(self) -> None:
+        src = "def run(cmd):\n    return subprocess.run(cmd)\n"
+        facts = extract_behavior_facts(src, imports=["subprocess"])
+        assert "subprocess/process execution" in facts.domain_concepts
+
+    def test_urllib_http_import(self) -> None:
+        src = "def grab(url):\n    return urlopen(url)\n"
+        facts = extract_behavior_facts(src, imports=["urllib.request"])
+        assert "HTTP transfer" in facts.domain_concepts
+
+    def test_ctypes_native_import(self) -> None:
+        src = "def f():\n    return ctypes.cdll.LoadLibrary('x')\n"
+        facts = extract_behavior_facts(src, imports=["ctypes"])
+        assert "native OS/terminal API calls" in facts.domain_concepts
+
+    def test_dup2_call_concept(self) -> None:
+        src = (
+            "def capture():\n"
+            "    os.dup2(fd, 1)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["os", "sys"])
+        assert "file-descriptor redirection" in facts.domain_concepts
+
+    def test_cursor_placement_via_call(self) -> None:
+        src = (
+            "def move(handle, pos):\n"
+            "    ctypes.windll.kernel32._SetConsoleCursorPosition(handle, pos)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["ctypes"])
+        assert "terminal cursor positioning" in facts.domain_concepts
+
+    def test_determinism(self) -> None:
+        src = "def render():\n    console.print('hi')\n"
+        a = extract_behavior_facts(src, imports=["rich.console"])
+        b = extract_behavior_facts(src, imports=["rich.console"])
+        assert a.domain_concepts == b.domain_concepts
+        assert a.observable_effects == b.observable_effects
+
+    def test_docstring_independent(self) -> None:
+        plain = (
+            "def render():\n"
+            "    console.print('hi')\n"
+        )
+        with_doc = (
+            "def render():\n"
+            '    """Render the company dashboard to the terminal."""\n'
+            "    console.print('hi')\n"
+        )
+        a = extract_behavior_facts(plain, imports=["rich.console"])
+        b = extract_behavior_facts(with_doc, imports=["rich.console"])
+        assert a.domain_concepts == b.domain_concepts
+        assert a.observable_effects == b.observable_effects
+
+    def test_generic_purpose_gets_domain_lead(self) -> None:
+        src = "def f():\n    do_thing()\n"
+        facts = extract_behavior_facts(src, imports=["subprocess"])
+        assert "subprocess" in facts.primary_purpose or (
+            "process" in facts.primary_purpose
+        )
+
+
+class TestObservableEffectsExtraction:
+    """Observable effects are emitted only with structural evidence."""
+
+    def test_print_effect(self) -> None:
+        src = "def show():\n    print('hi')\n"
+        facts = extract_behavior_facts(src)
+        assert "prints to the console" in facts.observable_effects
+
+    def test_dup2_capture_effect(self) -> None:
+        src = (
+            "def capture(self):\n"
+            "    os.dup2(self.fd, 1)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["os"])
+        assert "captures standard output/error" in facts.observable_effects
+
+    def test_subprocess_launch_effect(self) -> None:
+        src = "def go(cmd):\n    subprocess.Popen(cmd)\n"
+        facts = extract_behavior_facts(src, imports=["subprocess"])
+        assert "launches a subprocess" in facts.observable_effects
+
+    def test_cursor_movement_effect(self) -> None:
+        src = (
+            "def move(handle, pos):\n"
+            "    ctypes.windll.kernel32._SetConsoleCursorPosition(handle, pos)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["ctypes"])
+        assert "moves the terminal cursor" in facts.observable_effects
+
+    def test_http_download_effect(self) -> None:
+        src = (
+            "def copy(url):\n"
+            "    return urllib.request.urlretrieve(url)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["urllib.request"])
+        assert "transfers data over HTTP to a local file" in facts.observable_effects
+
+    def test_table_rendering_effect(self) -> None:
+        src = (
+            "def show():\n"
+            "    t = table.Table()\n"
+            "    t.add_column('title')\n"
+        )
+        facts = extract_behavior_facts(src, imports=["rich.table"])
+        assert "renders a table of items to the console" in facts.observable_effects
+
+    def test_no_fabricated_effects(self) -> None:
+        src = (
+            "def total(items):\n"
+            "    return sum(items)\n"
+        )
+        facts = extract_behavior_facts(src)
+        assert facts.observable_effects == []
+        assert facts.domain_concepts == []
+
+
+class TestDomainEffectsIdentifierFree:
+    """The new fields must never surface implementation identifiers.
+
+    Mirrors the production leak check: identifier-like tokens in the fact text
+    must not overlap with identifiers actually present in the source code.
+    """
+
+    def _source_identifiers(self, src: str) -> set[str]:
+        """Collect implementation identifiers present in the source text."""
+        tree = _ast.parse(src)
+        ids: set[str] = set()
+        for node in _ast.walk(tree):
+            if isinstance(node, (_ast.FunctionDef, _ast.ClassDef)):
+                ids.add(node.name)
+            elif isinstance(node, _ast.Name):
+                ids.add(node.id)
+            elif isinstance(node, _ast.arg):
+                ids.add(node.arg)
+            elif isinstance(node, _ast.Attribute):
+                ids.add(node.attr)
+        return ids
+
+    def _assert_new_fields_identifier_free(self, src, imports=None) -> None:
+        facts = extract_behavior_facts(src, imports=imports)
+        text = " ".join(facts.domain_concepts + facts.observable_effects)
+        src_ids = self._source_identifiers(src)
+        fact_words = set(_IDENTIFIER_PATTERN.findall(text))
+        overlap = fact_words & src_ids
+        assert overlap == set(), f"identifier leak in new fields: {overlap}"
+
+    def test_rich_table_unit_identifier_free(self) -> None:
+        src = (
+            "def print_table(movie_rows):\n"
+            "    t = table.Table()\n"
+            "    for row in movie_rows:\n"
+            "        t.add_column(row[0])\n"
+        )
+        self._assert_new_fields_identifier_free(
+            src, imports=["rich.table", "rich.console"]
+        )
+
+    def test_fd_capture_unit_identifier_free(self) -> None:
+        src = (
+            "def start(self, fd):\n"
+            "    self.old = os.dup2(fd, 1)\n"
+        )
+        self._assert_new_fields_identifier_free(src, imports=["os", "sys"])
+
+    def test_cursor_unit_identifier_free(self) -> None:
+        src = (
+            "def SetConsoleCursorPosition(handle, pos):\n"
+            "    ctypes.windll.kernel32._SetConsoleCursorPosition(handle, pos)\n"
+        )
+        self._assert_new_fields_identifier_free(src, imports=["ctypes"])
+
+    def test_copy_url_unit_identifier_free(self) -> None:
+        src = (
+            "def copy_url(src_url, dst_path):\n"
+            "    return urllib.request.urlretrieve(src_url, dst_path)\n"
+        )
+        self._assert_new_fields_identifier_free(src, imports=["urllib.request"])
+
+    def test_domain_class_name_not_emitted(self) -> None:
+        src = (
+            "def render():\n"
+            "    console.print('hi')\n"
+        )
+        facts = extract_behavior_facts(
+            src, imports=["rich.console", "rich.windows"]
+        )
+        for phrase in facts.domain_concepts:
+            assert "Console" not in phrase
+            assert "Windows" not in phrase
+
+    def test_effects_identifier_free_when_domain_present(self) -> None:
+        src = (
+            "def run_steps(steps):\n"
+            "    for step in steps:\n"
+            "        progress.advance(step)\n"
+        )
+        self._assert_new_fields_identifier_free(src, imports=["rich.progress"])
+
+
+class TestCanaryDerivedDomainFacts:
+    """Assertions grounded in the real 48-unit canary extraction results."""
+
+    def test_fd_capture_start(self) -> None:
+        src = (
+            "def start(self):\n"
+            "    os.dup2(self.fd, 1)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["os", "sys"])
+        assert "file-descriptor redirection" in facts.domain_concepts
+        assert "captures standard output/error" in facts.observable_effects
+
+    def test_set_console_cursor_position(self) -> None:
+        src = (
+            "def SetConsoleCursorPosition(handle, pos):\n"
+            "    ctypes.windll.kernel32._SetConsoleCursorPosition(handle, pos)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["ctypes"])
+        assert "terminal cursor positioning" in facts.domain_concepts
+        assert "moves the terminal cursor" in facts.observable_effects
+
+    def test_print_table(self) -> None:
+        src = (
+            "def print_table(rows):\n"
+            "    t = table.Table()\n"
+            "    for row in rows:\n"
+            "        t.add_column(row[0])\n"
+            "    console.print(t)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["rich.table", "rich.console"])
+        assert "tabulated console rendering" in facts.domain_concepts
+        assert "tabulated row/column layout" in facts.domain_concepts
+
+    def test_copy_url(self) -> None:
+        src = (
+            "def copy_url(src, dst):\n"
+            "    return urllib.request.urlretrieve(src, dst)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["urllib.request", "rich.progress"])
+        assert "HTTP transfer" in facts.domain_concepts
+        assert "transfers data over HTTP to a local file" in facts.observable_effects
+
+    def test_text_alignment(self) -> None:
+        src = (
+            "def align_center(text, width):\n"
+            "    return text.align('center', width)\n"
+        )
+        facts = extract_behavior_facts(src, imports=["rich.text"])
+        assert "text formatting" in facts.domain_concepts
+        assert "formats text for display and alignment" in facts.observable_effects
+

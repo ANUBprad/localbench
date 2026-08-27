@@ -60,7 +60,7 @@ class TestQueryPromptTemplateVersion:
         assert len(parts) == 3
 
     def test_version_value(self) -> None:
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
 
 
 # ===========================================================================
@@ -281,7 +281,7 @@ class TestBuildQueryGenerationPromptV2:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
 
     def test_v2_context_class_name_preserved(self) -> None:
         facts = _make_facts()
@@ -343,3 +343,84 @@ class TestBuildQueryGenerationPromptV2:
         assert "process_data" not in prompt
         assert "token" not in prompt
         assert "timeout" not in prompt
+
+
+class TestQueryPromptDomainBlocks:
+    """The v3.1 prompt surfaces identifier-free domain/effect facts."""
+
+    def test_v2_domain_concepts_rendered(self) -> None:
+        facts = _make_facts(
+            domain_concepts=["terminal/console rendering", "progress display"],
+            observable_effects=["renders a table of items to the console"],
+        )
+        prompt = build_query_generation_prompt_v2(
+            facts, source_code="def foo():\n    pass", symbol_type="function"
+        )
+        assert "Domain concepts: terminal/console rendering, progress display" in prompt
+        assert (
+            "Observable effects: renders a table of items to the console" in prompt
+        )
+
+    def test_v2_empty_domain_blocks_omitted(self) -> None:
+        facts = _make_facts()
+        prompt = build_query_generation_prompt_v2(
+            facts, source_code="def foo():\n    pass", symbol_type="function"
+        )
+        assert "Domain concepts:" not in prompt
+        assert "Observable effects:" not in prompt
+
+    def test_v2_domain_facts_stay_identifier_free_in_prompt(self) -> None:
+        facts = _make_facts(
+            domain_concepts=["terminal cursor positioning"],
+            observable_effects=["moves the terminal cursor"],
+        )
+        prompt = build_query_generation_prompt_v2(
+            facts,
+            source_code=(
+                "def SetConsoleCursorPosition(handle, pos):\n"
+                "    ctypes.windll.kernel32._SetConsoleCursorPosition(handle, pos)\n"
+            ),
+            symbol_type="function",
+        )
+        assert "SetConsoleCursorPosition" not in prompt
+        assert "handle" not in prompt
+
+    def test_system_prompt_query_style_enum_guidance(self) -> None:
+        sys_prompt = get_query_system_prompt()
+        assert '"natural"' in sys_prompt
+        assert '"technical"' in sys_prompt
+        assert '"verbose"' in sys_prompt
+        assert '"concise"' in sys_prompt
+
+    def test_system_prompt_forbids_non_enum_style_labels(self) -> None:
+        sys_prompt = get_query_system_prompt()
+        assert "Descriptive" in sys_prompt or "descriptive" in sys_prompt
+        assert "Expository" in sys_prompt or "expository" in sys_prompt
+
+
+class TestQueryStyleEnum:
+    """query_style accepts exactly the four documented literals."""
+
+    def test_all_four_literals_valid(self) -> None:
+        from localbench.workloads.code_retrieval.schemas import CandidateQuery
+
+        for style in ("natural", "technical", "verbose", "concise"):
+            q = CandidateQuery(
+                query="is there a way to sort a list",
+                query_style=style,  # type: ignore[arg-type]
+                query_intent="find_implementation",
+            )
+            assert q.query_style == style
+
+    def test_non_enum_style_rejected(self) -> None:
+        import pydantic
+        import pytest
+
+        from localbench.workloads.code_retrieval.schemas import CandidateQuery
+
+        with pytest.raises(pydantic.ValidationError):
+            CandidateQuery(
+                query="sorting helpers",
+                query_style="Descriptive",  # type: ignore[arg-type]
+                query_intent="find_implementation",
+            )

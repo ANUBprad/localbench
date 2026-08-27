@@ -329,7 +329,7 @@ class TestPromptVersionForRegeneration:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
 
     def test_regeneration_script_references_correct_version(self) -> None:
         script_path = (

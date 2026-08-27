@@ -782,7 +782,7 @@ class TestQueryGenerator:
         unit = _make_code_unit()
         result = gen.generate(unit)
 
-        assert result.prompt_template_version == "3.0.0"
+        assert result.prompt_template_version == "3.1.0"
 
     def test_timing_recorded(self) -> None:
         model = FakeModel()
@@ -801,6 +801,42 @@ class TestQueryGenerator:
 
         assert result.success is True
         assert isinstance(result.candidate, CandidateQuery)
+
+    def test_imports_flow_into_stage_a_domain_facts(self) -> None:
+        model = FakeModel()
+        gen = QueryGenerator(model)
+        unit = _make_code_unit(
+            source_code=(
+                "def print_table(rows):\n"
+                "    t = table.Table()\n"
+                "    for row in rows:\n"
+                "        t.add_column(row[0])\n"
+                "    console.print(t)\n"
+            ),
+            context=CodeUnitContext(
+                class_name=None,
+                module_docstring=None,
+                imports=["rich.table", "rich.console"],
+                parent_methods=[],
+            ),
+        )
+        result = gen.generate(unit)
+        assert result.success is True
+        prompt = model._calls[0].prompt
+        assert "Domain concepts:" in prompt
+        assert "tabulated console rendering" in prompt
+        # the source identifiers must never leak into the Stage-B prompt
+        assert "print_table" not in prompt
+
+    def test_no_imports_yields_no_domain_block(self) -> None:
+        model = FakeModel()
+        gen = QueryGenerator(model)
+        unit = _make_code_unit()
+        result = gen.generate(unit)
+        assert result.success is True
+        prompt = model._calls[0].prompt
+        assert "Domain concepts:" not in prompt
+        assert "Observable effects:" not in prompt
 
     def test_leakage_rejects_query_with_identifier(self) -> None:
         leaked_query = json.dumps(
@@ -944,7 +980,7 @@ class TestReproducibility:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.0.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
 
 
 # ===========================================================================
