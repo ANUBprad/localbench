@@ -285,7 +285,12 @@ def _count_operation_categories(source_code: str) -> list[str]:
     # Semantic operation categories based on structural call patterns.
     if any(isinstance(n, ast.Call) and _looks_like_get(n) for n in ast.walk(tree)):
         categories.append("looks up a value by key")
-    if any(isinstance(n, ast.Compare) and any(isinstance(o, (ast.In, ast.NotIn)) for o in n.ops) for n in ast.walk(tree)):
+    has_membership_check = any(
+        isinstance(n, ast.Compare)
+        and any(isinstance(o, (ast.In, ast.NotIn)) for o in n.ops)
+        for n in ast.walk(tree)
+    )
+    if has_membership_check:
         categories.append("tests membership in a collection")
 
     if method_call_count > 0:
@@ -352,14 +357,20 @@ def _detect_comparison(tree: ast.Module) -> str | None:
             for op in node.ops:
                 if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot,
                                    ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
-                    return "checks whether a value satisfies a comparison condition"
+                    return (
+                        "checks whether a value satisfies a comparison condition"
+                    )
     return None
 
 
 def _detect_delegation(tree: ast.Module) -> str | None:
     """Detect forwarding to another routine (returning a call result)."""
     for node in ast.walk(tree):
-        if isinstance(node, ast.Return) and node.value and isinstance(node.value, ast.Call):
+        if (
+            isinstance(node, ast.Return)
+            and node.value
+            and isinstance(node.value, ast.Call)
+        ):
             return "delegates to another routine and returns its result"
     return None
 
