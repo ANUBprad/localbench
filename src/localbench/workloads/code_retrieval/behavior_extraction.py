@@ -31,6 +31,7 @@ summaries derived from AST structure only.
 from __future__ import annotations
 
 import ast
+import textwrap
 
 from localbench.workloads.code_retrieval.schemas import StructuredBehaviorFacts
 
@@ -39,11 +40,27 @@ from localbench.workloads.code_retrieval.schemas import StructuredBehaviorFacts
 # ---------------------------------------------------------------------------
 
 
+def _parse_source(source_code: str) -> ast.Module | None:
+    """Parse Python source after normalizing leading indentation.
+
+    Method/class-nested code units are stored with leading indentation
+    (e.g. ``    def method(...)``).  A raw ``ast.parse`` would raise
+    ``IndentationError`` even though the code is valid, silently degrading
+    behavior extraction to the "invalid code" fallback.  ``textwrap.dedent``
+    removes the common indentation so indented-but-valid source parses,
+    while genuinely invalid syntax still raises ``SyntaxError`` and returns
+    ``None``.
+    """
+    try:
+        return ast.parse(textwrap.dedent(source_code))
+    except SyntaxError:
+        return None
+
+
 def _get_function_name(source_code: str) -> str | None:
     """Extract the function/method name from source code."""
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError:
+    tree = _parse_source(source_code)
+    if tree is None:
         return None
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -233,19 +250,29 @@ def _count_parameters(tree: ast.Module) -> str:
     return "takes unknown parameters"
 
 
+def _looks_like_get(node: ast.Call) -> bool:
+    """Detect a dictionary-style ``.get(...)`` lookup call.
+
+    Checks the method attribute name internally to decide the category but
+    never surfaces the identifier in extracted facts.
+    """
+    fn = node.func
+    return isinstance(fn, ast.Attribute) and fn.attr == "get"
+
+
 def _count_operation_categories(source_code: str) -> list[str]:
     """Count and classify operations without using call names.
 
     Returns generic categories like ``"invokes method calls"``
-    instead of the actual method names.
+    instead of the actual method names, plus identifier-free semantic
+    operation categories derived from structural call patterns.
     """
     categories: list[str] = []
     method_call_count = 0
     func_call_count = 0
 
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError:
+    tree = _parse_source(source_code)
+    if tree is None:
         return categories
 
     for node in ast.walk(tree):
@@ -255,6 +282,12 @@ def _count_operation_categories(source_code: str) -> list[str]:
             elif isinstance(node.func, ast.Name):
                 func_call_count += 1
 
+    # Semantic operation categories based on structural call patterns.
+    if any(isinstance(n, ast.Call) and _looks_like_get(n) for n in ast.walk(tree)):
+        categories.append("looks up a value by key")
+    if any(isinstance(n, ast.Compare) and any(isinstance(o, (ast.In, ast.NotIn)) for o in n.ops) for n in ast.walk(tree)):
+        categories.append("tests membership in a collection")
+
     if method_call_count > 0:
         categories.append(f"performs {method_call_count} method call(s)")
     if func_call_count > 0:
@@ -263,32 +296,138 @@ def _count_operation_categories(source_code: str) -> list[str]:
     return categories
 
 
+# ---------------------------------------------------------------------------
+# Identifier-free semantic behavior-signal detectors
+# ---------------------------------------------------------------------------
+
+_STRING_MANIPULATION_METHODS = frozenset({
+    "split", "strip", "rstrip", "lstrip", "replace", "lower", "upper",
+    "join", "format", "translate", "partition", "splitlines",
+})
+
+
+def _detect_string_operation(tree: ast.Module) -> str | None:
+    """Detect string slicing/parsing/transformation (no element identifiers)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+            if node.attr in _STRING_MANIPULATION_METHODS:
+                return "extracts or transforms part of a string"
+    return None
+
+
+def _detect_container_construction(tree: ast.Module) -> str | None:
+    """Detect construction of containers/mappings without element identifiers."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.DictComp):
+            return "builds a computed mapping"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict) and any(k is not None for k in node.keys):
+            return "constructs a mapping of related values"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ListComp):
+            return "builds a filtered list"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.SetComp):
+            return "builds a set of items"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.GeneratorExp):
+            return "iterates with a generator expression"
+    return None
+
+
+def _detect_membership(tree: ast.Module) -> str | None:
+    """Detect containment/membership checks (``in`` / ``not in``)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare):
+            for op in node.ops:
+                if isinstance(op, (ast.In, ast.NotIn)):
+                    return "checks whether a value is contained in a collection"
+    return None
+
+
+def _detect_comparison(tree: ast.Module) -> str | None:
+    """Detect value comparison/validation predicates."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare):
+            for op in node.ops:
+                if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot,
+                                   ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                    return "checks whether a value satisfies a comparison condition"
+    return None
+
+
+def _detect_delegation(tree: ast.Module) -> str | None:
+    """Detect forwarding to another routine (returning a call result)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return) and node.value and isinstance(node.value, ast.Call):
+            return "delegates to another routine and returns its result"
+    return None
+
+
+def _detect_attribute_read(tree: ast.Module) -> str | None:
+    """Detect reading a stored value from an associated object.
+
+    Reports only attribute *reads* (not method calls or assignment targets),
+    and never surfaces the attribute name itself.
+    """
+    method_call_attr_ids = {
+        id(n.func)
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Attribute)
+                and isinstance(node.ctx, ast.Load)
+                and id(node) not in method_call_attr_ids):
+            return "reads a value from an associated object"
+    return None
+
+
 def _derive_primary_purpose(
     tree: ast.Module,
     raises: list[str],
     side_effects: list[str],
     operation_categories: list[str],
 ) -> str:
-    """Derive a generic verb-phrase describing the primary purpose.
+    """Derive an identifier-free verb-phrase describing the primary purpose.
 
-    Uses only AST-derived structural signals (control flow patterns,
-    error handling, side effects, operation counts).  Does NOT use
-    the function name, which would leak implementation identifiers.
+    Prefers specific structural behavior signals (string operations,
+    container construction, membership, comparisons, delegation, attribute
+    reads) over coarse generics, then appends validation/error and
+    side-effect behavior.  Does NOT use the function name, which would leak
+    implementation identifiers.
     """
     has_while = any(isinstance(n, ast.While) for n in ast.walk(tree))
     has_for = any(isinstance(n, ast.For) for n in ast.walk(tree))
     has_try = any(isinstance(n, ast.Try) for n in ast.walk(tree))
     has_raise = any(isinstance(n, ast.Raise) for n in ast.walk(tree))
+    has_return_call = any(
+        isinstance(n, ast.Return) and n.value and isinstance(n.value, ast.Call)
+        for n in ast.walk(tree)
+    )
 
-    # Build purpose from structural signals
     parts: list[str] = []
 
-    if has_while and has_try:
-        parts.append("retries an operation with error handling")
+    # Most specific structural signal first.
+    lead = (
+        _detect_string_operation(tree)
+        or _detect_container_construction(tree)
+        or _detect_membership(tree)
+        or _detect_comparison(tree)
+        or _detect_delegation(tree)
+        or _detect_attribute_read(tree)
+    )
+    if lead:
+        parts.append(lead)
     elif has_while:
-        parts.append("iterates with a while loop")
+        if has_try:
+            parts.append("retries an operation with error handling")
+        else:
+            parts.append("repeatedly iterates with a while loop")
     elif has_for:
         parts.append("iterates over items")
+    elif has_return_call:
+        parts.append("delegates to another routine and returns its result")
 
     if has_raise and not has_try:
         parts.append("validates input and raises on error")
@@ -328,9 +467,8 @@ def extract_behavior_facts(source_code: str) -> StructuredBehaviorFacts:
     -------
     A ``StructuredBehaviorFacts`` instance with behavioral metadata.
     """
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError:
+    tree = _parse_source(source_code)
+    if tree is None:
         return StructuredBehaviorFacts(
             primary_purpose="parses as invalid code",
             input_summary="unknown",
