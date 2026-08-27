@@ -66,12 +66,17 @@ def _split_ids(name: str) -> set[str]:
 
 def step1_generate(limit: int | None = None) -> int:
     """Run the v3.0 generation pipeline via the existing script."""
-    from scripts.generate_query_candidates import main as gen_main
+    import subprocess
 
-    argv = ["--fresh"]
+    argv = [
+        sys.executable,
+        str(REPO_ROOT / "scripts" / "generate_query_candidates.py"),
+        "--fresh",
+    ]
     if limit is not None:
         argv.extend(["--limit", str(limit)])
-    return gen_main(argv)
+    result = subprocess.run(argv, cwd=str(REPO_ROOT))
+    return result.returncode
 
 
 def step2_select() -> int:
