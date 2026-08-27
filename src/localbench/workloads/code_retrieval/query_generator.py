@@ -745,7 +745,10 @@ class QueryGenerator:
         A ``QueryGenerationResult`` with the outcome and full attempt history.
         """
         # Stage A: Deterministic behavior extraction (no LLM, no docstring)
-        behavior_facts = extract_behavior_facts(code_unit.source_code)
+        behavior_facts = extract_behavior_facts(
+            code_unit.source_code,
+            imports=code_unit.context.imports if code_unit.context else None,
+        )
 
         # Stage B: Docstring-blind prompt using behavior facts
         context = code_unit.context

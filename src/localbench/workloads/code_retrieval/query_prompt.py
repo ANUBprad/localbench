@@ -34,9 +34,12 @@ from localbench.workloads.code_retrieval.schemas import (
     StructuredBehaviorFacts,
 )
 
-QUERY_PROMPT_TEMPLATE_VERSION = "3.0.0"
+QUERY_PROMPT_TEMPLATE_VERSION = "3.1.0"
 """Version of the query prompt template.  Increment when wording changes.
 
+v3.1: Added identifier-free domain concepts and observable effects to the
+Stage-B prompt, added a discriminative-instruction line, and tightened the
+query_style enum so the model returns exactly one of the four allowed values.
 v3: Removed source_code and module_docstring from Stage B prompt
 to eliminate docstring-provenance leakage.
 """
@@ -70,12 +73,15 @@ _SYSTEM_PROMPT = (
     "\n"
     "Output ONLY valid JSON with these fields:\n"
     "- query: string (the natural language retrieval query)\n"
-    "- query_style: one of \"natural\", \"technical\", \"verbose\", \"concise\"\n"
+    "- query_style: EXACTLY one of the four literals \"natural\", \"technical\", "
+    "\"verbose\", or \"concise\". Use one of those four exact lowercase strings "
+    "only; never invent or paraphrase a style label (e.g. do not return "
+    "\"Descriptive\", \"Expository\", or \"Natural Language\").\n"
     "- query_intent: a short descriptor like \"find_implementation\", "
     "\"find_error_handling\", \"find_optimization\", \"understand_behavior\", "
     "\"find_usage\"\n"
     "\n"
-    "No markdown fences, no commentary."
+    "No markdown fences, no commentary, no trailing period after the JSON."
 )
 
 # ---------------------------------------------------------------------------
@@ -89,6 +95,8 @@ _USER_TEMPLATE_V2 = (
     "- Purpose: {primary_purpose}\n"
     "- Inputs: {input_summary}\n"
     "- Output: {output_summary}\n"
+    "{domain_concepts_block}"
+    "{observable_effects_block}"
     "{side_effects_block}"
     "{error_handling_block}"
     "{control_flow_block}"
@@ -99,8 +107,12 @@ _USER_TEMPLATE_V2 = (
     "REMINDER: Do NOT use any class names, method names, or identifiers from "
     "the context above. Describe the behavior in plain language only.\n"
     "Do NOT copy the behavioral facts — rephrase as a natural question.\n"
+    "The query should be specific enough to distinguish THIS code from any "
+    "other function that merely shares a domain (e.g. mention the concrete "
+    "behavior and effects, not just the general area of work).\n"
     "\n"
-    "Return a JSON object with: query, query_style, query_intent."
+    "Return a JSON object with: query, and query_style exactly one of "
+    "\"natural\", \"technical\", \"verbose\", \"concise\", and query_intent."
 )
 
 # ---------------------------------------------------------------------------
@@ -222,6 +234,12 @@ def build_query_generation_prompt_v2(
     control_flow_block = _build_behavior_block("Control flow", facts.control_flow)
     key_operations_block = _build_list_block("Key operations", facts.key_operations)
     raises_block = _build_list_block("Raises", facts.raises)
+    domain_concepts_block = _build_list_block(
+        "Domain concepts", facts.domain_concepts
+    )
+    observable_effects_block = _build_list_block(
+        "Observable effects", facts.observable_effects
+    )
 
     context_block = _build_context_block(
         class_name=class_name,
@@ -235,6 +253,8 @@ def build_query_generation_prompt_v2(
         primary_purpose=facts.primary_purpose,
         input_summary=facts.input_summary,
         output_summary=facts.output_summary,
+        domain_concepts_block=domain_concepts_block,
+        observable_effects_block=observable_effects_block,
         side_effects_block=side_effects_block,
         error_handling_block=error_handling_block,
         control_flow_block=control_flow_block,
