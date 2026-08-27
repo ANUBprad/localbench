@@ -60,7 +60,7 @@ class TestQueryPromptTemplateVersion:
         assert len(parts) == 3
 
     def test_version_value(self) -> None:
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.2.0"
 
 
 # ===========================================================================
@@ -281,7 +281,7 @@ class TestBuildQueryGenerationPromptV2:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.2.0"
 
     def test_v2_context_class_name_preserved(self) -> None:
         facts = _make_facts()
