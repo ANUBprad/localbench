@@ -517,6 +517,215 @@ class TestCheckQueryLeakage:
 
 
 # ===========================================================================
+# Leakage hardening regression tests (V3.2, 13 categories)
+# ===========================================================================
+
+
+class TestLeakageHardeningRegression:
+    """Regression tests for the V3.2 canary leakage hardening.
+
+    Each case is grounded in an identifier seen in the real V3.2 canary
+    (Testdir, PytestPluginManager, test_show_fixtures, runpytest_subprocess,
+    ReprError) or in a legitimate domain/framework concept that must NOT be
+    falsely rejected.
+    """
+
+    def test_class_name_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="spawn",
+            context=CodeUnitContext(class_name="Testdir"),
+            source_code="def spawn(self, *args):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does Testdir spawn a subprocess in a temporary sandbox?",
+            unit,
+        )
+        assert result.passed is False
+        assert any("Testdir" in v for v in result.violations)
+
+    def test_sibling_method_name_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="test_fixture_disallow_twice",
+            context=CodeUnitContext(
+                class_name="TestShowFixtures",
+                parent_methods=[
+                    "test_funcarg_compat",
+                    "test_show_fixtures",
+                    "test_fixtures_contain_unittest_cleanups",
+                ],
+            ),
+            source_code="def test_fixture_disallow_twice():\n    pass\n",
+        )
+        result = check_query_leakage(
+            "What happens when a fixture is applied twice and "
+            "test_show_fixtures inspects the list?",
+            unit,
+        )
+        assert result.passed is False
+        assert any(
+            "sibling method name" in v for v in result.violations
+        )
+
+    def test_underscored_sibling_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="spawn",
+            context=CodeUnitContext(
+                class_name="Testdir",
+                parent_methods=[
+                    "runpython",
+                    "runpytest_subprocess",
+                    "tmpdir",
+                ],
+            ),
+            source_code="def spawn(self, *args):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does runpytest_subprocess launch a subprocess?",
+            unit,
+        )
+        assert result.passed is False
+        assert any(
+            "sibling method name" in v for v in result.violations
+        )
+
+    def test_camelcase_sibling_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="run",
+            context=CodeUnitContext(
+                class_name="Runner",
+                parent_methods=["makeRecorder", "runPythonOnly"],
+            ),
+            source_code="def run(self, script):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does makeRecorder capture the output?",
+            unit,
+        )
+        assert result.passed is False
+        assert any(
+            "sibling method name" in v for v in result.violations
+        )
+
+    def test_dunder_sibling_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="start",
+            context=CodeUnitContext(
+                class_name="PluginManager",
+                parent_methods=["__init__", "register"],
+            ),
+            source_code="def start(self):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does __init__ set up the plugin manager?",
+            unit,
+        )
+        assert result.passed is False
+        assert any("dunder" in v for v in result.violations)
+
+    def test_domain_noun_not_false_positive(self) -> None:
+        unit = _make_code_unit(
+            symbol="spawn",
+            context=CodeUnitContext(
+                class_name="Testdir",
+                parent_methods=["tmpdir", "mkdir", "request"],
+            ),
+            source_code="def spawn(self, *args):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does a helper prepare a temporary test sandbox with "
+            "directories before running a subprocess?",
+            unit,
+        )
+        assert result.passed is True
+
+    def test_framework_concept_not_false_positive(self) -> None:
+        unit = _make_code_unit(
+            symbol="gethookproxy",
+            context=CodeUnitContext(
+                class_name="Session",
+                parent_methods=["request", "run", "plugins", "setup"],
+            ),
+            source_code="def gethookproxy(self, name):\n    return None\n",
+        )
+        result = check_query_leakage(
+            "How does the plugin hook system dispatch test setup for the "
+            "current session?",
+            unit,
+        )
+        assert result.passed is True
+
+    def test_plain_english_sibling_word_not_flagged(self) -> None:
+        unit = _make_code_unit(
+            symbol="spawn",
+            context=CodeUnitContext(
+                class_name="Testdir",
+                parent_methods=["run", "request", "chdir"],
+            ),
+            source_code="def spawn(self, *args):\n    pass\n",
+        )
+        result = check_query_leakage(
+            "How does this run a subprocess and return its output?",
+            unit,
+        )
+        assert result.passed is True
+
+    def test_project_exception_identifier_leak_detected(self) -> None:
+        unit = _make_code_unit(
+            symbol="auto",
+            context=CodeUnitContext(class_name="Auto"),
+            source_code=(
+                "def auto(rich=None):\n"
+                "    raise ReprError('cannot build repr')\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Which function raises ReprError when it cannot build a repr?",
+            unit,
+        )
+        assert result.passed is False
+        assert any("ReprError" in v for v in result.violations)
+
+    def test_generic_exception_description_passes(self) -> None:
+        unit = _make_code_unit(
+            symbol="auto",
+            context=CodeUnitContext(class_name="Auto"),
+            source_code=(
+                "def auto(rich=None):\n"
+                "    raise RuntimeError('cannot build repr')\n"
+            ),
+        )
+        result = check_query_leakage(
+            "Which function signals a failure when it cannot build a repr?",
+            unit,
+        )
+        assert result.passed is True
+
+    def test_parameter_name_leak_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "How many attempts does max_attempts cap the retry at?",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_source_body_function_leak_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "How does _do_process handle a single attempt?",
+            unit,
+        )
+        assert result.passed is False
+
+    def test_symbol_path_leak_detected(self) -> None:
+        unit = _make_code_unit()
+        result = check_query_leakage(
+            "How does PaymentProcessor.process_retry retry?",
+            unit,
+        )
+        assert result.passed is False
+
+
+# ===========================================================================
 # _extract_identifier_parts
 # ===========================================================================
 
@@ -782,7 +991,7 @@ class TestQueryGenerator:
         unit = _make_code_unit()
         result = gen.generate(unit)
 
-        assert result.prompt_template_version == "3.1.0"
+        assert result.prompt_template_version == "3.2.0"
 
     def test_timing_recorded(self) -> None:
         model = FakeModel()
@@ -980,7 +1189,7 @@ class TestReproducibility:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.2.0"
 
 
 # ===========================================================================
