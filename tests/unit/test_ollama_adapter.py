@@ -22,6 +22,10 @@ def adapter():
         "localbench.runtime.ollama.adapter.httpx.Client"
     ) as mock_client_cls:
         mock_client = MagicMock()
+        # ``generate`` runs each request on its own short-lived client via
+        # ``with httpx.Client(...)``; make ``__enter__`` return the same mock
+        # so tests observe the intended client.
+        mock_client.__enter__.return_value = mock_client
         mock_client_cls.return_value = mock_client
         adapter = OllamaAdapter(base_url="http://localhost:11434")
         adapter._client = mock_client
@@ -208,3 +212,70 @@ class TestClose:
         a, mock_client = adapter
         a.close()
         mock_client.close.assert_called_once()
+
+
+class TestHardRequestDeadline:
+    def test_generate_times_out_within_deadline(self):
+        """A hung provider request is bounded, not an indefinite stall.
+
+        Uses a mock HTTP client that sleeps far longer than the tiny
+        request deadline; ``generate`` must return an
+        ``OllamaUnavailableError`` in roughly the deadline window instead of
+        blocking for the full duration of the (simulated) hung request.
+        """
+        import time
+
+        from localbench.runtime.model import GenerationRequest
+
+        request_timeout = 0.2
+        sleep_seconds = 5.0
+        with patch(
+            "localbench.runtime.ollama.adapter.httpx.Client"
+        ) as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.__enter__.return_value = mock_client
+
+            def _slow_post(*args, **kwargs):
+                time.sleep(sleep_seconds)
+                return MagicMock()
+
+            mock_client.post.side_effect = _slow_post
+            mock_client_cls.return_value = mock_client
+
+            a = OllamaAdapter(
+                base_url="http://localhost:11434",
+                request_timeout=request_timeout,
+            )
+            req = GenerationRequest(prompt="hello", model="phi-3-mini")
+
+            started = time.monotonic()
+            with pytest.raises(OllamaUnavailableError):
+                a.generate(req)
+            elapsed = time.monotonic() - started
+
+            a.close()
+            # The caller must NOT have waited the full (simulated) hang; it
+            # should return around the deadline with generous scheduling slack.
+            assert elapsed < sleep_seconds
+            assert elapsed >= request_timeout * 0.5
+
+    def test_generate_success_returns_normally(self, adapter):
+        """A healthy request still completes with a GenerationResult."""
+        a, mock_client = adapter
+        mock_client.post.return_value = _mock_response(
+            {
+                "model": "phi-3-mini",
+                "response": "Hello, world!",
+                "done": True,
+                "total_duration": 500000000,
+                "eval_count": 10,
+                "eval_duration": 300000000,
+            }
+        )
+        req = GenerationRequest(
+            prompt="Say hello", model="phi-3-mini"
+        )
+        result = a.generate(req)
+        assert result.text == "Hello, world!"
+        assert result.model == "phi-3-mini"
+        assert result.duration_ms == 500.0

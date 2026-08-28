@@ -101,6 +101,18 @@ PROGRESS_LOG_INTERVAL = 25
 # isolated transient failures are simply recorded as failed candidates.
 CONSECUTIVE_PROVIDER_FAILURE_LIMIT = 3
 
+# How often (seconds) the main loop re-checks for completions so it stays
+# responsive to the abort/stall guards instead of blocking until one task
+# completes (which could be a hung provider).
+STALL_POLL_SECONDS = 1.0
+
+# Hard fail-safe: if NO task completes within this window we assume a
+# provider-level outage and abort. Individual requests are already bounded
+# by the provider request deadline, so a total absence of progress for this
+# long means something is genuinely stuck; the process must not wait
+# indefinitely. Generously larger than the per-request deadline.
+STALL_ABORT_SECONDS = 5 * 60
+
 _PROVIDER_FAILURE_CATEGORIES = frozenset(
     {"timeout", "provider_unavailable", "model_error", "provider_or_model_error"}
 )
@@ -448,6 +460,16 @@ def generate_all(
     policy = RetryPolicy(max_attempts=MAX_ATTEMPTS)
     generator = QueryGenerator(model=adapter, policy=policy, top_p=TOP_P, seed=SEED)
 
+    if workers > 1:
+        logger.warning(
+            "Workers=%d requested. Ollama defaults to OLLAMA_NUM_PARALLEL=1, "
+            "which serializes concurrent requests; with the default config "
+            "--workers>1 provides no throughput and only adds connection "
+            "contention. Set --workers=1, or raise OLLAMA_NUM_PARALLEL to at "
+            "least the worker count to use it productively.",
+            workers,
+        )
+
     fresh_success: list[CandidateAuditRecord] = []
     fresh_failed: list[CandidateAuditRecord] = []
     consecutive_provider_failures = 0
@@ -455,19 +477,57 @@ def generate_all(
     processed = 0
 
     try:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
+        pool = ThreadPoolExecutor(
+            max_workers=max(1, workers), thread_name_prefix="query-gen"
+        )
+        try:
             futures = {
                 pool.submit(_generate_one, generator, unit): unit
                 for unit in pending
             }
+            # Completion order may differ from submission order (multi-worker,
+            # and ``wait`` returns an unordered set). Define a deterministic
+            # logical processing order (submission order) so "consecutive
+            # provider failure" semantics are not an artifact of thread timing.
+            futures_order = {
+                future: index for index, future in enumerate(futures)
+            }
             outstanding = set(futures)
             aborted = False
+            last_progress_at = time.monotonic()
 
-            while outstanding:
+            while outstanding and not aborted:
                 done, outstanding = wait(
-                    outstanding, return_when=FIRST_COMPLETED
+                    outstanding,
+                    return_when=FIRST_COMPLETED,
+                    timeout=STALL_POLL_SECONDS,
                 )
-                for future in done:
+
+                if not done:
+                    # No completion in this poll window. If nothing has
+                    # completed for a long time, the provider is hung beyond
+                    # the per-request deadline — abort rather than wait
+                    # indefinitely.
+                    if (
+                        time.monotonic() - last_progress_at
+                        >= STALL_ABORT_SECONDS
+                    ):
+                        logger.error(
+                            "No completion for %.0f s; assuming a provider "
+                            "outage and aborting. All completed records are "
+                            "already persisted — rerun to resume.",
+                            STALL_ABORT_SECONDS,
+                        )
+                        aborted = True
+                        exit_code = 3
+                        for queued in outstanding:
+                            queued.cancel()
+                    continue
+
+                last_progress_at = time.monotonic()
+                for future in sorted(
+                    done, key=futures_order.__getitem__
+                ):
                     record = future.result()
                     record_dict = asdict(record)
                     processed += 1
@@ -536,6 +596,14 @@ def generate_all(
                             rate * 60,
                             eta_minutes,
                         )
+        finally:
+            # Bounded termination: never block the main process on in-flight
+            # (possibly hung) futures. Queued-but-unstarted work is cancelled;
+            # already-running requests are daemon worker threads that die with
+            # the interpreter. Their records were not persisted and are simply
+            # regenerated on resume — this is the correctness trade-off that
+            # prevents an unbounded stall.
+            pool.shutdown(wait=False, cancel_futures=True)
     finally:
         store.close()
         adapter.close()
@@ -704,7 +772,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=1,
         help="Concurrent inference requests (persistence stays "
-        "serialized; record content is worker-count independent).",
+        "serialized; record content is worker-count independent). "
+        "Ollama defaults to OLLAMA_NUM_PARALLEL=1 (requests serialize), "
+        "so --workers>1 is only productive when Ollama parallelism is "
+        "raised to match; otherwise use --workers=1 for reliable "
+        "production generation.",
     )
     return parser.parse_args(argv)
 
