@@ -70,6 +70,21 @@ class TestDeduplication:
         assert len(merged) == 1
         assert merged[0]["query"] == "v2 query"
 
+    def test_v3_replaces_v2_and_original(self) -> None:
+        original = [_make_candidate("unit_a", query="original query")]
+        v2 = [_make_candidate("unit_a", query="v2 query")]
+        v3 = [_make_candidate("unit_a", query="v3 query")]
+        by_unit = {}
+        for rec in original:
+            by_unit[rec["code_unit_id"]] = rec
+        for rec in v2:
+            by_unit[rec["code_unit_id"]] = rec
+        for rec in v3:
+            by_unit[rec["code_unit_id"]] = rec
+        merged = list(by_unit.values())
+        assert len(merged) == 1
+        assert merged[0]["query"] == "v3 query"
+
     def test_no_v2_keeps_original(self) -> None:
         original = [_make_candidate("unit_a", query="original query")]
         v2 = []

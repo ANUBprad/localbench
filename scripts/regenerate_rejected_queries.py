@@ -4,11 +4,18 @@ Regenerates replacement candidates for CodeUnits rejected during
 benchmark-blind human review, under the frozen 3-attempt policy
 (DATASET_SPECIFICATION.md section 4.4.3).
 
-Uses the strengthened anti-leakage prompt (v1.1.0) and the existing
-generation infrastructure (QueryGenerator, CandidateStore, lock).
+Uses the strengthened anti-leakage prompt (QUERY_PROMPT_TEMPLATE_VERSION)
+and the existing generation infrastructure (QueryGenerator, CandidateStore,
+lock).
 
-The script does NOT modify original candidate records. New candidates
-are appended with candidate_id = candidate_v2_{code_unit_id}.
+The script does NOT modify original candidate records. The cumulative
+budget (max 3 attempts per CodeUnit across all rounds) is derived from the
+append-only candidate and failure artifacts: candidates.jsonl,
+candidate_failures.jsonl, candidates_v2.jsonl, candidate_failures_v2.jsonl,
+plus any prior rows in this round's store. A CodeUnit is regenerated only
+while its remaining budget is positive, and each regeneration round is
+written to its own store as candidate_v3_{code_unit_id} so earlier rounds
+stay untouched and re-runs stay idempotent.
 
 Usage:
     python scripts/regenerate_rejected_queries.py
@@ -62,6 +69,8 @@ CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates.jsonl"
 FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures.jsonl"
 V2_CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates_v2.jsonl"
 V2_FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures_v2.jsonl"
+V3_CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates_v3.jsonl"
+V3_FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures_v3.jsonl"
 
 MODEL_NAME = "qwen2.5-coder:7b"
 MODEL_VERSION = "7b"
@@ -70,7 +79,7 @@ TEMPERATURE = 0.7
 TOP_P = 0.9
 MAX_TOKENS = 128
 MAX_ATTEMPTS = DEFAULT_MAX_ATTEMPTS
-V2_CANDIDATE_PREFIX = "candidate_v2_"
+V3_CANDIDATE_PREFIX = "candidate_v3_"
 
 
 # ---------------------------------------------------------------------------
@@ -177,8 +186,10 @@ def regenerate(
     failures = _load_jsonl(FAILURES_PATH)
     v2_candidates = _load_jsonl(V2_CANDIDATES_PATH)
     v2_failures = _load_jsonl(V2_FAILURES_PATH)
-    all_candidates = candidates + v2_candidates
-    all_failures = failures + v2_failures
+    v3_candidates = _load_jsonl(V3_CANDIDATES_PATH)
+    v3_failures = _load_jsonl(V3_FAILURES_PATH)
+    all_candidates = candidates + v2_candidates + v3_candidates
+    all_failures = failures + v2_failures + v3_failures
 
     # Budget check: count prior attempts
     budget_info = {}
@@ -219,7 +230,7 @@ def regenerate(
         logger.error("Ollama is not reachable at localhost:11434")
         return 2
 
-    store = CandidateStore(V2_CANDIDATES_PATH, V2_FAILURES_PATH)
+    store = CandidateStore(V3_CANDIDATES_PATH, V3_FAILURES_PATH)
     store.load()
 
     new_success = 0
@@ -248,7 +259,7 @@ def regenerate(
             if success:
                 record = {
                     "code_unit_id": uid,
-                    "candidate_id": f"{V2_CANDIDATE_PREFIX}{uid}",
+                    "candidate_id": f"{V3_CANDIDATE_PREFIX}{uid}",
                     "query": result.candidate.query,
                     "query_style": result.candidate.query_style,
                     "query_intent": result.candidate.query_intent,
@@ -294,7 +305,7 @@ def regenerate(
 
                 record = {
                     "code_unit_id": uid,
-                    "candidate_id": f"{V2_CANDIDATE_PREFIX}{uid}",
+                    "candidate_id": f"{V3_CANDIDATE_PREFIX}{uid}",
                     "query": "",
                     "query_style": "",
                     "query_intent": "",

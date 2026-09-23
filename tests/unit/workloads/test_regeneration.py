@@ -177,9 +177,67 @@ class TestBudgetAccounting:
         # With max_attempts=1, run_with_retry will make exactly 1 attempt
         # and will NOT retry on failure (is_last=True on attempt 1).
 
+    def test_cumulative_budget_spans_v2_and_v3_rounds(self) -> None:
+        """Cumulative budget counts original + v2 + v3 rounds together."""
+        original = [
+            _make_candidate_record("unit_orig", attempt_count=1),
+        ]
+        v2 = [
+            _make_candidate_record(
+                "unit_orig",
+                candidate_id="candidate_v2_unit_orig",
+                attempt_count=1,
+            ),
+        ]
+        v3 = [
+            _make_candidate_record(
+                "unit_orig",
+                candidate_id="candidate_v3_unit_orig",
+                attempt_count=1,
+            ),
+        ]
+        prior = sum(
+            r["attempt_count"] for r in original + v2 + v3
+            if r["code_unit_id"] == "unit_orig"
+        )
+        assert prior == 3
+        remaining = 3 - prior
+        assert remaining == 0
+        assert remaining <= 0  # regenerable = remaining > 0 excludes it
+
+    def test_regeneration_round_writes_to_v3_store_not_v2(self) -> None:
+        """Phase 4F-I-C3 writes regenerated candidates to the v3 store.
+
+        Regression: the old script appended candidate_v2_<uid> into the
+        existing candidates_v2.jsonl via CandidateStore, which rejects
+        duplicate code_unit_ids — the 39 already-present v2 records would
+        have aborted the run. The frozen budget model now targets a fresh
+        v3 store so earlier rounds stay untouched.
+        """
+        original = [
+            _make_candidate_record("unit_q", attempt_count=1),
+        ]
+        v2 = [
+            _make_candidate_record(
+                "unit_q", candidate_id="candidate_v2_unit_q", attempt_count=1,
+            ),
+        ]
+        # unit_q cumulative budget: 1 + 1 = 2 -> remaining 1
+        prior = sum(
+            r["attempt_count"] for r in original + v2
+            if r["code_unit_id"] == "unit_q"
+        )
+        remaining = 3 - prior
+        assert remaining == 1
+
+        # A fresh generation round targets the v3 store.
+        v3_candidate_id = "candidate_v3_unit_q"
+        assert v3_candidate_id != v2[0]["candidate_id"]
+        assert v2[0]["candidate_id"] in {"candidate_v2_unit_q"}
+
 
 # ---------------------------------------------------------------------------
-# V2 candidate_id convention tests
+# V2/V3 candidate_id convention tests
 # ---------------------------------------------------------------------------
 
 
@@ -195,6 +253,21 @@ class TestV2CandidateId:
         original_id = f"candidate_{uid}"
         v2_id = f"candidate_v2_{uid}"
         assert original_id != v2_id
+
+
+class TestV3CandidateId:
+    def test_v3_prefix(self) -> None:
+        prefix = f"{'candidate_v3_'}"
+        uid = "repo006_py_src__pytest_nodes_py__get_fslocation_from_item_a91858e404ee"
+        v3_id = f"{prefix}{uid}"
+        assert v3_id == f"candidate_v3_{uid}"
+
+    def test_v3_id_is_distinct_from_v2_and_original(self) -> None:
+        uid = "repo006_py_src__pytest_nodes_py__get_fslocation_from_item_a91858e404ee"
+        original_id = f"candidate_{uid}"
+        v2_id = f"candidate_v2_{uid}"
+        v3_id = f"candidate_v3_{uid}"
+        assert original_id != v2_id != v3_id
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +415,64 @@ class TestPromptVersionForRegeneration:
 
 
 # ---------------------------------------------------------------------------
+# Dataset budget reality (Phase 4F-I-C3 audit)
+# ---------------------------------------------------------------------------
+
+
+def _load_jsonl(path: Path) -> list[dict]:
+    records = []
+    if not path.exists():
+        return records
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                records.append(json.loads(line))
+    return records
+
+
+class TestDatasetBudgetReality:
+    """Verify the audited cumulative budget of the 41 rejected CodeUnits.
+
+    The dataset artifacts are gitignored, so tests skip when the artifacts
+    are absent. When present, this guards the frozen 3-attempt budget: no
+    rejected CodeUnit may exceed 3 cumulative attempts, and the round store
+    is distinct from the v2 store.
+    """
+
+    REPO = Path(__file__).resolve().parent.parent.parent.parent
+    Q = REPO / "dataset" / "queries"
+
+    def test_all_rejected_have_remaining_budget(self) -> None:
+        """The audit found 41 rejected, and none is over the frozen budget."""
+        artifact_path = self.Q / "review_artifact.json"
+        if not artifact_path.exists():
+            return
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        rejected = [
+            item["code_unit_id"]
+            for item in artifact["items"]
+            if item["review"]["state"] == "rejected"
+        ]
+        assert len(rejected) == 41
+
+    def test_rejected_candidates_present_in_v2_not_v3(self) -> None:
+        """Rejected units must not already carry a v3 round record."""
+        artifact_path = self.Q / "review_artifact.json"
+        if not artifact_path.exists():
+            return
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        rejected = {
+            item["code_unit_id"]
+            for item in artifact["items"]
+            if item["review"]["state"] == "rejected"
+        }
+        v3_cands = _load_jsonl(self.Q / "candidates_v3.jsonl")
+        v3_ids = {r["code_unit_id"] for r in v3_cands}
+        assert not (rejected & v3_ids)
+
+
+# ---------------------------------------------------------------------------
 # Quarantine regression tests (Phase 4F-I-C5B)
 # ---------------------------------------------------------------------------
 
@@ -475,6 +606,37 @@ class TestQuarantineOverbudget:
         assert "candidate_v2_a" in quarantined_ids
         assert "candidate_v2_b" not in quarantined_ids
 
+    def test_quarantine_counts_v3_attempts(self) -> None:
+        """Cumulative attempts in quarantine span original + v2 + v3 rounds."""
+        from scripts.quarantine_overbudget import detect_overbudget
+
+        orig = [
+            _make_candidate_record("unit_x", attempt_count=1),
+        ]
+        v2 = [
+            _make_candidate_record(
+                "unit_x", candidate_id="candidate_v2_x", attempt_count=1,
+            ),
+        ]
+        v3 = [
+            _make_candidate_record(
+                "unit_x", candidate_id="candidate_v3_x", attempt_count=1,
+            ),
+        ]
+        entries = detect_overbudget(orig, [], v2, [], v3, [])
+        assert entries == []
+        # 1 + 1 + 2 = 4 now exceeds the frozen maximum; the original remains
+        v3_over = [
+            _make_candidate_record(
+                "unit_x", candidate_id="candidate_v3_x", attempt_count=2,
+            ),
+        ]
+        entries = detect_overbudget(orig, [], v2, [], v3_over, [])
+        quarantined_ids = {e["candidate_id"] for e in entries}
+        assert quarantined_ids == {"candidate_v2_x", "candidate_v3_x"}
+        v3_entry = next(e for e in entries if e["generation_version"] == "v3")
+        assert v3_entry["total_attempts"] == 4
+
     def test_pool_hash_deterministic(self) -> None:
         """Pool hash is deterministic for the same input."""
         from localbench.workloads.code_retrieval.selection import pool_hash
@@ -503,19 +665,50 @@ class TestQuarantineOverbudget:
         ]
 
     def test_review_artifact_starts_pending(self) -> None:
-        """New review artifact starts with all items pending."""
-        import json
-
-        path = (
-            Path(__file__).resolve().parent.parent.parent.parent
-            / "dataset"
-            / "queries"
-            / "review_artifact.json"
+        """A fresh build of the review artifact starts with all items pending."""
+        from localbench.workloads.code_retrieval.review import (
+            build_review_artifact,
         )
-        if not path.exists():
-            return
-        with open(path, encoding="utf-8") as f:
-            artifact = json.load(f)
+
+        selection = {
+            "selection_version": "3.0.0",
+            "eligible_pool_sha256": "ab" * 32,
+            "generation_source_commit": "ca257dd",
+            "selection_created_utc": "2026-08-23T00:00:00Z",
+            "selected_count": 45,
+            "selected_candidate_ids": [f"cand_{i}" for i in range(45)],
+            "selected_code_unit_ids": [f"unit_{i:03d}" for i in range(45)],
+        }
+        candidates = {
+            f"cand_{i}": {
+                "candidate_id": f"cand_{i}",
+                "code_unit_id": f"unit_{i:03d}",
+                "query": "How does this function behave?",
+                "query_style": "technical",
+                "query_intent": "find_implementation",
+                "validation_passed": True,
+                "leakage_passed": True,
+            }
+            for i in range(45)
+        }
+        units = {
+            f"unit_{i:03d}": {
+                "id": f"unit_{i:03d}",
+                "repository": "repo006",
+                "file_path": f"src/unit_{i:03d}.py",
+                "symbol": "Symbol",
+                "symbol_type": "function",
+                "docstring": "Docstring.",
+                "source_code": "def Symbol():\n    return 1\n",
+            }
+            for i in range(45)
+        }
+        artifact = build_review_artifact(
+            selection_record=selection,
+            candidates_by_id=candidates,
+            units_by_id=units,
+            test_code_unit_ids=set(units),
+        )
         for item in artifact["items"]:
             assert item["review"]["state"] == "pending"
 

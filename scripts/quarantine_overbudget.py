@@ -1,8 +1,8 @@
-"""Phase 4F-I-C5B: quarantine over-budget v2 candidates and rebuild clean pool.
+"""Phase 4F-I-C5B: quarantine over-budget v2/v3 candidates and rebuild clean pool.
 
 Dynamically detects CodeUnits whose total generation attempts exceed the
 frozen 3-attempt maximum (DATASET_SPECIFICATION.md section 4.4.3), quarantines
-the offending v2 candidate records, and rebuilds a clean eligible pool,
+the offending v2/v3 candidate records, and rebuilds a clean eligible pool,
 fresh selection, and review artifact.
 
 No new queries are generated. No human review is performed.
@@ -41,6 +41,8 @@ CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates.jsonl"
 FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures.jsonl"
 V2_CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates_v2.jsonl"
 V2_FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures_v2.jsonl"
+V3_CANDIDATES_PATH = DATASET_ROOT / "queries" / "candidates_v3.jsonl"
+V3_FAILURES_PATH = DATASET_ROOT / "queries" / "candidate_failures_v3.jsonl"
 SPLITS_DIR = DATASET_ROOT / "splits"
 QUARANTINE_OUTPUT = DATASET_ROOT / "queries" / "quarantine_overbudget.json"
 SELECTION_OUTPUT = DATASET_ROOT / "queries" / "final_45_selection.json"
@@ -74,8 +76,10 @@ def _count_total_attempts(
     orig_fails: dict[str, list[dict]],
     v2_cands: dict[str, list[dict]],
     v2_fails: dict[str, list[dict]],
+    v3_cands: dict[str, list[dict]],
+    v3_fails: dict[str, list[dict]],
 ) -> int:
-    """Sum attempt_count across all original + v2 records for a CodeUnit."""
+    """Sum attempt_count across all original + v2 + v3 records for a CodeUnit."""
     count = 0
     for rec in orig_cands.get(code_unit_id, []):
         count += rec.get("attempt_count", 0)
@@ -85,6 +89,10 @@ def _count_total_attempts(
         count += rec.get("attempt_count", 0)
     for rec in v2_fails.get(code_unit_id, []):
         count += rec.get("attempt_count", 0)
+    for rec in v3_cands.get(code_unit_id, []):
+        count += rec.get("attempt_count", 0)
+    for rec in v3_fails.get(code_unit_id, []):
+        count += rec.get("attempt_count", 0)
     return count
 
 
@@ -93,12 +101,16 @@ def detect_overbudget(
     original_failures: list[dict],
     v2_candidates: list[dict],
     v2_failures: list[dict],
+    v3_candidates: list[dict] | None = None,
+    v3_failures: list[dict] | None = None,
 ) -> list[dict]:
     """Dynamically detect over-budget CodeUnits from artifact histories.
 
-    Returns a list of quarantine entries for v2 candidates whose total
-    generation attempts (original + v2) exceed MAX_ATTEMPTS.
+    Returns a list of quarantine entries for v2/v3 candidates whose total
+    generation attempts (original + v2 + v3) exceed MAX_ATTEMPTS.
     """
+    v3_candidates = v3_candidates or []
+    v3_failures = v3_failures or []
     # Index records by code_unit_id
     orig_cands_by_id: dict[str, list[dict]] = {}
     for rec in original_candidates:
@@ -116,30 +128,54 @@ def detect_overbudget(
     for rec in v2_failures:
         v2_fails_by_id.setdefault(rec["code_unit_id"], []).append(rec)
 
-    # All CodeUnits with any v2 record
-    v2_code_unit_ids = set(v2_cands_by_id.keys()) | set(v2_fails_by_id.keys())
+    v3_cands_by_id: dict[str, list[dict]] = {}
+    for rec in v3_candidates:
+        v3_cands_by_id.setdefault(rec["code_unit_id"], []).append(rec)
+
+    v3_fails_by_id: dict[str, list[dict]] = {}
+    for rec in v3_failures:
+        v3_fails_by_id.setdefault(rec["code_unit_id"], []).append(rec)
+
+    # All CodeUnits with any v2 or v3 record
+    round_code_unit_ids = (
+        set(v2_cands_by_id)
+        | set(v2_fails_by_id)
+        | set(v3_cands_by_id)
+        | set(v3_fails_by_id)
+    )
 
     quarantine_entries = []
-    for uid in sorted(v2_code_unit_ids):
+    for uid in sorted(round_code_unit_ids):
         total = _count_total_attempts(
             uid,
             orig_cands_by_id,
             orig_fails_by_id,
             v2_cands_by_id,
             v2_fails_by_id,
+            v3_cands_by_id,
+            v3_fails_by_id,
         )
         if total > MAX_ATTEMPTS:
-            # Collect all v2 records for this CodeUnit
-            v2_recs = v2_cands_by_id.get(uid, []) + v2_fails_by_id.get(uid, [])
+            # Collect all round records for this CodeUnit
+            round_recs = (
+                v2_cands_by_id.get(uid, [])
+                + v2_fails_by_id.get(uid, [])
+                + v3_cands_by_id.get(uid, [])
+                + v3_fails_by_id.get(uid, [])
+            )
             orig_rec_count = len(
                 orig_cands_by_id.get(uid, []) + orig_fails_by_id.get(uid, [])
             )
-            for v2_rec in v2_recs:
+            for round_rec in round_recs:
                 quarantine_entries.append({
                     "code_unit_id": uid,
-                    "candidate_id": v2_rec.get("candidate_id", "?"),
-                    "generation_version": "v2",
-                    "attempt_history": v2_rec.get("attempts", []),
+                    "candidate_id": round_rec.get("candidate_id", "?"),
+                    "generation_version": (
+                        "v2" if round_rec.get("candidate_id", "").startswith(
+                            "candidate_v2_"
+                        ) else "v3"
+                    ),
+                    "attempt_history": round_rec.get("attempts", []),
                     "total_attempts": total,
                     "max_allowed_attempts": MAX_ATTEMPTS,
                     "quarantine_reason": (
@@ -148,7 +184,7 @@ def detect_overbudget(
                     ),
                     "quarantine_timestamp": datetime.now(timezone.utc).isoformat(),
                     "original_record_count": orig_rec_count,
-                    "v2_record_count": len(v2_recs),
+                    "round_record_count": len(round_recs),
                 })
 
     return quarantine_entries
@@ -161,13 +197,14 @@ def build_clean_pool(
     test_code_unit_ids: set[str],
     train_code_unit_ids: set[str] | None = None,
     validation_code_unit_ids: set[str] | None = None,
+    v3_candidates: list[dict] | None = None,
 ) -> list[dict]:
-    """Build eligible pool excluding quarantined v2 candidates.
+    """Build eligible pool excluding quarantined round candidates.
 
     For each CodeUnit:
-    - If the v2 candidate is quarantined, use only the original (if eligible)
-    - If the v2 candidate is not quarantined and successful, use v2
-    - Otherwise use original (if eligible)
+    - If the newest round candidate is quarantined, fall back to the older
+      successful candidate (v2 then original)
+    - Otherwise use the newest successful round candidate (v3 > v2 > original)
     """
     # Index original candidates by code_unit_id
     orig_by_id: dict[str, dict] = {}
@@ -180,14 +217,22 @@ def build_clean_pool(
         if rec["candidate_id"] not in quarantined_ids:
             v2_by_id[rec["code_unit_id"]] = rec
 
-    # Build merged candidate list: v2 takes precedence where not quarantined
+    # Index v3 candidates by code_unit_id (only non-quarantined)
+    v3_by_id: dict[str, dict] = {}
+    for rec in v3_candidates or []:
+        if rec["candidate_id"] not in quarantined_ids:
+            v3_by_id[rec["code_unit_id"]] = rec
+
+    # Build merged candidate list: newest round takes precedence where not quarantined
     merged = []
     seen_ids: set[str] = set()
     for rec in original_candidates:
         uid = rec["code_unit_id"]
         if uid in seen_ids:
             continue
-        if uid in v2_by_id:
+        if uid in v3_by_id:
+            merged.append(v3_by_id[uid])
+        elif uid in v2_by_id:
             merged.append(v2_by_id[uid])
         else:
             merged.append(rec)
@@ -212,24 +257,30 @@ def main() -> int:
     original_failures = _load_jsonl(FAILURES_PATH)
     v2_candidates = _load_jsonl(V2_CANDIDATES_PATH)
     v2_failures = _load_jsonl(V2_FAILURES_PATH)
+    v3_candidates = _load_jsonl(V3_CANDIDATES_PATH)
+    v3_failures = _load_jsonl(V3_FAILURES_PATH)
     logger.info(
-        "loaded: %d orig cands, %d orig fails, %d v2 cands, %d v2 fails",
+        "loaded: %d orig cands, %d orig fails, %d v2 cands, %d v2 fails, "
+        "%d v3 cands, %d v3 fails",
         len(original_candidates),
         len(original_failures),
         len(v2_candidates),
         len(v2_failures),
+        len(v3_candidates),
+        len(v3_failures),
     )
 
     # Detect over-budget
     quarantine_entries = detect_overbudget(
-        original_candidates, original_failures, v2_candidates, v2_failures
+        original_candidates, original_failures, v2_candidates, v2_failures,
+        v3_candidates, v3_failures,
     )
-    quarantined_v2_ids = {e["candidate_id"] for e in quarantine_entries}
+    quarantined_ids = {e["candidate_id"] for e in quarantine_entries}
     quarantined_unit_ids = {e["code_unit_id"] for e in quarantine_entries}
     logger.info(
         "detected %d over-budget CodeUnits, %d quarantined v2 records",
         len(quarantined_unit_ids),
-        len(quarantined_v2_ids),
+        len(quarantined_ids),
     )
     for entry in quarantine_entries:
         logger.info(
@@ -243,12 +294,12 @@ def main() -> int:
     quarantine_artifact = {
         "quarantine_version": "1.0.0",
         "quarantine_reason": (
-            "v2 candidate generation exceeded "
+            "v2/v3 candidate generation exceeded "
             "frozen 3-attempt maximum"
         ),
         "frozen_maximum_attempts": MAX_ATTEMPTS,
         "total_overbudget_code_units": len(quarantined_unit_ids),
-        "total_quarantined_v2_records": len(quarantined_v2_ids),
+        "total_quarantined_v2_records": len(quarantined_ids),
         "quarantine_timestamp": datetime.now(timezone.utc).isoformat(),
         "entries": quarantine_entries,
     }
@@ -273,19 +324,24 @@ def main() -> int:
     pool = build_clean_pool(
         original_candidates,
         v2_candidates,
-        quarantined_v2_ids,
+        quarantined_ids,
         test_code_unit_ids=set(test_records),
         train_code_unit_ids=train_ids,
         validation_code_unit_ids=validation_ids,
+        v3_candidates=v3_candidates,
     )
 
+    v3_in_pool = sum(
+        1 for c in pool if c.get("candidate_id", "").startswith("candidate_v3_")
+    )
     v2_in_pool = sum(
         1 for c in pool if c.get("candidate_id", "").startswith("candidate_v2_")
     )
-    orig_in_pool = len(pool) - v2_in_pool
+    orig_in_pool = len(pool) - v3_in_pool - v2_in_pool
     logger.info(
-        "clean eligible pool: %d candidates (%d v2, %d original)",
+        "clean eligible pool: %d candidates (%d v3, %d v2, %d original)",
         len(pool),
+        v3_in_pool,
         v2_in_pool,
         orig_in_pool,
     )
@@ -328,7 +384,7 @@ def main() -> int:
     pool_by_unit = {c["code_unit_id"]: c for c in pool}
     assert all(u in pool_by_unit for u in units)
     # Verify no quarantined v2 candidates in selection
-    assert not (set(cand_ids) & quarantined_v2_ids)
+    assert not (set(cand_ids) & quarantined_ids)
     logger.info("post-selection audit passed")
 
     # Build selection record
@@ -367,7 +423,7 @@ def main() -> int:
 
     # Summary
     print(f"quarantined_code_units: {len(quarantined_unit_ids)}")
-    print(f"quarantined_v2_records: {len(quarantined_v2_ids)}")
+    print(f"quarantined_v2_records: {len(quarantined_ids)}")
     print(f"clean_pool_size: {len(pool)}")
     print(f"eligible_pool_sha256: {digest}")
     print(f"repository_distribution: {record['selected_repository_distribution']}")

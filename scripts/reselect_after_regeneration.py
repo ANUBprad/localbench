@@ -1,6 +1,6 @@
 """Phase 4F-I-C3: deterministic re-selection after regeneration.
 
-Rebuilds the eligible candidate pool from original + v2 candidates,
+Rebuilds the eligible candidate pool from original + v2 + v3 candidates,
 re-executes the frozen deterministic selection algorithm (seed=42),
 and builds a fresh benchmark-blind review artifact.
 
@@ -39,6 +39,7 @@ from localbench.workloads.code_retrieval.selection import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates.jsonl"
 V2_CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates_v2.jsonl"
+V3_CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates_v3.jsonl"
 SPLITS_DIR = REPO_ROOT / "dataset" / "splits"
 SELECTION_OUTPUT = REPO_ROOT / "dataset" / "queries" / "final_45_selection.json"
 REVIEW_OUTPUT = REPO_ROOT / "dataset" / "queries" / "review_artifact.json"
@@ -64,17 +65,19 @@ def _split_ids(name: str) -> set[str]:
 
 
 def _deduplicate_candidates(
-    original: list[dict], v2: list[dict]
+    original: list[dict], v2: list[dict], v3: list[dict]
 ) -> list[dict]:
-    """Merge original + v2 candidates, with v2 taking precedence.
+    """Merge original + v2 + v3 candidates, newest round taking precedence.
 
-    For each code_unit_id, the v2 record replaces the original.
+    For each code_unit_id, the newest round record replaces older ones.
     Original records are preserved in the audit trail but not in the pool.
     """
     by_unit: dict[str, dict] = {}
     for rec in original:
         by_unit[rec["code_unit_id"]] = rec
     for rec in v2:
+        by_unit[rec["code_unit_id"]] = rec
+    for rec in v3:
         by_unit[rec["code_unit_id"]] = rec
     return list(by_unit.values())
 
@@ -88,13 +91,15 @@ def main() -> int:
 
     original = _load_jsonl(CANDIDATES_PATH)
     v2 = _load_jsonl(V2_CANDIDATES_PATH)
+    v3 = _load_jsonl(V3_CANDIDATES_PATH)
     logger.info(
-        "loaded %d original + %d v2 candidate records",
+        "loaded %d original + %d v2 + %d v3 candidate records",
         len(original),
         len(v2),
+        len(v3),
     )
 
-    candidates = _deduplicate_candidates(original, v2)
+    candidates = _deduplicate_candidates(original, v2, v3)
     logger.info("after deduplication: %d unique candidates", len(candidates))
 
     train_ids = _split_ids("train.jsonl")
@@ -114,14 +119,18 @@ def main() -> int:
         validation_code_unit_ids=validation_ids,
     )
 
+    v3_in_pool = sum(
+        1 for c in pool if c.get("candidate_id", "").startswith("candidate_v3_")
+    )
     v2_in_pool = sum(
         1 for c in pool if c.get("candidate_id", "").startswith("candidate_v2_")
     )
     logger.info(
-        "eligible pool: %d candidates (%d v2, %d original)",
+        "eligible pool: %d candidates (%d v3, %d v2, %d original)",
         len(pool),
+        v3_in_pool,
         v2_in_pool,
-        len(pool) - v2_in_pool,
+        len(pool) - v3_in_pool - v2_in_pool,
     )
 
     if len(pool) < FINAL_QUERY_COUNT:
