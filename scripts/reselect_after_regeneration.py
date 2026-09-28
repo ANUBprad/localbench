@@ -32,6 +32,7 @@ from localbench.workloads.code_retrieval.selection import (
     SelectionError,
     build_eligible_pool,
     build_selection_record,
+    merge_round_candidates,
     pool_hash,
     select_final_queries,
 )
@@ -39,7 +40,9 @@ from localbench.workloads.code_retrieval.selection import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates.jsonl"
 V2_CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates_v2.jsonl"
+V2_FAILURES_PATH = REPO_ROOT / "dataset" / "queries" / "candidate_failures_v2.jsonl"
 V3_CANDIDATES_PATH = REPO_ROOT / "dataset" / "queries" / "candidates_v3.jsonl"
+V3_FAILURES_PATH = REPO_ROOT / "dataset" / "queries" / "candidate_failures_v3.jsonl"
 SPLITS_DIR = REPO_ROOT / "dataset" / "splits"
 SELECTION_OUTPUT = REPO_ROOT / "dataset" / "queries" / "final_45_selection.json"
 REVIEW_OUTPUT = REPO_ROOT / "dataset" / "queries" / "review_artifact.json"
@@ -64,24 +67,6 @@ def _split_ids(name: str) -> set[str]:
     return {record["id"] for record in _load_jsonl(SPLITS_DIR / name)}
 
 
-def _deduplicate_candidates(
-    original: list[dict], v2: list[dict], v3: list[dict]
-) -> list[dict]:
-    """Merge original + v2 + v3 candidates, newest round taking precedence.
-
-    For each code_unit_id, the newest round record replaces older ones.
-    Original records are preserved in the audit trail but not in the pool.
-    """
-    by_unit: dict[str, dict] = {}
-    for rec in original:
-        by_unit[rec["code_unit_id"]] = rec
-    for rec in v2:
-        by_unit[rec["code_unit_id"]] = rec
-    for rec in v3:
-        by_unit[rec["code_unit_id"]] = rec
-    return list(by_unit.values())
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generation-source-commit", required=True)
@@ -91,15 +76,22 @@ def main() -> int:
 
     original = _load_jsonl(CANDIDATES_PATH)
     v2 = _load_jsonl(V2_CANDIDATES_PATH)
+    v2_failures = _load_jsonl(V2_FAILURES_PATH)
     v3 = _load_jsonl(V3_CANDIDATES_PATH)
+    v3_failures = _load_jsonl(V3_FAILURES_PATH)
     logger.info(
-        "loaded %d original + %d v2 + %d v3 candidate records",
+        "loaded %d original + %d v2 + %d v3 candidate records, "
+        "%d v2 + %d v3 failure records",
         len(original),
         len(v2),
         len(v3),
+        len(v2_failures),
+        len(v3_failures),
     )
 
-    candidates = _deduplicate_candidates(original, v2, v3)
+    candidates = merge_round_candidates(
+        original, v2, v3, v2_failures, v3_failures
+    )
     logger.info("after deduplication: %d unique candidates", len(candidates))
 
     train_ids = _split_ids("train.jsonl")

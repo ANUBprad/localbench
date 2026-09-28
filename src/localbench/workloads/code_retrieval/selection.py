@@ -94,6 +94,56 @@ def build_eligible_pool(
     return sorted(pool, key=lambda candidate: candidate["code_unit_id"])
 
 
+def merge_round_candidates(
+    original_candidates: Sequence[dict[str, Any]],
+    v2_candidates: Sequence[dict[str, Any]] = (),
+    v3_candidates: Sequence[dict[str, Any]] = (),
+    v2_failures: Sequence[dict[str, Any]] = (),
+    v3_failures: Sequence[dict[str, Any]] = (),
+    quarantined_candidate_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Merge original/v2/v3 round records using newest-valid-success semantics.
+
+    For each CodeUnit the newest VALID SUCCESSFUL candidate wins
+    (v3 > v2 > original). A CodeUnit whose NEWEST round record is a FAILURE
+    is excluded entirely: a failed regeneration attempt must never resurrect
+    an older, possibly human-rejected candidate. Quarantined (over-budget,
+    §4.4.3) round candidates are dropped so the unit falls back to its
+    previous valid success; quarantine is distinct from a failed round.
+    """
+    quarantined = quarantined_candidate_ids or set()
+    v3_ok = {
+        r["code_unit_id"]: r
+        for r in v3_candidates
+        if r["candidate_id"] not in quarantined
+    }
+    v2_ok = {
+        r["code_unit_id"]: r
+        for r in v2_candidates
+        if r["candidate_id"] not in quarantined
+    }
+    v3_failed = {r["code_unit_id"] for r in v3_failures}
+    v2_failed = {r["code_unit_id"] for r in v2_failures}
+    original = {r["code_unit_id"]: r for r in original_candidates}
+
+    units = sorted(
+        set(original) | set(v2_ok) | set(v3_ok) | v2_failed | v3_failed
+    )
+    merged: list[dict[str, Any]] = []
+    for unit in units:
+        if unit in v3_failed:
+            continue
+        if unit in v3_ok:
+            merged.append(v3_ok[unit])
+        elif unit in v2_failed:
+            continue
+        elif unit in v2_ok:
+            merged.append(v2_ok[unit])
+        elif unit in original:
+            merged.append(original[unit])
+    return merged
+
+
 def pool_hash(ordered_candidates: Sequence[dict[str, Any]]) -> str:
     """SHA-256 of the canonical pool representation (frozen serialization).
 

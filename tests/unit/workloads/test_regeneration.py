@@ -457,11 +457,21 @@ class TestDatasetBudgetReality:
         assert len(rejected) == 41
 
     def test_rejected_candidates_present_in_v2_not_v3(self) -> None:
-        """Rejected units must not already carry a v3 round record."""
+        """v3 regeneration targeted only rejected units (post-C3 invariant).
+
+        After Phase 4F-I-C3, the 41 rejected units may carry a v3 round
+        record (39 succeeded, 2 failed), but accepted units must never have
+        been regenerated: the v3 store is a subset of the rejected set.
+        """
         artifact_path = self.Q / "review_artifact.json"
         if not artifact_path.exists():
             return
         artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        accepted = {
+            item["code_unit_id"]
+            for item in artifact["items"]
+            if item["review"]["state"] == "accepted"
+        }
         rejected = {
             item["code_unit_id"]
             for item in artifact["items"]
@@ -469,7 +479,8 @@ class TestDatasetBudgetReality:
         }
         v3_cands = _load_jsonl(self.Q / "candidates_v3.jsonl")
         v3_ids = {r["code_unit_id"] for r in v3_cands}
-        assert not (rejected & v3_ids)
+        assert not (accepted & v3_ids)
+        assert v3_ids <= rejected
 
 
 # ---------------------------------------------------------------------------
@@ -477,6 +488,112 @@ class TestDatasetBudgetReality:
 # ---------------------------------------------------------------------------
 
 MAX_ATTEMPTS = 3
+
+
+class TestMergeRoundCandidates:
+    """Phase 4F §3: newest valid success wins; failed rounds never resurrect.
+
+    A human-rejected candidate must NEVER come back into the eligible pool
+    merely because a later regeneration round failed: a CodeUnit whose newest
+    round record is a FAILURE is excluded entirely, even if an older
+    (possibly rejected) candidate exists.
+    """
+
+    def _rec(self, uid, *, round_=None, success=True):
+        prefix = f"candidate_{round_}" if round_ else "candidate"
+        return _make_candidate_record(
+            uid,
+            candidate_id=f"{prefix}_{uid}",
+            success=success,
+        )
+
+    def test_v3_failure_excludes_despite_v2_and_original(self) -> None:
+        """Regression: V3 failed -> unit must NOT fall back to rejected V2."""
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_a")]
+        v2 = [self._rec("unit_a", round_="v2")]
+        v3_failures = [self._rec("unit_a", round_="v3", success=False)]
+        merged = merge_round_candidates(
+            original, v2, [], [], v3_failures
+        )
+        assert merged == []
+
+    def test_v3_failure_excluded_from_clean_pool(self) -> None:
+        """Regression: build_clean_pool must not reintroduce the V2 record."""
+        from scripts.quarantine_overbudget import build_clean_pool
+
+        original = [self._rec("unit_a")]
+        v2 = [self._rec("unit_a", round_="v2")]
+        v3_failures = [self._rec("unit_a", round_="v3", success=False)]
+        pool = build_clean_pool(
+            original,
+            v2,
+            set(),
+            test_code_unit_ids={"unit_a"},
+            v3_candidates=[],
+            v2_failures=[],
+            v3_failures=v3_failures,
+        )
+        assert pool == []
+
+    def test_v3_success_wins_over_v2(self) -> None:
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_b")]
+        v2 = [self._rec("unit_b", round_="v2")]
+        v3 = [self._rec("unit_b", round_="v3")]
+        merged = merge_round_candidates(original, v2, v3)
+        assert len(merged) == 1
+        assert merged[0]["candidate_id"] == "candidate_v3_unit_b"
+
+    def test_v2_success_wins_over_original(self) -> None:
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_c")]
+        v2 = [self._rec("unit_c", round_="v2")]
+        merged = merge_round_candidates(original, v2)
+        assert len(merged) == 1
+        assert merged[0]["candidate_id"].startswith("candidate_v2_")
+
+    def test_v2_failure_excludes_despite_original(self) -> None:
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_d")]
+        v2_failures = [self._rec("unit_d", round_="v2", success=False)]
+        merged = merge_round_candidates(original, [], [], v2_failures, [])
+        assert merged == []
+
+    def test_no_round_unit_keeps_original(self) -> None:
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_e")]
+        merged = merge_round_candidates(original)
+        assert len(merged) == 1
+        assert merged[0]["candidate_id"].startswith("candidate_")
+        assert not merged[0]["candidate_id"].startswith("candidate_v")
+
+    def test_failed_v3_supersedes_earlier_v2_success(self) -> None:
+        """A V3 failure must also remove a unit that had V2 success."""
+        from localbench.workloads.code_retrieval.selection import (
+            merge_round_candidates,
+        )
+
+        original = [self._rec("unit_f")]
+        v2 = [self._rec("unit_f", round_="v2")]
+        v3_failures = [self._rec("unit_f", round_="v3", success=False)]
+        merged = merge_round_candidates(original, v2, [], [], v3_failures)
+        assert merged == []
 
 
 class TestQuarantineOverbudget:

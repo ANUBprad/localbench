@@ -31,6 +31,7 @@ from localbench.workloads.code_retrieval.selection import (
     SelectionError,
     build_eligible_pool,
     build_selection_record,
+    merge_round_candidates,
     pool_hash,
     select_final_queries,
 )
@@ -198,46 +199,27 @@ def build_clean_pool(
     train_code_unit_ids: set[str] | None = None,
     validation_code_unit_ids: set[str] | None = None,
     v3_candidates: list[dict] | None = None,
+    v2_failures: list[dict] | None = None,
+    v3_failures: list[dict] | None = None,
 ) -> list[dict]:
     """Build eligible pool excluding quarantined round candidates.
 
     For each CodeUnit:
-    - If the newest round candidate is quarantined, fall back to the older
-      successful candidate (v2 then original)
-    - Otherwise use the newest successful round candidate (v3 > v2 > original)
+    - Use the newest VALID SUCCESSFUL round candidate (v3 > v2 > original)
+    - A CodeUnit whose NEWEST round record is a FAILURE is excluded entirely:
+      a failed regeneration must never resurrect an older, possibly
+      human-rejected candidate (Phase 4F §3).
+    - Quarantined (over-budget, §4.4.3) round candidates are dropped so the
+      unit falls back to its previous valid success.
     """
-    # Index original candidates by code_unit_id
-    orig_by_id: dict[str, dict] = {}
-    for rec in original_candidates:
-        orig_by_id[rec["code_unit_id"]] = rec
-
-    # Index v2 candidates by code_unit_id (only non-quarantined)
-    v2_by_id: dict[str, dict] = {}
-    for rec in v2_candidates:
-        if rec["candidate_id"] not in quarantined_ids:
-            v2_by_id[rec["code_unit_id"]] = rec
-
-    # Index v3 candidates by code_unit_id (only non-quarantined)
-    v3_by_id: dict[str, dict] = {}
-    for rec in v3_candidates or []:
-        if rec["candidate_id"] not in quarantined_ids:
-            v3_by_id[rec["code_unit_id"]] = rec
-
-    # Build merged candidate list: newest round takes precedence where not quarantined
-    merged = []
-    seen_ids: set[str] = set()
-    for rec in original_candidates:
-        uid = rec["code_unit_id"]
-        if uid in seen_ids:
-            continue
-        if uid in v3_by_id:
-            merged.append(v3_by_id[uid])
-        elif uid in v2_by_id:
-            merged.append(v2_by_id[uid])
-        else:
-            merged.append(rec)
-        seen_ids.add(uid)
-
+    merged = merge_round_candidates(
+        original_candidates,
+        v2_candidates,
+        v3_candidates or [],
+        v2_failures or [],
+        v3_failures or [],
+        quarantined_candidate_ids=quarantined_ids,
+    )
     return build_eligible_pool(
         merged,
         test_code_unit_ids=test_code_unit_ids,
@@ -329,6 +311,8 @@ def main() -> int:
         train_code_unit_ids=train_ids,
         validation_code_unit_ids=validation_ids,
         v3_candidates=v3_candidates,
+        v2_failures=v2_failures,
+        v3_failures=v3_failures,
     )
 
     v3_in_pool = sum(
