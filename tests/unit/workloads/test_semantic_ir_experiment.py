@@ -223,6 +223,34 @@ class TestIdentifierSanitization:
         for token in ("zephyr", "render_report", "payload", "warmed"):
             assert token not in _all_phrases(ir)
 
+    def test_phrase_leak_catches_a_copied_source_phrase(self) -> None:
+        # The rename guard cannot see this one: a phrase copied out of the
+        # source verbatim survives renaming intact.
+        source = (
+            "def nimbus():\n"
+            "    return 'nimbus strips surrounding whitespace from text'\n"
+        )
+        leaked = SemanticIR(
+            language="python",
+            unit_kind="function",
+            parse_ok=True,
+            input_roles=(),
+            output_behavior="nimbus strips surrounding whitespace from text",
+            domain_signals=(),
+            transformations=(),
+            relations=(),
+            conditions=(),
+            state_changes=(),
+            side_effects=(),
+            error_behavior="no explicit error handling is visible",
+            observable_effects=(),
+        )
+        assert semantic_ir_experiment._phrase_leak(leaked, source) is not None
+        # The real extractor never produces that phrase for this source.
+        assert semantic_ir_experiment._phrase_leak(
+            _ir(source, "python"), source
+        ) is None
+
 
 # ---------------------------------------------------------------------------
 # 3. semantic anchors, not renamed syntax facts (Section 5)
