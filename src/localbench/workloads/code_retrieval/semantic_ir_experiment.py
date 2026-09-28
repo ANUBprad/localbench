@@ -1993,10 +1993,16 @@ def rename_identifiers(
             visit(child)
 
     visit(unit)
-    out = text
+    # Edits are byte offsets into the encoded source, so the splice has to
+    # happen there too.  Slicing the decoded str with them silently shifted
+    # every identifier after the first non-ASCII character -- a '✓' in a list
+    # literal is 3 bytes and 1 char -- and produced source that did not parse.
+    # That is the same class of bug: a mangled program scores as an IR
+    # difference and reads like a classifier leak.
+    data = text.encode("utf-8")
     for start, length, replacement in sorted(edits, reverse=True):
-        out = out[:start] + replacement + out[start + length:]
-    return out
+        data = data[:start] + replacement.encode("utf-8") + data[start + length:]
+    return data.decode("utf-8")
 
 
 def assert_identifier_free(
