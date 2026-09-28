@@ -747,6 +747,34 @@ def _text(node) -> str:
     return node.text.decode("utf-8", "replace")
 
 
+def _assign_sides(node) -> tuple[Any, Any]:
+    """An assignment's target and value, across the five grammars' spellings."""
+    for left_field, right_field in (
+        ("left", "right"),
+        ("pattern", "value"),
+        ("name", "value"),
+    ):
+        left = node.child_by_field_name(left_field)
+        right = node.child_by_field_name(right_field)
+        if left is not None:
+            return left, right
+    for child in node.children:
+        if child.is_named and child.type in {
+            "variable_declarator", "var_spec", "const_spec", "expression_list"
+        }:
+            left = child.child_by_field_name("name")
+            right = child.child_by_field_name("value")
+            if left is not None:
+                return left, right
+            names = [c for c in child.children if c.is_named]
+            if names:
+                return names[0], names[-1] if len(names) > 1 else None
+    named = [c for c in node.children if c.is_named]
+    if len(named) >= 2:
+        return named[0], named[-1]
+    return (named[0] if named else None), None
+
+
 def _identifiers(node) -> set[str]:
     """Every identifier-shaped token in a subtree (internal use only)."""
     found: set[str] = set()
@@ -1136,7 +1164,7 @@ class _Scanner:
     # -- assignments ------------------------------------------------------
 
     def _on_assign(self, node) -> None:
-        left, right = self._assign_sides(node)
+        left, right = _assign_sides(node)
         if left is None:
             return
         left_names = _identifiers(left)
@@ -1186,32 +1214,6 @@ class _Scanner:
             _add(
                 self.facts.state_changes, "computes a local value from its inputs"
             )
-
-    def _assign_sides(self, node) -> tuple[Any, Any]:
-        for left_field, right_field in (
-            ("left", "right"),
-            ("pattern", "value"),
-            ("name", "value"),
-        ):
-            left = node.child_by_field_name(left_field)
-            right = node.child_by_field_name(right_field)
-            if left is not None:
-                return left, right
-        for child in node.children:
-            if child.is_named and child.type in {
-                "variable_declarator", "var_spec", "const_spec", "expression_list"
-            }:
-                left = child.child_by_field_name("name")
-                right = child.child_by_field_name("value")
-                if left is not None:
-                    return left, right
-                names = [c for c in child.children if c.is_named]
-                if names:
-                    return names[0], names[-1] if len(names) > 1 else None
-        named = [c for c in node.children if c.is_named]
-        if len(named) >= 2:
-            return named[0], named[-1]
-        return (named[0] if named else None), None
 
     def _own_cues(self, node) -> list[str]:
         """Cue phrases applied by calls inside ``node``, outermost first."""
@@ -1737,6 +1739,78 @@ _MEMBER_NAME_FIELDS = frozenset({
     "attribute", "field", "property", "method", "function", "macro",
     "constructor", "name", "type",
 })
+#: ...but only on a node that is a *member access*.  ``call`` is in
+#: ``member_access_nodes`` so that ``x.foo()`` keeps ``foo``, and it shares
+#: the ``function`` field with a bare ``f()``, whose name is a local binding
+#: and must be renamed with every other reference to it.
+_CALLEE_FIELDS = frozenset({"function"})
+
+
+def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
+    """Every name this unit introduces: params, locals, and nested defs.
+
+    Alpha-renaming is only a *test* if the renamed program is the same
+    program, so a local must be renamed at every reference -- including the
+    one where it is called.  Deciding that from the name alone is what let
+    ``name_factory`` be renamed in the signature and left alone at the call
+    site: the renamer could not tell a local from a free global, so it
+    renamed neither and quietly compared two different programs.
+
+    So: rename what the unit binds, never what it merely references.
+    ``fetch`` and ``len`` are referenced, so they stay; ``factory`` is
+    bound, so it goes everywhere.  A shadowing param named ``len`` is the
+    author's name and correctly goes too -- which is the point.
+    """
+    names: set[str] = set()
+
+    def add(node) -> None:
+        if node is None:
+            return
+        if node.type in _TYPE_CONTEXTS or node.type in _NOT_RENAMEABLE:
+            return
+        if node.type == "identifier" and _text(node) != own_name:
+            names.add(_text(node))
+
+    def walk(node) -> None:
+        if node.type in spec.assign_nodes:
+            left, right = _assign_sides(node)
+            if left is not None:
+                names.update(_identifiers(left))
+            # keep descending: the value side can bind a nested local
+            if right is not None:
+                walk(right)
+            return
+        if node.type in spec.loop_nodes:
+            # a loop variable is the author's name too
+            for field in ("left", "name", "identifier", "pattern"):
+                target = node.child_by_field_name(field)
+                if target is not None:
+                    names.update(_identifiers(target))
+            for child in node.children:
+                walk(child)
+            return
+        if node.type in spec.param_nodes or node.type in spec.unit_nodes:
+            for child in node.children:
+                add(child)
+                walk(child)
+            return
+        for child in node.children:
+            walk(child)
+
+    walk(unit)
+    return frozenset(names)
+
+
+def _field_of(node, parent) -> str | None:
+    """The grammar field ``node`` fills in ``parent``, or None.
+
+    py-tree-sitter hands back a fresh wrapper per access, so the node is
+    located by position rather than by identity.
+    """
+    for index, child in enumerate(parent.named_children):
+        if (child.start_byte, child.end_byte) == (node.start_byte, node.end_byte):
+            return parent.field_name_for_named_child(index)
+    return None
 
 
 def _is_member_name(node, spec: _LangSpec) -> bool:
@@ -1744,12 +1818,11 @@ def _is_member_name(node, spec: _LangSpec) -> bool:
     parent = node.parent
     if parent is None or parent.type not in spec.member_access_nodes:
         return False
-    # py-tree-sitter hands back a fresh wrapper per access, so the node is
-    # located by position rather than by identity.
-    for index, child in enumerate(parent.named_children):
-        if (child.start_byte, child.end_byte) == (node.start_byte, node.end_byte):
-            return parent.field_name_for_named_child(index) in _MEMBER_NAME_FIELDS
-    return False
+    if parent.type in spec.call_nodes:
+        # a call's ``function`` child is either the member (``x.foo``) or the
+        # whole callee expression; only the former is a member name.
+        return _field_of(node, parent) not in _CALLEE_FIELDS
+    return _field_of(node, parent) in _MEMBER_NAME_FIELDS
 
 
 def _renameable(node) -> bool:
@@ -1789,6 +1862,7 @@ def rename_identifiers(
     own_name = _text(own) if own is not None else ""
     edits: list[tuple[int, int, str]] = []
     seen: dict[str, str] = {}
+    bound = _unit_bindings(unit, spec, own_name)
 
     def visit(node) -> None:
         if node.type in _TYPE_CONTEXTS:
@@ -1796,7 +1870,7 @@ def rename_identifiers(
         if node.type == "identifier" and _renameable(node) \
                 and not _is_member_name(node, spec):
             name = _text(node)
-            if name not in _RESERVED and name != own_name:
+            if name in bound:
                 seen.setdefault(name, f"{token}{len(seen)}")
                 start = node.start_byte
                 edits.append((start, node.end_byte - start, seen[name]))
