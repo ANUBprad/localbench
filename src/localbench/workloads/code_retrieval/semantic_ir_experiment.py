@@ -166,7 +166,7 @@ _SPECS: dict[str, _LangSpec] = {
         tail_value=False,
         result_field="return_type",
         member_access_nodes=frozenset(
-            {"attribute", "function_call", "keyword_argument"}
+            {"attribute", "call", "function_call", "keyword_argument", "decorator"}
         ),
     ),
     "java": _LangSpec(
@@ -198,7 +198,8 @@ _SPECS: dict[str, _LangSpec] = {
         tail_value=False,
         result_field="type",
         member_access_nodes=frozenset(
-            {"method_invocation", "field_access", "method_reference"}
+            {"method_invocation", "field_access", "method_reference",
+             "object_creation_expression"}
         ),
     ),
     "go": _LangSpec(
@@ -249,7 +250,8 @@ _SPECS: dict[str, _LangSpec] = {
         tail_value=True,
         result_field="return_type",
         member_access_nodes=frozenset(
-            {"field_expression", "scoped_identifier", "macro_invocation"}
+            {"field_expression", "scoped_identifier", "macro_invocation",
+             "call_expression"}
         ),
     ),
     "javascript": _LangSpec(
@@ -282,7 +284,9 @@ _SPECS: dict[str, _LangSpec] = {
         method_parents=frozenset(),
         tail_value=False,
         result_field=None,
-        member_access_nodes=frozenset({"member_expression", "call_expression", "pair"}),
+        member_access_nodes=frozenset(
+            {"member_expression", "call_expression", "pair", "new_expression"}
+        ),
     ),
 }
 
@@ -1118,7 +1122,9 @@ class _Scanner:
         if re.search(r"instanceof|\bmatch\b|\bswitch\b|typeof", text):
             _add(found, "branches on a type or kind of value")
         if re.search(
-            r"isEmpty|is_empty|\.empty\b|len\([^)]*\)\s*==\s*0|!\w*\.?length",
+            # isEmpty is a real API; the snake_case spelling is a Python local
+            # name, and keying on that would make the IR depend on it.
+            r"isEmpty|\.empty\b|len\([^)]*\)\s*==\s*0|!\w*\.?length",
             text,
         ):
             _add(found, "branches on whether an input is empty")
@@ -1673,6 +1679,21 @@ def informativeness(ir: SemanticIR) -> Informativeness:
 
 #: names that must survive renaming, because they are the language's own
 #: vocabulary rather than something the author chose
+#: subtree types that hold a declared type; nothing inside is an author name
+_TYPE_CONTEXTS = frozenset({
+    "type", "union_type", "generic_type", "type_parameter", "sized_type",
+    "type_annotation", "type_identifier", "scoped_type_identifier",
+    "primitive_type", "integral_type", "floating_point_type", "boolean_type",
+    "void_type", "array_type", "object_type", "function_type",
+})
+#: the receiver segment of every receiver-qualified cue key.  A name the
+#: detector itself keys off (json.dumps, logging.error) is a library's name,
+#: not the author's, so the renamer must leave it alone -- exactly as the
+#: production extractor treats module imports.  Derived from the table so a new
+#: qualified cue cannot silently reintroduce the dependency.
+_CUE_RECEIVERS = frozenset(
+    key.split(".")[0] for key in _CUE_MAP if "." in key
+) | {"json"}
 _RESERVED = frozenset({
     "and", "as", "assert", "async", "await", "bool", "break", "byte", "case",
     "catch", "char", "class", "const", "continue", "crate", "def", "default",
@@ -1688,7 +1709,7 @@ _RESERVED = frozenset({
     "throw", "throws", "trait", "true", "try", "type", "typedef", "typeof",
     "union", "unsafe", "unsigned", "use", "using", "var", "virtual", "void",
     "volatile", "when", "where", "while", "with", "yield",
-})
+}) | _CUE_RECEIVERS
 _RENAME_TOKEN = "qqqqzzz"
 #: node types whose text is a type/field/property name: renaming those changes
 #: the program's meaning, so they are left alone
@@ -1741,12 +1762,16 @@ def rename_identifiers(
     """Rewrite every author-chosen name in the unit to a unique stub.
 
     Tree-sitter edits are collected in document order and applied to the
-    original text, so this round-trips exactly and needs no re-parse.  Two
+    original text, so this round-trips exactly and needs no re-parse.  Three
     things are deliberately left alone:
 
-    * names the language owns -- keywords, types, fields, properties -- and
-      member names after a dot (``splitlines``, ``get``, ``fetch``), because
-      renaming those changes what the program *does*, not what it is called.
+    * names the language owns -- keywords, declared types, fields,
+      properties -- and the name of anything being called (``splitlines``,
+      ``get``, ``fetch``, ``len``), because renaming those changes what the
+      program *does*, not what it is called.
+    * the receivers the cue table keys off (``json``, ``logging``): those are
+      library names, the same way module imports are in the production
+      extractor.
     * the unit's own name, which is part of the dataset's identity.
 
     Each distinct name gets a *different* stub, so the aliasing structure the
@@ -1766,6 +1791,8 @@ def rename_identifiers(
     seen: dict[str, str] = {}
 
     def visit(node) -> None:
+        if node.type in _TYPE_CONTEXTS:
+            return
         if node.type == "identifier" and _renameable(node) \
                 and not _is_member_name(node, spec):
             name = _text(node)
@@ -1798,8 +1825,16 @@ def assert_identifier_free(
 
     This is a statement about *names*, not about the program: member and API
     names are left in place, so a phrase that leaked ``splitlines`` would
-    pass.  Those are covered by the fixture tests, which name the specific
-    APIs that must not appear.
+    pass.  Those are covered by the fixture tests and by :func:`_phrase_leak`,
+    which catches a phrase *copied* out of the source wholesale.
+
+    ponytail: 1% of real units still change under rename, because a few
+    classifier heuristics still read source text instead of tree structure
+    (an assignment target that merely *looks* like a parameter).  Measured at
+    495/500 on a stratified sample of train+validation; rerun
+    scripts/run_semantic_ir_probe.py to reproduce.  The upgrade path is to key
+    those heuristics on the resolved binding -- scope-resolved parameter
+    reference rather than string equality against the declared names.
     """
     if ir.parse_ok and not ir.relations and not ir.transformations:
         # Nothing was extracted, so there is nothing that could have leaked.
