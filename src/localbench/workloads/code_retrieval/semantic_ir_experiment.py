@@ -743,6 +743,49 @@ def _add(bucket: list[str], value: str) -> None:
         bucket.append(value)
 
 
+#: assignment targets that write a field rather than a local
+_ATTRIBUTE_TARGETS = frozenset({
+    "attribute", "field_access", "field_expression", "member_expression",
+    "selector_expression", "scoped_identifier",
+})
+#: the receiver a language gives its own instances.  These are the language's
+#: token, not the author's: ``self``/``this`` are keywords or convention that
+#: the grammar and every linter agree on, so keying on them is structural in
+#: the same sense a node type is.  An author-named receiver is not an instance
+#: of anything the unit owns, and used to read as one.
+_SELF_RECEIVERS: dict[str, frozenset[str]] = {
+    "python": frozenset({"self", "cls"}),
+    "java": frozenset({"this", "super"}),
+    "javascript": frozenset({"this"}),
+    "rust": frozenset({"self"}),
+    "go": frozenset(),
+}
+
+
+def _writes_own_field(left, spec: _LangSpec, unit_kind: str) -> bool:
+    """True when an assignment target is a field on the unit's own receiver.
+
+    Structural, not spelling: the receiver is taken from the grammar's
+    ``object``/``expression`` field and matched against the language's
+    documented instance name.  The old test was a regex over the rendered
+    text, so ``me.foo = 1`` counted as writing an owned field while
+    ``instance.foo = 1`` did not, and the answer moved whenever the author
+    renamed a local.
+
+    The unit must also be a method.  A free function taking a parameter named
+    ``cls`` owns nothing -- it is handed the object and mutates it -- and
+    calling that an owned field is the word ``cls`` deciding the semantics.
+    """
+    if unit_kind != "method":
+        return False
+    for field in ("object", "expression", "value"):
+        receiver = left.child_by_field_name(field)
+        if receiver is None:
+            continue
+        return _text(receiver) in _SELF_RECEIVERS.get(spec.ts_name, frozenset())
+    return False
+
+
 def _text(node) -> str:
     return node.text.decode("utf-8", "replace")
 
@@ -867,6 +910,7 @@ class _Scanner:
         self.unit = unit
         self.spec = spec
         self.facts = _Facts()
+        self.unit_kind = _classify_unit_kind(unit, spec)
         # local variable name -> transformations already applied to its value
         self.env: dict[str, list[str]] = {}
         # local variable name -> parameters its value ultimately came from
@@ -1181,9 +1225,9 @@ class _Scanner:
             self.env[name] = list(produced)
             self.env_params[name] = fed_by
 
-        if left.type in {
-            "attribute", "field_access", "field_expression", "member_expression"
-        } and re.search(r"\b(this|self|cls|me)\b", _text(left)):
+        if left.type in _ATTRIBUTE_TARGETS and _writes_own_field(
+            left, self.spec, self.unit_kind
+        ):
             _add(self.facts.state_changes, "writes a field of an owned object")
         elif left.type in {
             "index_expression", "subscript", "subscript_expression", "array_access"
@@ -1771,11 +1815,29 @@ def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
         if node.type == "identifier" and _text(node) != own_name:
             names.add(_text(node))
 
+    def bound_target(node) -> set[str]:
+        """The name an assignment target actually introduces.
+
+        ``self.count = 1`` binds nothing new: ``self`` is the receiver and
+        ``count`` is a field.  Taking every identifier in the target made the
+        renamer rewrite a call to that field (``count(self.x)``), which is
+        how ``iter`` in ``self.iter = iter(iterable)`` stopped being the
+        builtin.
+        """
+        if node is None:
+            return set()
+        if node.type in _ATTRIBUTE_TARGETS:
+            for field in ("object", "expression", "value"):
+                receiver = node.child_by_field_name(field)
+                if receiver is not None:
+                    return bound_target(receiver)
+            return set()
+        return _identifiers(node)
+
     def walk(node) -> None:
         if node.type in spec.assign_nodes:
             left, right = _assign_sides(node)
-            if left is not None:
-                names.update(_identifiers(left))
+            names.update(bound_target(left))
             # keep descending: the value side can bind a nested local
             if right is not None:
                 walk(right)
@@ -1785,7 +1847,7 @@ def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
             for field in ("left", "name", "identifier", "pattern"):
                 target = node.child_by_field_name(field)
                 if target is not None:
-                    names.update(_identifiers(target))
+                    names.update(bound_target(target))
             for child in node.children:
                 walk(child)
             return
@@ -1870,7 +1932,7 @@ def rename_identifiers(
         if node.type == "identifier" and _renameable(node) \
                 and not _is_member_name(node, spec):
             name = _text(node)
-            if name in bound:
+            if name in bound and name not in _RESERVED:
                 seen.setdefault(name, f"{token}{len(seen)}")
                 start = node.start_byte
                 edits.append((start, node.end_byte - start, seen[name]))
