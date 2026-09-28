@@ -778,8 +778,8 @@ def _writes_own_field(left, spec: _LangSpec, unit_kind: str) -> bool:
     """
     if unit_kind != "method":
         return False
-    for field in ("object", "expression", "value"):
-        receiver = left.child_by_field_name(field)
+    for receiver_field in ("object", "expression", "value"):
+        receiver = left.child_by_field_name(receiver_field)
         if receiver is None:
             continue
         return _text(receiver) in _SELF_RECEIVERS.get(spec.ts_name, frozenset())
