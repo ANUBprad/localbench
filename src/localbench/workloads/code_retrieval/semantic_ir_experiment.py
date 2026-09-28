@@ -748,6 +748,20 @@ _ATTRIBUTE_TARGETS = frozenset({
     "attribute", "field_access", "field_expression", "member_expression",
     "selector_expression", "scoped_identifier",
 })
+#: wrappers whose children hold a declared name rather than a value
+_DECLARATION_WRAPPERS = frozenset({
+    "parameters", "formal_parameters", "parameter", "typed_parameter",
+    "default_parameter", "typed_default_parameter", "optional_parameter",
+    "variadic_parameter", "typed_variadic_parameter", "parameter_list",
+    "function_definition", "function_declaration", "method_definition",
+    "method_declaration", "method", "func_declaration", "function_item",
+    "arrow_function", "lambda", "lambda_parameters", "catch_formal_parameter",
+})
+#: destructuring patterns, which bind a name per element
+_PATTERN_NODES = frozenset({
+    "pattern_list", "tuple_pattern", "list_pattern", "expression_list",
+    "tuple", "list", "array_pattern", "slice_pattern",
+})
 #: the receiver a language gives its own instances.  These are the language's
 #: token, not the author's: ``self``/``this`` are keywords or convention that
 #: the grammar and every linter agree on, so keying on them is structural in
@@ -1211,6 +1225,11 @@ class _Scanner:
         left, right = _assign_sides(node)
         if left is None:
             return
+        # For ``obj.field = x`` the thing being rebound is ``obj``; counting
+        # the field name put it in no binding class at all, so a write to a
+        # field of a caught exception fell through to "computes a local
+        # value" and the phrase depended on what the field was called.
+        target_names = _bound_names(left)
         left_names = _identifiers(left)
         param_names = {p for p, _ in self.facts.params}
         produced = self._transformation_chain(right) if right is not None else []
@@ -1239,7 +1258,7 @@ class _Scanner:
                 self.facts.state_changes,
                 "stores a computed value under a key in a retained mapping",
             )
-        elif left_names & param_names:
+        elif target_names & param_names:
             _add(
                 self.facts.state_changes,
                 "reassigns an incoming value before using it",
@@ -1740,22 +1759,18 @@ _TYPE_CONTEXTS = frozenset({
 _CUE_RECEIVERS = frozenset(
     key.split(".")[0] for key in _CUE_MAP if "." in key
 ) | {"json"}
-_RESERVED = frozenset({
-    "and", "as", "assert", "async", "await", "bool", "break", "byte", "case",
-    "catch", "char", "class", "const", "continue", "crate", "def", "default",
-    "defer", "do", "double", "dyn", "elif", "else", "enum", "err", "error",
-    "except", "export", "extends", "extern", "false", "final", "finally",
-    "float", "fn", "for", "from", "func", "function", "go", "goto", "if",
-    "impl", "implements", "import", "in", "instanceof", "int", "interface",
-    "is", "let", "long", "loop", "match", "mod", "mut", "namespace", "new",
-    "nil", "none", "not", "null", "option", "package", "pass", "priv", "pub",
-    "public", "raise", "readonly", "ref", "register", "require", "res",
-    "result", "return", "self", "short", "signed", "sizeof", "static", "std",
-    "str", "string", "struct", "super", "switch", "synchronized", "this",
-    "throw", "throws", "trait", "true", "try", "type", "typedef", "typeof",
-    "union", "unsafe", "unsigned", "use", "using", "var", "virtual", "void",
-    "volatile", "when", "where", "while", "with", "yield",
-}) | _CUE_RECEIVERS
+#: Names the renamer must not touch even when the unit binds them.  This used
+#: to be one flat list of every keyword in all five languages, which quietly
+#: protected real author words: a Python unit with a parameter called ``path``,
+#: ``error`` or ``result`` was only half renamed, so the guard compared two
+#: different programs and the leftovers were invisible.  Language keywords no
+#: longer need listing -- the grammar does not parse them as identifiers, so
+#: they can never reach here.  What remains is the two things that are
+#: genuinely not the author's to rename: the instance receivers the
+#: classifiers key off, and the library names in the cue table.
+_RESERVED = _CUE_RECEIVERS | frozenset(
+    name for receivers in _SELF_RECEIVERS.values() for name in receivers
+)
 _RENAME_TOKEN = "qqqqzzz"
 #: node types whose text is a type/field/property name: renaming those changes
 #: the program's meaning, so they are left alone
@@ -1808,12 +1823,30 @@ def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
     names: set[str] = set()
 
     def add(node) -> None:
+        """Collect the names a parameter or nested definition *declares*.
+
+        A parameter is not a bare identifier: ``x: int = 5`` is a
+        ``default_parameter`` wrapping the name, its type and its default.
+        Only the name is a binding -- the default's identifiers are values
+        the unit references, and collecting them renamed free globals.
+        """
         if node is None:
             return
         if node.type in _TYPE_CONTEXTS or node.type in _NOT_RENAMEABLE:
             return
-        if node.type == "identifier" and _text(node) != own_name:
-            names.add(_text(node))
+        if node.type in _IDENT_TYPES:
+            name = _text(node)
+            if name != own_name:
+                names.add(name)
+            return
+        for declared_field in ("name", "pattern", "declarator", "left"):
+            declared = node.child_by_field_name(declared_field)
+            if declared is not None:
+                add(declared)
+                return
+        if node.type in _DECLARATION_WRAPPERS or node.type in _PATTERN_NODES:
+            for child in node.children:
+                add(child)
 
     def bound_target(node) -> set[str]:
         """The name an assignment target actually introduces.
@@ -1861,6 +1894,25 @@ def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
 
     walk(unit)
     return frozenset(names)
+
+
+def _bound_names(target) -> set[str]:
+    """The bindings an assignment target rebinds, ignoring any field name.
+
+    ``self.count = 1`` rebinds nothing; ``items = ...`` rebinds ``items``;
+    ``a, b = pair`` rebinds both.  Resolving to the base is what makes the
+    phrase depend on the object being written to rather than on what its
+    field happens to be called.
+    """
+    if target is None:
+        return set()
+    if target.type in _ATTRIBUTE_TARGETS:
+        for receiver_field in ("object", "expression", "value"):
+            receiver = target.child_by_field_name(receiver_field)
+            if receiver is not None:
+                return _bound_names(receiver)
+        return set()
+    return _identifiers(target)
 
 
 def _field_of(node, parent) -> str | None:
