@@ -35,6 +35,7 @@ from localbench.workloads.code_retrieval.semantic_ir_experiment import (  # noqa
     assert_identifier_free,
     build_semantic_ir,
     informativeness,
+    rename_identifiers,
 )
 
 SPLITS = ("train", "validation")
@@ -183,6 +184,35 @@ def show_examples(records: list[dict], count: int) -> None:
               f"old non-placeholder facts: {record['old_signal']}")
 
 
+def describe_difference(record: dict) -> str:
+    """Field-by-field before/after for one unit that failed the guard.
+
+    Naming the field and both values is the difference between a count and a
+    diagnosis: the offending classifier is usually obvious once you can see
+    which field moved and which way.
+    """
+    unit = record["unit"]
+    language = unit.get("language", "python")
+    original = record["new"]
+    renamed = build_semantic_ir(
+        rename_identifiers(unit["source_code"], language), language,
+        original.unit_kind,
+    )
+    before, after = original.to_dict(), renamed.to_dict()
+    lines = [
+        f"code_unit_id : {unit['id']}",
+        f"language     : {language}",
+        f"repository   : {unit['repository']}  {unit['file_path']}",
+    ]
+    for field in before:
+        if before[field] == after[field]:
+            continue
+        lines.append(f"  field: {field}")
+        lines.append(f"    original: {before[field]}")
+        lines.append(f"    renamed : {after[field]}")
+    return "\n".join(lines)
+
+
 def verify_identifiers(records: list[dict]) -> tuple[int, list[str]]:
     """Run the provenance guard over real units, not just fixtures."""
     checked = 0
@@ -193,8 +223,8 @@ def verify_identifiers(records: list[dict]) -> tuple[int, list[str]]:
             assert_identifier_free(
                 record["new"], unit["source_code"], unit.get("language", "python")
             )
-        except AssertionError as exc:
-            failures.append(f"{unit['id']}: {exc}")
+        except AssertionError:
+            failures.append(describe_difference(record))
         else:
             checked += 1
     return checked, failures
@@ -231,8 +261,8 @@ def main() -> int:
               "classifier heuristic reading source text instead of tree")
         print("  structure; see the ponytail: note on "
               "semantic_ir_experiment.assert_identifier_free.")
-        for failure in failures[:10]:
-            print(f"    - {failure}")
+        for failure in failures:
+            print("\n  " + failure.replace("\n", "\n  "))
     print("\n  no dataset files, review artifacts, or production modules were "
           "written.")
     return 0
