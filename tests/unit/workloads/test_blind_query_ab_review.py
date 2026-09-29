@@ -740,6 +740,218 @@ def test_validate_only_writes_nothing(tmp_path: Path) -> None:
 
 def test_default_paths_point_at_the_v1_experiment() -> None:
     args = rq.parse_args([])
-    assert args.input == rq.DEFAULT_EXPERIMENT_DIR / "blind_review_input.json"
-    assert args.output == rq.DEFAULT_EXPERIMENT_DIR / "blind_review_results.json"
+    assert args.review_pairs == rq.EXPECTED_PAIRS
+    input_path, output_path = rq.review_paths(
+        rq.DEFAULT_EXPERIMENT_DIR, args.review_pairs
+    )
+    assert input_path == rq.DEFAULT_EXPERIMENT_DIR / "blind_review_input.json"
+    assert output_path == rq.DEFAULT_EXPERIMENT_DIR / "blind_review_results.json"
     assert rq.DEFAULT_EXPERIMENT_DIR.as_posix().endswith("query_representation_ab/v1")
+
+
+# ---------------------------------------------------------------------------
+# Reduced review samples (--review-pairs)
+# ---------------------------------------------------------------------------
+
+SUBSET_PAIRS = 20
+
+
+def derived(experiment_dir: Path) -> tuple[Path, Path]:
+    return rq.review_paths(experiment_dir, SUBSET_PAIRS)
+
+
+def reduced_argv(input_path: Path, *extra: str) -> list[str]:
+    return [
+        "--input",
+        str(input_path),
+        "--review-pairs",
+        str(SUBSET_PAIRS),
+        *extra,
+    ]
+
+
+def test_default_is_all_sixty_pairs() -> None:
+    """1. Omitting the flag must keep the full frozen sample."""
+    assert rq.parse_args([]).review_pairs == 60 == N_PAIRS
+
+
+def test_twenty_pairs_selects_exactly_twenty_pairs(tmp_path: Path) -> None:
+    """2. Exactly 20 distinct pair_ids come back."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    selected = rq.select_pair_ids(rq.load_blind_input(input_path), SUBSET_PAIRS)
+    assert len(selected) == len(set(selected)) == SUBSET_PAIRS
+    assert set(selected) <= {
+        item["pair_id"] for item in rq.load_blind_input(input_path).items
+    }
+
+
+def test_selection_is_deterministic(tmp_path: Path) -> None:
+    """3. Same input, same pairs, every time and on any machine."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    first = rq.select_pair_ids(rq.load_blind_input(input_path), SUBSET_PAIRS)
+    assert rq.select_pair_ids(rq.load_blind_input(input_path), SUBSET_PAIRS) == first
+    other_input, _k, _m = build_blind_input(tmp_path / "elsewhere", n_pairs=N_PAIRS)
+    assert rq.select_pair_ids(rq.load_blind_input(other_input), SUBSET_PAIRS) == first
+
+
+def test_selection_ignores_item_ordering(tmp_path: Path) -> None:
+    """4. Reversing the presentation order cannot change which pairs are chosen."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    baseline = rq.select_pair_ids(rq.load_blind_input(input_path), SUBSET_PAIRS)
+    payload = json.loads(input_path.read_text(encoding="utf-8"))
+    payload["items"] = list(reversed(payload["items"]))
+    reordered = input_path.with_name("reordered.json")
+    reordered.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    assert rq.select_pair_ids(rq.load_blind_input(reordered), SUBSET_PAIRS) == baseline
+
+
+def test_both_arms_are_kept_for_every_selected_pair(tmp_path: Path) -> None:
+    """5. Selection is at pair level, so each pair keeps both of its queries."""
+    input_path, key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    derived_input = rq.derive_blind_input(rq.load_blind_input(input_path), SUBSET_PAIRS)
+    by_pair: dict[str, list[str]] = {}
+    for item in derived_input.items:
+        by_pair.setdefault(item["pair_id"], []).append(item["review_id"])
+    assert len(by_pair) == SUBSET_PAIRS
+    for pair_id, review_ids in by_pair.items():
+        assert len(set(review_ids)) == 2, pair_id
+        arms = sorted(key["mapping"][rid]["arm"] for rid in review_ids)
+        assert arms == ["A", "B"], pair_id
+
+
+def test_selected_review_ids_are_exactly_forty(tmp_path: Path) -> None:
+    """6. 20 pairs x 2 queries = 40 unique review_ids."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    derived_input = rq.derive_blind_input(rq.load_blind_input(input_path), SUBSET_PAIRS)
+    assert len(derived_input.items) == 40
+    assert len(set(derived_input.review_ids)) == 40
+
+
+def test_derived_input_is_still_fully_blinded(tmp_path: Path) -> None:
+    """7. The reviewer sees the same blinded fields, nothing that unblinds."""
+    input_path, key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    assert rq.main(reduced_argv(input_path, "--validate-only"), ask=Scripted([])) == 0
+    derived_input, _results = derived(input_path.parent)
+    payload = json.loads(derived_input.read_text(encoding="utf-8"))
+    assert [c["name"] for c in payload["criteria"]] == list(CRITERIA)
+    assert len(payload["items"]) == 40
+    for item in payload["items"]:
+        assert set(item) == {"review_id", "pair_id", "query"}
+        assert not set(item) & rq.BLIND_FORBIDDEN_KEYS
+        arm = key["mapping"][item["review_id"]]["arm"]
+        assert arm not in item["query"]
+        assert arm not in item["review_id"]
+    text = derived_input.read_text(encoding="utf-8")
+    for forbidden in rq.FORBIDDEN_ARTIFACTS:
+        assert forbidden not in text
+
+
+def test_frozen_sixty_pair_input_is_never_rewritten(tmp_path: Path) -> None:
+    """8. The frozen input and the full-size results file are left alone."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    before = input_path.read_bytes()
+    rq.main(reduced_argv(input_path, "--validate-only"), ask=Scripted([]))
+    assert input_path.read_bytes() == before
+    assert not (input_path.parent / "blind_review_results.json").exists()
+    assert rq.review_paths(input_path.parent, N_PAIRS) == (
+        input_path,
+        input_path.parent / "blind_review_results.json",
+    )
+    with pytest.raises(rq.ReviewDataError):
+        rq.write_blind_input(input_path, rq.load_blind_input(input_path))
+
+
+def test_twenty_pair_results_are_accepted_by_the_analyzer(tmp_path: Path) -> None:
+    """9. The analyzer takes the derived input and clears the smaller set."""
+    input_path, key, manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    answers = ("y", "n", "y", "y", "y", "y")
+    rq.main(reduced_argv(input_path), ask=Scripted(item_script(answers=answers) * 40))
+    derived_input, results_path = derived(input_path.parent)
+    analyzer = rq._analyzer()
+    report, cleaned = analyzer.validate_reviews(
+        json.loads(derived_input.read_text(encoding="utf-8")),
+        key,
+        manifest,
+        json.loads(results_path.read_text(encoding="utf-8")),
+    )
+    assert report.complete, report.errors
+    assert (report.expected_pairs, report.expected_items) == (SUBSET_PAIRS, 40)
+    assert report.valid == len(cleaned) == 40
+    rows = analyzer.build_summary(
+        analyzer.unblind(
+            key,
+            cleaned,
+            {
+                (f"c{index:03d}", arm): {"split": "train", "success": True}
+                for index in range(1, N_PAIRS + 1)
+                for arm in ("A", "B")
+            },
+        ),
+        cleaned,
+        key,
+    )
+    assert len(rows["rows"]) == 1 + len(CRITERIA)
+
+
+def test_incomplete_twenty_pair_review_fails_closed(tmp_path: Path) -> None:
+    """10. 39 of 40 is incomplete, and the missing id is named."""
+    input_path, key, manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    rq.main(reduced_argv(input_path), ask=Scripted(item_script() * 39 + ["q"]))
+    derived_input, results_path = derived(input_path.parent)
+    analyzer = rq._analyzer()
+    report, _cleaned = analyzer.validate_reviews(
+        json.loads(derived_input.read_text(encoding="utf-8")),
+        key,
+        manifest,
+        json.loads(results_path.read_text(encoding="utf-8")),
+    )
+    assert not report.complete
+    assert report.valid == 39
+    assert report.missing == 1
+    assert len(report.missing_review_ids) == 1
+
+
+def test_full_size_workflow_is_unchanged(tmp_path: Path) -> None:
+    """11. No --review-pairs still reviews all 120 in the frozen order."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    out = tmp_path / "results.json"
+    rq.main(
+        ["--input", str(input_path), "--output", str(out)],
+        ask=Scripted(item_script() * N_ITEMS),
+    )
+    records = json.loads(out.read_text(encoding="utf-8"))["reviews"]
+    assert len(records) == N_ITEMS == 120
+    assert [r["review_id"] for r in records] == rq.load_blind_input(
+        input_path
+    ).review_ids
+    rq.main(
+        ["--input", str(input_path), "--review-pairs", str(N_PAIRS), "--validate-only"],
+        ask=Scripted([]),
+    )
+    assert not (input_path.parent / "blind_review_input_60pairs.json").exists()
+
+
+def test_resume_works_for_the_twenty_pair_run(tmp_path: Path) -> None:
+    """12. The reduced run saves, stops, and resumes where it left off."""
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    argv = reduced_argv(input_path)
+    rq.main(argv, ask=Scripted(item_script(note="early") * 2 + ["q"]))
+    derived_input, results_path = derived(input_path.parent)
+    saved = json.loads(results_path.read_text(encoding="utf-8"))["reviews"]
+    assert len(saved) == 2
+    rq.main(argv, ask=Scripted(item_script() * 38))
+    records = json.loads(results_path.read_text(encoding="utf-8"))["reviews"]
+    assert len(records) == 40
+    assert [r["note"] for r in records[:2]] == ["early", "early"]
+    assert [r["review_id"] for r in records] == rq.load_blind_input(
+        derived_input, expected_pairs=SUBSET_PAIRS
+    ).review_ids
+
+
+@pytest.mark.parametrize("bad", [0, -1, 61, 1.5])
+def test_pair_count_outside_the_frozen_range_is_rejected(
+    tmp_path: Path, bad: object
+) -> None:
+    input_path, _key, _manifest = build_blind_input(tmp_path, n_pairs=N_PAIRS)
+    with pytest.raises(rq.ReviewDataError):
+        rq.select_pair_ids(rq.load_blind_input(input_path), bad)  # type: ignore[arg-type]

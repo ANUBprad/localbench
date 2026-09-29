@@ -33,6 +33,7 @@ import argparse
 import importlib.util
 import json
 import os
+import random
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -115,12 +116,17 @@ class BlindInput:
         raise KeyError(review_id)
 
 
-def load_blind_input(path: Path) -> BlindInput:
+def load_blind_input(path: Path, *, expected_pairs: int = EXPECTED_PAIRS) -> BlindInput:
     """Load and structurally validate the blind review input.
 
     Fails closed.  The check is structural only: item identity, pairing, and
     criteria.  Nothing here consults the arm mapping, because this tool never
     reads it.
+
+    ``expected_pairs`` is the sample size the caller expects.  It defaults to
+    the frozen 60, so the original 120-item workflow is validated exactly as
+    before; a derived ``--review-pairs`` input is checked against the size it
+    was built for instead.
     """
     if not path.exists():
         raise ReviewDataError(f"blind review input not found: {path}")
@@ -148,9 +154,9 @@ def load_blind_input(path: Path) -> BlindInput:
     items = data.get("items")
     if not isinstance(items, list):
         raise ReviewDataError("blind review input has no 'items' array")
-    if len(items) != EXPECTED_REVIEW_ITEMS:
+    if len(items) != 2 * expected_pairs:
         raise ReviewDataError(
-            f"expected {EXPECTED_REVIEW_ITEMS} review items, found {len(items)}"
+            f"expected {2 * expected_pairs} review items, found {len(items)}"
         )
 
     seen: set[str] = set()
@@ -181,8 +187,8 @@ def load_blind_input(path: Path) -> BlindInput:
             raise ReviewDataError(f"{review_id}: query must be a non-empty string")
         per_pair[pair_id] = per_pair.get(pair_id, 0) + 1
 
-    if len(per_pair) != EXPECTED_PAIRS:
-        raise ReviewDataError(f"expected {EXPECTED_PAIRS} pairs, found {len(per_pair)}")
+    if len(per_pair) != expected_pairs:
+        raise ReviewDataError(f"expected {expected_pairs} pairs, found {len(per_pair)}")
     unpaired = sorted(p for p, count in per_pair.items() if count != 2)
     if unpaired:
         raise ReviewDataError(f"pairs without exactly two items: {unpaired}")
@@ -192,6 +198,106 @@ def load_blind_input(path: Path) -> BlindInput:
         version=str(data.get("version", "")),
         criteria=tuple((c["name"], c["definition"]) for c in criteria),
         items=tuple(dict(item) for item in items),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Derived review samples (--review-pairs)
+# ---------------------------------------------------------------------------
+
+#: Seed for the subset draw.  This is the frozen review randomization seed,
+#: restated here because this tool deliberately never reads the blind key or the
+#: manifest.  Keep it fixed: changing it reselects the pairs a reviewer has
+#: already partly judged.
+SUBSET_SEED: int = 42
+
+
+def select_pair_ids(blind: BlindInput, pairs: int) -> list[str]:
+    """Choose ``pairs`` pair_ids out of the frozen review set.
+
+    The exact rule, so any auditor can re-derive it:
+
+    1. Take the distinct ``pair_id``s in the blind input and sort them
+       lexicographically.  Sorting first is what makes the draw independent of
+       the order the items happen to be presented in.
+    2. ``random.Random(SUBSET_SEED).sample(sorted_pair_ids, pairs)`` with a fixed
+       seed, so the same pairs come out on every machine and every run.
+    3. Sort the selected pair_ids lexicographically.
+
+    The draw is at PAIR level, so both queries of a chosen pair always travel
+    together and no pair can ever contribute a single query.  It reads nothing
+    but the blinded pair ids: not the generations, not the arm mapping, not the
+    query text, and not any automatic score.  It is therefore blind to query
+    quality, to A/B differences, and to generation success.
+    """
+    if not isinstance(pairs, int) or not 1 <= pairs <= EXPECTED_PAIRS:
+        raise ReviewDataError(
+            f"--review-pairs must be an integer in 1..{EXPECTED_PAIRS}, got {pairs!r}"
+        )
+    candidates = sorted({item["pair_id"] for item in blind.items})
+    if pairs == len(candidates):
+        return candidates
+    return sorted(random.Random(SUBSET_SEED).sample(candidates, pairs))
+
+
+def derive_blind_input(blind: BlindInput, pairs: int) -> BlindInput:
+    """Narrow the frozen input to the selected pairs, keeping its item order."""
+    keep = set(select_pair_ids(blind, pairs))
+    items = tuple(item for item in blind.items if item["pair_id"] in keep)
+    if len(items) != 2 * pairs:
+        raise ReviewDataError(
+            f"subset of {pairs} pair(s) yielded {len(items)} items, "
+            f"expected {2 * pairs}"
+        )
+    return BlindInput(
+        experiment_id=blind.experiment_id,
+        version=blind.version,
+        criteria=blind.criteria,
+        items=items,
+    )
+
+
+def write_blind_input(path: Path, blind: BlindInput) -> None:
+    """Write a derived review input atomically.
+
+    Refuses to target the frozen input: the 60-pair sample is the experiment and
+    is never rewritten by this tool.
+    """
+    if path.name == "blind_review_input.json":
+        raise ReviewDataError(f"refusing to overwrite the frozen input: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    payload = {
+        "experiment_id": blind.experiment_id,
+        "version": blind.version,
+        "criteria": [
+            {"name": name, "definition": text} for name, text in blind.criteria
+        ],
+        "items": [dict(item) for item in blind.items],
+    }
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=False, sort_keys=True)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_path, path)
+
+
+def review_paths(experiment_dir: Path, pairs: int) -> tuple[Path, Path]:
+    """Input and results paths for a sample size.
+
+    At the full 60 pairs the frozen names are used unchanged, so the original
+    120-item workflow keeps its files.  A reduced sample gets its own names, so
+    it can never overwrite a full-size review.
+    """
+    if pairs == EXPECTED_PAIRS:
+        return (
+            experiment_dir / "blind_review_input.json",
+            experiment_dir / "blind_review_results.json",
+        )
+    return (
+        experiment_dir / f"blind_review_input_{pairs}pairs.json",
+        experiment_dir / f"blind_review_results_{pairs}pairs.json",
     )
 
 
@@ -507,23 +613,37 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Interactive reviewer for the frozen query-representation A/B blind "
-            "review. Shows the 120 blinded queries in the frozen order, records "
-            "the six criterion decisions, and saves after every item. Reads only "
-            "blind_review_input.json: it never unblinds, never analyses, and "
-            "never calls a model."
+            "review. Shows the blinded queries in the frozen order (all "
+            f"{EXPECTED_REVIEW_ITEMS}, or a seeded pair-level subset with "
+            "--review-pairs), records the six criterion decisions, and saves "
+            "after every item. Reads only the blind review input: it never "
+            "unblinds, never analyses, and never calls a model."
         )
+    )
+    parser.add_argument(
+        "--review-pairs",
+        type=int,
+        default=EXPECTED_PAIRS,
+        help=(
+            f"review this many paired CodeUnits out of the frozen "
+            f"{EXPECTED_PAIRS} (default: all {EXPECTED_PAIRS}); a smaller sample "
+            f"is a seeded pair-level subset with its own input and results files"
+        ),
     )
     parser.add_argument(
         "--input",
         type=Path,
-        default=DEFAULT_EXPERIMENT_DIR / "blind_review_input.json",
-        help="blinded review input (default: %(default)s)",
+        default=None,
+        help="frozen blinded review input the sample is drawn from (default: "
+        "<experiment-dir>/blind_review_input.json)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=DEFAULT_EXPERIMENT_DIR / "blind_review_results.json",
-        help="results file, resumed if it exists (default: %(default)s)",
+        default=None,
+        help="results file, resumed if it exists (default: "
+        "<experiment-dir>/blind_review_results.json, or "
+        "blind_review_results_<N>pairs.json when --review-pairs is reduced)",
     )
     parser.add_argument(
         "--restart",
@@ -541,21 +661,43 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None, *, ask: Ask | None = None) -> int:
     args = parse_args(argv)
     ask = ask or (lambda prompt: input(prompt))
+    pairs = args.review_pairs
+    source_path = args.input or DEFAULT_EXPERIMENT_DIR / "blind_review_input.json"
+    derived_input, default_output = review_paths(source_path.parent, pairs)
+    input_path = source_path if pairs == EXPECTED_PAIRS else derived_input
+    output_path = args.output or default_output
     try:
-        blind = load_blind_input(args.input)
-        records = load_results(args.output, blind)
+        if pairs == EXPECTED_PAIRS:
+            blind = load_blind_input(input_path)
+        else:
+            # Derived, never in place: the frozen 60-pair input is only read.
+            blind = derive_blind_input(load_blind_input(source_path), pairs)
+            write_blind_input(derived_input, blind)
+    except ReviewDataError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        records = load_results(output_path, blind)
     except ReviewDataError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
     print(f"Experiment: {blind.experiment_id} {blind.version}")
+    if pairs != EXPECTED_PAIRS:
+        print(
+            f"Review sample: {pairs} of {EXPECTED_PAIRS} pairs "
+            f"(seed {SUBSET_SEED}, pair-level draw)"
+        )
+        print(f"  input  : {input_path}")
+        print(f"  output : {output_path}")
     print(f"Items: {len(blind.items)}  Criteria: {len(blind.criteria)}")
     print("Answer y if the query satisfies the criterion, n if it does not.")
     if args.validate_only:
         _print_progress(len(records), len(blind.items))
-        print("Validation only. Nothing written.")
+        print("Validation only. No results written.")
         return 0
-    return review_session(blind, args.output, ask, restart=args.restart)
+    return review_session(blind, output_path, ask, restart=args.restart)
 
 
 if __name__ == "__main__":

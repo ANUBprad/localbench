@@ -354,11 +354,18 @@ def validate_reviews(
             f"manifest criteria do not match the frozen six: {list(manifest_names)}"
         )
 
+    # The review sample size is whatever the supplied input defines, so a
+    # derived 20-pair input is analyzed on its own terms.  The frozen key is
+    # still checked against the frozen constants: that validates the key
+    # itself, not the size of the review sample drawn from it.
     input_ids = {item.get("review_id") for item in blind_input.get("items", [])}
-    if len(input_ids) != EXPECTED_REVIEW_ITEMS:
+    input_pair_ids = {item.get("pair_id") for item in blind_input.get("items", [])}
+    report.expected_items = len(input_ids)
+    report.expected_pairs = len(input_pair_ids)
+    if report.expected_items != 2 * report.expected_pairs:
         report.errors.append(
-            f"expected {EXPECTED_REVIEW_ITEMS} review items in the blind input, "
-            f"found {len(input_ids)}"
+            f"blind review input must hold exactly two items per pair: "
+            f"{report.expected_items} items across {report.expected_pairs} pairs"
         )
 
     key_mapping = key.get("mapping", {})
@@ -414,7 +421,9 @@ def validate_reviews(
         cleaned[review_id] = clean
     report.valid = len(cleaned)
 
-    report.missing_review_ids = sorted(set(key_mapping) - known - duplicates)
+    # Missing is measured against the supplied review input, not the full
+    # frozen key: a 20-pair review is complete at 40 records, not 120.
+    report.missing_review_ids = sorted(input_ids - known - duplicates)
     report.missing = len(report.missing_review_ids)
     if report.unknown_review_ids:
         report.invalid += len(report.unknown_review_ids)
@@ -441,9 +450,10 @@ def validate_reviews(
                 f"{pair_id}: reviewed items do not map to one A and one B "
                 f"(arms={sorted(arms_by_pair[pair_id])})"
             )
-    if len(arms_by_pair) != EXPECTED_PAIRS:
+    if len(arms_by_pair) != report.expected_pairs:
         report.errors.append(
-            f"expected {EXPECTED_PAIRS} reviewed pairs, found {len(arms_by_pair)}"
+            f"expected {report.expected_pairs} reviewed pairs, "
+            f"found {len(arms_by_pair)}"
         )
     return report, cleaned
 
@@ -849,25 +859,26 @@ def run(args: argparse.Namespace) -> int:
             return 2
 
     before = snapshot_hashes(experiment_dir)
-    blind_input = read_json(experiment_dir / "blind_review_input.json")
+    blind_input = read_json(args.input)
     key = read_json(experiment_dir / "blind_review_key.json")
     manifest = read_json(experiment_dir / "manifest.json")
     automatic = read_json(experiment_dir / "automatic_summary.json")
 
+    expected_ids = {item.get("review_id") for item in blind_input.get("items", [])}
     if not review_file.exists():
         removed = clear_analysis_outputs(analysis_dir)
-        report = ValidationReport()
-        report.missing = EXPECTED_REVIEW_ITEMS
-        report.missing_review_ids = sorted(key.get("mapping", {}))
+        report = ValidationReport(expected_items=len(expected_ids))
+        report.missing = len(expected_ids)
+        report.missing_review_ids = sorted(expected_ids)
         report.errors.append(
             f"review results file not found: {review_file}; expected "
-            f"{EXPECTED_REVIEW_ITEMS} review records"
+            f"{len(expected_ids)} review records"
         )
         write_json(analysis_dir / "review_validation.json", report.to_dict())
         print("REVIEW INCOMPLETE")
-        print(f"  expected reviews : {EXPECTED_REVIEW_ITEMS}")
+        print(f"  expected reviews : {len(expected_ids)}")
         print("  received         : 0")
-        print(f"  missing          : {EXPECTED_REVIEW_ITEMS}")
+        print(f"  missing          : {len(expected_ids)}")
         if removed:
             print(f"  removed stale    : {', '.join(removed)}")
         print(f"  wrote            : {analysis_dir / 'review_validation.json'}")
@@ -909,7 +920,7 @@ def run(args: argparse.Namespace) -> int:
     if args.validate_only:
         print("review complete and valid")
         print(f"  reviews : {validation.valid}")
-        print(f"  pairs   : {EXPECTED_PAIRS}")
+        print(f"  pairs   : {validation.expected_pairs}")
         print(f"  wrote   : {analysis_dir / 'review_validation.json'}")
         print("validation-only: no analysis written")
         return 0
@@ -1004,6 +1015,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="frozen experiment directory (default: %(default)s)",
     )
     parser.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="review input the review set was drawn from; the expected review "
+        "count is derived from it (default: "
+        "<experiment-dir>/blind_review_input.json)",
+    )
+    parser.add_argument(
         "--review-file",
         type=Path,
         default=None,
@@ -1022,6 +1041,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="validate completeness and stop without writing any analysis",
     )
     args = parser.parse_args(argv)
+    if args.input is None:
+        args.input = args.experiment_dir / "blind_review_input.json"
     if args.review_file is None:
         args.review_file = args.experiment_dir / "blind_review_results.json"
     if args.analysis_dir is None:
