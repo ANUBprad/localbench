@@ -39,6 +39,7 @@ def-use graph over the same cue table.
 
 from __future__ import annotations
 
+import itertools
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -1805,95 +1806,96 @@ _MEMBER_NAME_FIELDS = frozenset({
 _CALLEE_FIELDS = frozenset({"function"})
 
 
-def _unit_bindings(unit, spec: _LangSpec, own_name: str) -> frozenset[str]:
-    """Every name this unit introduces: params, locals, and nested defs.
+def _scope_bindings(unit, spec: _LangSpec, own_name: str) -> set[str]:
+    """Names bound by this scope: its parameters, locals and nested defs.
+
+    Not recursive: a nested definition's parameters and body belong to the
+    nested scope, so only its *name* is collected here.  That distinction is
+    what makes shadowing work.  A nested ``def filter(items)`` reusing the
+    outer name is a different variable, and giving both the same stub merged
+    them, so the scanner could no longer tell which one a phrase came from
+    and the IR moved whenever the outer name changed.
 
     Alpha-renaming is only a *test* if the renamed program is the same
     program, so a local must be renamed at every reference -- including the
-    one where it is called.  Deciding that from the name alone is what let
-    ``name_factory`` be renamed in the signature and left alone at the call
-    site: the renamer could not tell a local from a free global, so it
-    renamed neither and quietly compared two different programs.
-
-    So: rename what the unit binds, never what it merely references.
-    ``fetch`` and ``len`` are referenced, so they stay; ``factory`` is
-    bound, so it goes everywhere.  A shadowing param named ``len`` is the
-    author's name and correctly goes too -- which is the point.
+    one where it is called.  Renaming by name alone let ``name_factory`` be
+    renamed in the signature and left alone at the call site, and the guard
+    then compared two different programs.  So: rename what the unit binds,
+    never what it merely references.  ``fetch`` and ``len`` are referenced,
+    so they stay; ``factory`` is bound, so it goes everywhere.
     """
     names: set[str] = set()
 
-    def add(node) -> None:
-        """Collect the names a parameter or nested definition *declares*.
+    def walk(node, is_root: bool) -> None:
+        if node.type in spec.unit_nodes and not is_root:
+            # a nested definition's name binds here, in the enclosing scope;
+            # its parameters and body belong to the scope it opens
+            own = node.child_by_field_name("name")
+            if own is not None and _text(own) != own_name:
+                names.add(_text(own))
+            return
+        if node.type in spec.assign_nodes:
+            left, right = _assign_sides(node)
+            names.update(_bound_names(left))
+            if right is not None:
+                walk(right, False)
+            return
+        if node.type in spec.loop_nodes:
+            for loop_field in ("left", "name", "identifier", "pattern"):
+                target = node.child_by_field_name(loop_field)
+                if target is not None:
+                    names.update(_bound_names(target))
+            for child in node.children:
+                walk(child, False)
+            return
+        if node.type in spec.param_nodes:
+            names.update(_declared_names(node, spec, own_name))
+            for child in node.children:
+                walk(child, False)
+            return
+        for child in node.children:
+            walk(child, False)
 
-        A parameter is not a bare identifier: ``x: int = 5`` is a
-        ``default_parameter`` wrapping the name, its type and its default.
-        Only the name is a binding -- the default's identifiers are values
-        the unit references, and collecting them renamed free globals.
-        """
-        if node is None:
+    walk(unit, True)
+    return names
+
+
+def _declared_names(node, spec: _LangSpec, own_name: str) -> set[str]:
+    """The names a parameter list or definition *declares*.
+
+    A parameter is not a bare identifier: ``x: int = 5`` is a
+    ``default_parameter`` wrapping the name, its type and its default.  Only
+    the name binds -- the default's identifiers are values the unit
+    references, and collecting them renamed free globals.
+    """
+    names: set[str] = set()
+
+    def add(child) -> None:
+        if child is None or child.type in _TYPE_CONTEXTS \
+                or child.type in _NOT_RENAMEABLE:
             return
-        if node.type in _TYPE_CONTEXTS or node.type in _NOT_RENAMEABLE:
-            return
-        if node.type in _IDENT_TYPES:
-            name = _text(node)
+        if child.type in _IDENT_TYPES:
+            name = _text(child)
             if name != own_name:
                 names.add(name)
             return
         for declared_field in ("name", "pattern", "declarator", "left"):
-            declared = node.child_by_field_name(declared_field)
+            declared = child.child_by_field_name(declared_field)
             if declared is not None:
                 add(declared)
                 return
-        if node.type in _DECLARATION_WRAPPERS or node.type in _PATTERN_NODES:
-            for child in node.children:
-                add(child)
+        if child.type in _DECLARATION_WRAPPERS or child.type in _PATTERN_NODES:
+            for grandchild in child.children:
+                add(grandchild)
 
-    def bound_target(node) -> set[str]:
-        """The name an assignment target actually introduces.
-
-        ``self.count = 1`` binds nothing new: ``self`` is the receiver and
-        ``count`` is a field.  Taking every identifier in the target made the
-        renamer rewrite a call to that field (``count(self.x)``), which is
-        how ``iter`` in ``self.iter = iter(iterable)`` stopped being the
-        builtin.
-        """
-        if node is None:
-            return set()
-        if node.type in _ATTRIBUTE_TARGETS:
-            for field in ("object", "expression", "value"):
-                receiver = node.child_by_field_name(field)
-                if receiver is not None:
-                    return bound_target(receiver)
-            return set()
-        return _identifiers(node)
-
-    def walk(node) -> None:
-        if node.type in spec.assign_nodes:
-            left, right = _assign_sides(node)
-            names.update(bound_target(left))
-            # keep descending: the value side can bind a nested local
-            if right is not None:
-                walk(right)
-            return
-        if node.type in spec.loop_nodes:
-            # a loop variable is the author's name too
-            for field in ("left", "name", "identifier", "pattern"):
-                target = node.child_by_field_name(field)
-                if target is not None:
-                    names.update(bound_target(target))
-            for child in node.children:
-                walk(child)
-            return
-        if node.type in spec.param_nodes or node.type in spec.unit_nodes:
-            for child in node.children:
-                add(child)
-                walk(child)
-            return
-        for child in node.children:
-            walk(child)
-
-    walk(unit)
-    return frozenset(names)
+    if node.type in spec.unit_nodes:
+        own = node.child_by_field_name("name")
+        if own is not None and _text(own) != own_name:
+            names.add(_text(own))
+        return names
+    for child in node.children:
+        add(child)
+    return names
 
 
 def _bound_names(target) -> set[str]:
@@ -1975,19 +1977,63 @@ def rename_identifiers(
     own = unit.child_by_field_name("name")
     own_name = _text(own) if own is not None else ""
     edits: list[tuple[int, int, str]] = []
-    seen: dict[str, str] = {}
-    bound = _unit_bindings(unit, spec, own_name)
+    counter = itertools.count()
+
+    # A stack of scope -> {name: stub}.  Shadowing needs this: a nested
+    # ``def filter(items)`` reusing the outer name is a *different* binding,
+    # and collapsing both to one stub silently merged the two variables, so
+    # the scanner could no longer tell which one a phrase came from and the
+    # IR moved with the outer name.  A reference resolves to the innermost
+    # scope that binds the name, which is what the language does.
+    scopes: list[dict[str, str]] = []
+
+    def stub() -> str:
+        return f"{token}{next(counter)}"
+
+    def push_scope(node) -> None:
+        scopes.append(
+            {name: stub() for name in _scope_bindings(node, spec, own_name)}
+        )
+
+    def lookup(name: str) -> str | None:
+        for scope in reversed(scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+    def emit(node, replacement: str) -> None:
+        start = node.start_byte
+        edits.append((start, node.end_byte - start, replacement))
+
+    push_scope(unit)
 
     def visit(node) -> None:
         if node.type in _TYPE_CONTEXTS:
             return
+        if node.type in spec.unit_nodes and node is not unit:
+            own_nested = node.child_by_field_name("name")
+            own_span = None
+            if own_nested is not None:
+                # the definition's name is declared in the enclosing scope
+                own_span = (own_nested.start_byte, own_nested.end_byte)
+                found = lookup(_text(own_nested))
+                if found is not None:
+                    emit(own_nested, found)
+            push_scope(node)
+            for child in node.children:
+                # py-tree-sitter hands back fresh wrappers, so the name child
+                # is skipped by span rather than by identity
+                if (child.start_byte, child.end_byte) != own_span:
+                    visit(child)
+            scopes.pop()
+            return
         if node.type == "identifier" and _renameable(node) \
                 and not _is_member_name(node, spec):
             name = _text(node)
-            if name in bound and name not in _RESERVED:
-                seen.setdefault(name, f"{token}{len(seen)}")
-                start = node.start_byte
-                edits.append((start, node.end_byte - start, seen[name]))
+            if name not in _RESERVED:
+                found = lookup(name)
+                if found is not None:
+                    emit(node, found)
             return
         for child in node.children:
             visit(child)
@@ -2003,7 +2049,6 @@ def rename_identifiers(
     for start, length, replacement in sorted(edits, reverse=True):
         data = data[:start] + replacement.encode("utf-8") + data[start + length:]
     return data.decode("utf-8")
-
 
 def assert_identifier_free(
     ir: SemanticIR, source_code: str, language: str
