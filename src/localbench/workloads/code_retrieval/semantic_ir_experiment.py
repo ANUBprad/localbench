@@ -845,6 +845,26 @@ def _identifiers(node) -> set[str]:
     return found
 
 
+def _value_identifiers(node, spec: _LangSpec) -> set[str]:
+    """Identifiers naming a value an expression consumes.
+
+    The ``url`` in ``self.url`` is the object's API, not one of the unit's
+    own bindings, so it must not be mistaken for a parameter that merely
+    shares the name.  That coincidence linked ``self.url`` to a parameter
+    ``url`` and credited the parameter with a chain it never had; renaming
+    the parameter broke the illusion and the IR moved.
+    """
+    found: set[str] = set()
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if current.type in _IDENT_TYPES \
+                and not _is_member_name(current, spec):
+            found.add(_text(current))
+        stack.extend(current.children)
+    return found
+
+
 _OP_CHARS = frozenset("+-*/%<>=!&|^~")
 #: operators that make a value a *derived quantity* rather than a pass-through
 _ARITH_OPS = frozenset({"+", "-", "*", "/", "%", "++", "--", "+=", "-=", "*=",
@@ -871,6 +891,42 @@ def _operator_tokens(node) -> set[str]:
             else:
                 stack.append(child)
     return found
+
+
+#: node types that dispatch on a value's type/kind by grammar, not by text
+_MATCH_SWITCH_NODES = frozenset({
+    "match_expression", "switch_expression", "switch_statement",
+    "expression_switch_statement",
+})
+_TYPE_TEST_TOKENS = frozenset({"instanceof", "typeof"})
+_TYPE_TEST_CALLS = frozenset({"isinstance", "type"})
+
+
+def _is_type_branch(node, cond, spec: _LangSpec) -> bool:
+    """True when the branch dispatches on the type or kind of a value.
+
+    Structural, not textual.  A Python local named ``match`` is not a match
+    expression, and a regex over the branch text that could not tell the two
+    apart made the IR move whenever the local was renamed: ``if match is
+    None`` looked like a type dispatch.
+    """
+    if node.type in _MATCH_SWITCH_NODES or cond.type in _MATCH_SWITCH_NODES:
+        return True
+    stack = [cond]
+    while stack:
+        current = stack.pop()
+        if not current.is_named:
+            if _text(current) in _TYPE_TEST_TOKENS:
+                return True
+            continue
+        if current.type in spec.call_nodes:
+            for field in ("function", "name"):
+                target = current.child_by_field_name(field)
+                if target is not None and target.type in _IDENT_TYPES \
+                        and _text(target) in _TYPE_TEST_CALLS:
+                    return True
+        stack.extend(current.children)
+    return False
 
 
 def _cue_for(segments: list[str]) -> tuple[str, str] | None:
@@ -1094,7 +1150,7 @@ class _Scanner:
 
         # Link the transformation chain to the parameters it consumed, and
         # prepend whatever transformations already produced those operands.
-        used = _identifiers(node) - self._closure_params(node)
+        used = _value_identifiers(node, self.spec) - self._closure_params(node)
         upstream: list[str] = []
         for ident in sorted(used):
             upstream.extend(self.env.get(ident, ()))
@@ -1191,8 +1247,9 @@ class _Scanner:
 
     def _on_condition(self, node) -> None:
         found: list[str] = []
-        ops = _operator_tokens(node)
-        text = _text(node)
+        cond = node.child_by_field_name("condition") or node
+        ops = _operator_tokens(cond)
+        text = _text(cond)
         if re.search(r"\b(nil|null|None|undefined)\b", text) and (
             ops & {"!=", "==", ">", "<", "===", "!=="}
         ):
@@ -1206,7 +1263,7 @@ class _Scanner:
             _add(found, "branches on a value comparison")
         if re.search(r"\bcontains\(|\bin\b\s*[\[(]|includes\(", text):
             _add(found, "branches on membership in a collection")
-        if re.search(r"instanceof|\bmatch\b|\bswitch\b|typeof", text):
+        if _is_type_branch(node, cond, self.spec):
             _add(found, "branches on a type or kind of value")
         if re.search(
             # isEmpty is a real API; the snake_case spelling is a Python local
@@ -1297,7 +1354,7 @@ class _Scanner:
         before what the operands were then put through.
         """
         chain: list[str] = []
-        for ident in sorted(_identifiers(node)):
+        for ident in sorted(_value_identifiers(node, self.spec)):
             for prior in self.env.get(ident, ()):
                 _add(chain, prior)
         for phrase in self._own_cues(node):
@@ -1306,8 +1363,9 @@ class _Scanner:
 
     def _feeds_params(self, node) -> set[str]:
         """Parameters (directly or through a local) that produced ``node``."""
-        params = {name for name, _ in self.facts.params} & _identifiers(node)
-        for ident in _identifiers(node):
+        used = _value_identifiers(node, self.spec)
+        params = {name for name, _ in self.facts.params} & used
+        for ident in used:
             params |= self.env_params.get(ident, set())
         return params
 
@@ -1367,7 +1425,7 @@ def _output_noun(cue: str) -> str:
     return "a value derived from its inputs"
 
 
-def _classify_output(facts: _Facts, cache: bool) -> tuple[str, str]:
+def _classify_output(facts: _Facts, cache: bool, spec: _LangSpec) -> tuple[str, str]:
     """Return (output_behavior sentence, short output noun for relations)."""
     if cache:
         return (
@@ -1415,7 +1473,7 @@ def _classify_output(facts: _Facts, cache: bool) -> tuple[str, str]:
         if re.fullmatch(r"(true|false)", text):
             return ("returns a boolean outcome", "a boolean outcome")
         if _ARITH_TEXT.search(text) and (
-            {p for p, _ in facts.params} & set(_identifiers(node))
+            {p for p, _ in facts.params} & _value_identifiers(node, spec)
         ):
             return (
                 "computes and returns a derived quantity from its inputs",
@@ -1673,7 +1731,7 @@ def build_semantic_ir(
              "delegates per-item work to an inline callback")
 
     cache = "caching" in facts.domains
-    output, output_noun = _classify_output(facts, cache)
+    output, output_noun = _classify_output(facts, cache, spec)
     roles = _input_roles(facts)
     return SemanticIR(
         language=language,
