@@ -113,6 +113,70 @@ def ordinality(nimbus_counter):
     return nimbus_counter
 '''
 
+#: Author-chosen names that collide with the vocabulary the classifiers used
+#: to read out of source text.  Each one produced a real leak: a local named
+#: ``match`` read as a type dispatch, a locally defined ``filter`` read as
+#: the builtin, and a parameter named ``url`` was matched against the ``url``
+#: in ``self.url``.  Renaming any of them used to change the IR.
+ADVERSARIAL: dict[str, str] = {
+    "python": '''\
+def gather(zephyr_items):
+    match = zephyr_items
+    if match is None:
+        return []
+    length = len(match)
+    if length == 0:
+        return []
+    error = None
+    kept = [row for row in match if row]
+    if not kept:
+        error = "empty"
+    return kept
+''',
+    "java": '''\
+public class Ledger {
+    public List<String> gather(List<String> items) {
+        int length = items.size();
+        if (length == 0) {
+            return new ArrayList<>();
+        }
+        return items;
+    }
+}
+''',
+    "go": '''\
+package ledger
+
+func gather(items []string) ([]string, error) {
+\tlength := len(items)
+\tif length == 0 {
+\t\treturn nil, nil
+\t}
+\treturn items, nil
+}
+''',
+    "rust": '''\
+fn gather(items: &[String]) -> usize {
+    let length = items.len();
+    if length == 0 {
+        return 0;
+    }
+    items.len()
+}
+''',
+    "javascript": '''\
+function gather(items) {
+    const length = items.length;
+    if (length === 0) {
+        return [];
+    }
+    const error = null;
+    return items.filter((item) => item.length > 0);
+}
+''',
+}
+
+
 FIXTURES: dict[str, str] = {
     "python": PYTHON_TEXT,
     "java": JAVA_CACHE,
@@ -250,6 +314,65 @@ class TestIdentifierSanitization:
         assert semantic_ir_experiment._phrase_leak(
             _ir(source, "python"), source
         ) is None
+
+
+class TestAdversarialAuthorNames:
+    """Names an author may pick that collide with classifier vocabulary."""
+
+    @pytest.mark.parametrize("language", sorted(ADVERSARIAL))
+    def test_ir_is_identifier_free(self, language) -> None:
+        source = ADVERSARIAL[language]
+        ir = _ir(source, language)
+        assert ir.parse_ok is True, ir
+        assert_identifier_free(ir, source, language)
+
+    @pytest.mark.parametrize("language", sorted(ADVERSARIAL))
+    def test_renaming_them_changes_the_source(self, language) -> None:
+        # Otherwise the first test passes for the wrong reason: if nothing is
+        # renamed, nothing can leak.
+        renamed = rename_identifiers(ADVERSARIAL[language], language)
+        assert "qqqqzzz" in renamed, renamed
+
+    def test_local_named_match_is_not_a_type_branch(self) -> None:
+        # `if match is None` is a null check.  A regex for the *words* of a
+        # match expression could not tell it from one.
+        ir = _ir(ADVERSARIAL["python"], "python")
+        assert "branches on a type or kind of value" not in ir.conditions
+
+    def test_locally_defined_filter_is_not_the_builtin(self) -> None:
+        source = '''\
+def screen(zephyr_items):
+    def filter(rows):
+        return [row for row in rows if row]
+
+    return filter(zephyr_items)
+'''
+        ir = _ir(source, "python")
+        assert "keeps only the items of a collection that match a predicate" \
+            not in ir.transformations
+        assert_identifier_free(ir, source, "python")
+
+    def test_member_named_url_does_not_credit_a_url_parameter(self) -> None:
+        source = '''\
+class Session:
+    def hydrate(self, url):
+        return load(self.url)
+'''
+        ir = _ir(source, "python", unit_kind="method")
+        assert "collection input" not in ir.input_roles
+        assert_identifier_free(ir, source, "python")
+
+    def test_guard_reports_the_language_and_the_differing_field(self) -> None:
+        source = "def nimbus(zephyr_blob):\n    return zephyr_blob.strip()\n"
+        ir = _ir(source, "python")
+        tampered = SemanticIR(**{**ir.to_dict(),
+                                  "output_behavior": "a leaked value"})
+        with pytest.raises(AssertionError) as caught:
+            assert_identifier_free(tampered, source, "python")
+        message = str(caught.value)
+        assert "(python)" in message
+        assert "output_behavior" in message
+        assert "a leaked value" in message
 
 
 # ---------------------------------------------------------------------------

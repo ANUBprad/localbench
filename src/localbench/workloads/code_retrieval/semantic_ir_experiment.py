@@ -2092,6 +2092,7 @@ def rename_identifiers(
         data = data[:start] + replacement.encode("utf-8") + data[start + length:]
     return data.decode("utf-8")
 
+
 def assert_identifier_free(
     ir: SemanticIR, source_code: str, language: str
 ) -> None:
@@ -2109,13 +2110,10 @@ def assert_identifier_free(
     pass.  Those are covered by the fixture tests and by :func:`_phrase_leak`,
     which catches a phrase *copied* out of the source wholesale.
 
-    ponytail: 1% of real units still change under rename, because a few
-    classifier heuristics still read source text instead of tree structure
-    (an assignment target that merely *looks* like a parameter).  Measured at
-    495/500 on a stratified sample of train+validation; rerun
-    scripts/run_semantic_ir_probe.py to reproduce.  The upgrade path is to key
-    those heuristics on the resolved binding -- scope-resolved parameter
-    reference rather than string equality against the declared names.
+    The failure names the language and prints each differing field's original
+    and renamed value, which is what a caller needs to find the heuristic that
+    read the text.  Measured at 1000/1000 on the probe sample; rerun
+    scripts/run_semantic_ir_probe.py to reproduce.
     """
     if ir.parse_ok and not ir.relations and not ir.transformations:
         # Nothing was extracted, so there is nothing that could have leaked.
@@ -2123,15 +2121,16 @@ def assert_identifier_free(
     renamed = build_semantic_ir(
         rename_identifiers(source_code, language), language, ir.unit_kind
     )
-    if renamed.to_dict() != ir.to_dict():
-        differing = sorted(
-            key
-            for key in ir.to_dict()
-            if ir.to_dict()[key] != renamed.to_dict()[key]
+    before, after = ir.to_dict(), renamed.to_dict()
+    differing = sorted(key for key in before if before[key] != after[key])
+    if differing:
+        detail = "\n".join(
+            f"  {key}:\n    original: {before[key]!r}\n    renamed : {after[key]!r}"
+            for key in differing
         )
         raise AssertionError(
-            "semantic IR changed when every source identifier was renamed; "
-            f"fields that leaked: {', '.join(differing)}"
+            "semantic IR changed when every source identifier was renamed "
+            f"({language}); fields that leaked:\n{detail}"
         )
 
 
