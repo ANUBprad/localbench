@@ -39,7 +39,6 @@ def-use graph over the same cue table.
 
 from __future__ import annotations
 
-import itertools
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -982,6 +981,10 @@ class _Scanner:
         self.spec = spec
         self.facts = _Facts()
         self.unit_kind = _classify_unit_kind(unit, spec)
+        name_node = unit.child_by_field_name("name")
+        self.local_names = _scope_bindings(
+            unit, spec, _text(name_node) if name_node is not None else ""
+        )
         # local variable name -> transformations already applied to its value
         self.env: dict[str, list[str]] = {}
         # local variable name -> parameters its value ultimately came from
@@ -1115,6 +1118,13 @@ class _Scanner:
         if receiver is not None and target is not None:
             raw = f"{_text(receiver)}.{_text(target)}"
         elif target is None:
+            return []
+        elif target.type in _IDENT_TYPES and not _is_member_name(target, self.spec) \
+                and _text(target) in self.local_names:
+            # A bare callee the unit itself binds (a nested def or a
+            # parameter) is the author's function, not a library API.  Cueing
+            # on its name made ``filter(items)`` -- a local -- read as the
+            # builtin ``filter``, so the IR moved with the local's name.
             return []
         else:
             raw = _text(target)
@@ -2035,63 +2045,37 @@ def rename_identifiers(
     own = unit.child_by_field_name("name")
     own_name = _text(own) if own is not None else ""
     edits: list[tuple[int, int, str]] = []
-    counter = itertools.count()
+    stubs: dict[str, str] = {}
 
-    # A stack of scope -> {name: stub}.  Shadowing needs this: a nested
-    # ``def filter(items)`` reusing the outer name is a *different* binding,
-    # and collapsing both to one stub silently merged the two variables, so
-    # the scanner could no longer tell which one a phrase came from and the
-    # IR moved with the outer name.  A reference resolves to the innermost
-    # scope that binds the name, which is what the language does.
-    scopes: list[dict[str, str]] = []
-
-    def stub() -> str:
-        return f"{token}{next(counter)}"
-
-    def push_scope(node) -> None:
-        scopes.append(
-            {name: stub() for name in _scope_bindings(node, spec, own_name)}
-        )
-
-    def lookup(name: str) -> str | None:
-        for scope in reversed(scopes):
-            if name in scope:
-                return scope[name]
-        return None
+    def stub(name: str) -> str:
+        if name not in stubs:
+            stubs[name] = f"{token}{len(stubs)}"
+        return stubs[name]
 
     def emit(node, replacement: str) -> None:
         start = node.start_byte
         edits.append((start, node.end_byte - start, replacement))
 
-    push_scope(unit)
+    # Rename the unit's own bindings -- and only those -- uniformly: a name is
+    # rewritten at every occurrence, binding or use.  Uniform renaming is a
+    # true alpha-rename (binding resolution depends on the name, and every
+    # occurrence of a name moves together), so a nested ``filter(items)`` that
+    # shares an outer name stays shared and the scanner, which also keys on
+    # the bare name, keeps seeing the same program.
+    #
+    # Free references are left alone: ``fetch`` and ``len`` are not bound here,
+    # so renaming them would rename a *library* and change what the program
+    # does.  The set of bound names is what separates the two.
+    bound = _scope_bindings(unit, spec, own_name)
 
     def visit(node) -> None:
         if node.type in _TYPE_CONTEXTS:
             return
-        if node.type in spec.unit_nodes and node is not unit:
-            own_nested = node.child_by_field_name("name")
-            own_span = None
-            if own_nested is not None:
-                # the definition's name is declared in the enclosing scope
-                own_span = (own_nested.start_byte, own_nested.end_byte)
-                found = lookup(_text(own_nested))
-                if found is not None:
-                    emit(own_nested, found)
-            push_scope(node)
-            for child in node.children:
-                # py-tree-sitter hands back fresh wrappers, so the name child
-                # is skipped by span rather than by identity
-                if (child.start_byte, child.end_byte) != own_span:
-                    visit(child)
-            scopes.pop()
-            return
         if node.type == "identifier" and _renameable(node) \
                 and not _is_member_name(node, spec):
             name = _text(node)
-            if name not in _RESERVED:
-                found = lookup(name)
-                if found is not None:
-                    emit(node, found)
+            if name in bound and name not in _RESERVED:
+                emit(node, stub(name))
             return
         for child in node.children:
             visit(child)
