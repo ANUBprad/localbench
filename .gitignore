@@ -153,3 +153,6 @@ dataset/
 *.jsonl
 *.json
 !pyproject.toml
+
+# Generated blind-review analysis report (its JSON siblings are covered above)
+artifacts/experiments/query_representation_ab/v1/analysis/review_report.txt
