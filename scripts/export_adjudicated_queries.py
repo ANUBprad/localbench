@@ -15,6 +15,7 @@ def main() -> None:
         default=Path("dataset/queries/review_artifact.json"),
     )
     parser.add_argument("--labels", type=Path, required=True)
+    parser.add_argument("--audit", type=Path, required=True)
     parser.add_argument(
         "--units", type=Path, default=Path("dataset/splits/test.jsonl")
     )
@@ -23,7 +24,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     count = export_from_files(
-        args.review, args.labels, args.units, args.output
+        args.review, args.labels, args.units, args.output, args.audit
     )
     print(f"Exported {count} accepted, labeled queries to {args.output}")
 
