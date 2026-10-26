@@ -40,6 +40,12 @@ def export_adjudicated_cases(
     unknown = set(by_candidate) - set(selected)
     if unknown:
         raise ValueError(f"Labels for unselected candidates: {sorted(unknown)}")
+    non_accepted = sorted(
+        cid for cid in by_candidate
+        if selected[cid]["review"]["state"] != "accepted"
+    )
+    if non_accepted:
+        raise ValueError(f"Labels for non-accepted candidates: {non_accepted}")
     result = []
     for item in review_artifact["items"]:
         cid = item["candidate_id"]
