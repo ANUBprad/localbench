@@ -56,7 +56,10 @@ class DenseIndex:
         if len(vector) != self._dimension:
             raise ValueError("Query embedding dimension differs from index")
         hits = [
-            SearchHit(key, sum(a * b for a, b in zip(vector, document_vector, strict=True)))
+            SearchHit(
+                key,
+                sum(a * b for a, b in zip(vector, document_vector, strict=True)),
+            )
             for key, document_vector in zip(self._ids, self._vectors, strict=True)
         ]
         return sorted(hits, key=lambda hit: (-hit.score, hit.code_unit_id))[:k]
