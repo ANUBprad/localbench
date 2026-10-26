@@ -44,15 +44,18 @@ def selection_record() -> dict:
 
 @pytest.fixture(scope="module")
 def candidates_by_id() -> dict[str, dict]:
+    """Load every candidate generation without silently overwriting IDs."""
     by_id: dict[str, dict] = {}
-    for c in _load_jsonl(CANDIDATES_PATH):
-        by_id[c["candidate_id"]] = c
-    v2_path = REPO_ROOT / "dataset" / "queries" / "candidates_v2.jsonl"
-    if v2_path.exists():
-        for c in _load_jsonl(v2_path):
-            by_id[c["candidate_id"]] = c
+    for name in ("candidates.jsonl", "candidates_v2.jsonl", "candidates_v3.jsonl"):
+        path = CANDIDATES_PATH.parent / name
+        if not path.exists():
+            continue
+        for candidate in _load_jsonl(path):
+            candidate_id = candidate["candidate_id"]
+            if candidate_id in by_id:
+                raise ValueError(f"duplicate candidate ID in {name}: {candidate_id}")
+            by_id[candidate_id] = candidate
     return by_id
-
 
 @pytest.fixture(scope="module")
 def test_units() -> list[dict]:
