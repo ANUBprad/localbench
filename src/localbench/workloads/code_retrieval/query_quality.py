@@ -15,6 +15,10 @@ _GENERIC = (
         r"\bwhat (?:does|is) (?:this|the) (?:code|function|method) do\??$",
         re.I,
     ),
+    re.compile(
+        r"\bhow does (?:this|the) (?:code|function|method) work\??$",
+        re.I,
+    ),
 )
 _COUNT = re.compile(
     r"\b(?:exactly\s+)?(?:two|three|four|five|six|seven|eight|nine|ten|"
