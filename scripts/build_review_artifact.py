@@ -47,8 +47,16 @@ def main() -> None:
         selection_record = json.load(f)
 
     print("Loading candidates …")
-    all_candidates = _load_jsonl(CANDIDATES_PATH)
-    candidates_by_id = {c["candidate_id"]: c for c in all_candidates}
+    candidates_by_id = {}
+    for name in ("candidates.jsonl", "candidates_v2.jsonl", "candidates_v3.jsonl"):
+        path = CANDIDATES_PATH.parent / name
+        if not path.exists():
+            continue
+        for candidate in _load_jsonl(path):
+            candidate_id = candidate["candidate_id"]
+            if candidate_id in candidates_by_id:
+                raise ValueError(f"Duplicate candidate ID: {candidate_id}")
+            candidates_by_id[candidate_id] = candidate
 
     print("Loading test CodeUnits …")
     test_units = _load_jsonl(TEST_SPLIT_PATH)
