@@ -13,6 +13,7 @@ def export_adjudicated_cases(
     review_artifact: dict,
     labels: list[dict],
     corpus_ids: set[str],
+    audit: dict | None = None,
 ) -> list[dict]:
     """Require explicit labels and accepted review for every exported query."""
     errors = validate_review_artifact(review_artifact)
@@ -37,6 +38,12 @@ def export_adjudicated_cases(
         by_candidate[cid] = gold
 
     selected = {item["candidate_id"]: item for item in review_artifact["items"]}
+    if audit is None:
+        raise ValueError("Source-code audit is required for scored export")
+    from .source_audit import validated_audit_ids
+
+    passed_ids = validated_audit_ids(audit, review_artifact)
+
     unknown = set(by_candidate) - set(selected)
     if unknown:
         raise ValueError(f"Labels for unselected candidates: {sorted(unknown)}")
@@ -46,6 +53,9 @@ def export_adjudicated_cases(
     )
     if non_accepted:
         raise ValueError(f"Labels for non-accepted candidates: {non_accepted}")
+    not_passed = sorted(set(by_candidate) - passed_ids)
+    if not_passed:
+        raise ValueError(f"Labels for queries without passed audit: {not_passed}")
     result = []
     for item in review_artifact["items"]:
         cid = item["candidate_id"]
@@ -53,8 +63,10 @@ def export_adjudicated_cases(
             if cid in by_candidate:
                 raise ValueError(f"Labels for non-accepted candidate: {cid}")
             continue
+        if cid not in passed_ids:
+            continue
         if cid not in by_candidate:
-            raise ValueError(f"Accepted candidate missing labels: {cid}")
+            raise ValueError(f"Audit-passed candidate missing labels: {cid}")
         if item["code_unit_id"] not in corpus_ids:
             raise ValueError(f"Selected target outside corpus: {cid}")
         result.append({
@@ -68,14 +80,18 @@ def export_adjudicated_cases(
 
 
 def export_from_files(
-    review_path: Path, labels_path: Path, units_path: Path, output_path: Path
-) -> int:
+    review_path: Path, labels_path: Path, units_path: Path, output_path: Path,\n    audit_path: Path | None = None,\n) -> int:
     review = json.loads(review_path.read_text(encoding="utf-8"))
     units = read_jsonl(units_path)
     ids = [unit["id"] for unit in units]
     if len(ids) != len(set(ids)):
         raise ValueError("Duplicate CodeUnit IDs in corpus")
-    rows = export_adjudicated_cases(review, read_jsonl(labels_path), set(ids))
+    if audit_path is None:
+        raise ValueError("An independent --audit JSON file is required")
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    rows = export_adjudicated_cases(
+        review, read_jsonl(labels_path), set(ids), audit=audit
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
