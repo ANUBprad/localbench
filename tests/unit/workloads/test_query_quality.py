@@ -80,8 +80,14 @@ def test_batch_exact_duplicate_normalizes_case_punctuation_whitespace():
 
 def test_batch_near_duplicate_and_distinct_query():
     candidates = [
-        {"candidate_id": "a", "query": "How does the parser handle invalid color strings?"},
-        {"candidate_id": "b", "query": "How does the parser handle invalid color string?"},
+        {
+            "candidate_id": "a",
+            "query": "How does the parser handle invalid color strings?",
+        },
+        {
+            "candidate_id": "b",
+            "query": "How does the parser handle invalid color string?",
+        },
         {"candidate_id": "c", "query": "Where are database connections initialized?"},
     ]
     rows = assess_batch(candidates, similarity_threshold=0.85)
@@ -105,10 +111,12 @@ def test_batch_deterministic_and_non_mutating():
 
 
 def test_batch_empty_queries_not_duplicates():
-    rows = assess_batch([
-        {"candidate_id": "a", "query": ""},
-        {"candidate_id": "b", "query": "!!!"},
-    ])
+    rows = assess_batch(
+        [
+            {"candidate_id": "a", "query": ""},
+            {"candidate_id": "b", "query": "!!!"},
+        ]
+    )
     assert all("similar_to_candidate_id" not in row for row in rows)
 
 

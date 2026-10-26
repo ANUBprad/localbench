@@ -64,6 +64,7 @@ def assess_candidate(candidate: Mapping[str, object]) -> dict[str, object]:
         "flags": assess_query(query),
     }
 
+
 def _normalize_for_comparison(query: str) -> str:
     """Ignore case, punctuation, and whitespace in duplicate comparisons."""
     return " ".join(re.findall(r"[a-z0-9_]+", query.casefold()))
@@ -105,9 +106,7 @@ def assess_batch(
 
         if best_index >= 0 and best_score >= similarity_threshold:
             row["flags"].append(
-                "duplicate_query"
-                if best_score == 1.0
-                else "near_duplicate_query"
+                "duplicate_query" if best_score == 1.0 else "near_duplicate_query"
             )
             row["similar_to_candidate_id"] = previous[best_index][0]
             row["similarity_score"] = round(best_score, 4)
