@@ -30,7 +30,11 @@ class OllamaEmbeddings:
             raise ValueError("An installed Ollama embedding model is required")
         if timeout <= 0 or not math.isfinite(timeout):
             raise ValueError("timeout must be positive and finite")
-        if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+        if (
+            isinstance(batch_size, bool)
+            or not isinstance(batch_size, int)
+            or batch_size < 1
+        ):
             raise ValueError("batch_size must be a positive integer")
         self.batch_size = batch_size
         self.model = model
