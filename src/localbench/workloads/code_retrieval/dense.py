@@ -6,7 +6,7 @@ models, accesses relevance labels, or sends source code to a remote service.
 from __future__ import annotations
 
 import math
-from typing import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from .retrieval import SearchHit
 
@@ -56,7 +56,7 @@ class DenseIndex:
         if len(vector) != self._dimension:
             raise ValueError("Query embedding dimension differs from index")
         hits = [
-            SearchHit(key, sum(a * b for a, b in zip(vector, document_vector)))
-            for key, document_vector in zip(self._ids, self._vectors)
+            SearchHit(key, sum(a * b for a, b in zip(vector, document_vector, strict=True)))
+            for key, document_vector in zip(self._ids, self._vectors, strict=True)
         ]
         return sorted(hits, key=lambda hit: (-hit.score, hit.code_unit_id))[:k]
