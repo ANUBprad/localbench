@@ -20,17 +20,13 @@ from localbench.workloads.code_retrieval.run_lock import (
 )
 
 _SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "generate_query_candidates.py"
+    Path(__file__).resolve().parents[3] / "scripts" / "generate_query_candidates.py"
 )
 _spec = importlib.util.spec_from_file_location(
     "generate_query_candidates_lock_integration", _SCRIPT_PATH
 )
 _script = importlib.util.module_from_spec(_spec)
-sys.modules.setdefault(
-    "generate_query_candidates_lock_integration", _script
-)
+sys.modules.setdefault("generate_query_candidates_lock_integration", _script)
 _spec.loader.exec_module(_script)
 
 _UNITS = [("repo003", "alpha"), ("repo006", "beta")]
@@ -127,17 +123,11 @@ def _run(harness, output_dir=None, extra_args=()):
 
 
 def _artifact_state(output_dir: Path) -> dict[str, bytes]:
-    return {
-        p.name: p.read_bytes()
-        for p in sorted(output_dir.iterdir())
-        if p.is_file()
-    }
+    return {p.name: p.read_bytes() for p in sorted(output_dir.iterdir()) if p.is_file()}
 
 
 class TestLockCoverage:
-    def test_lock_held_during_checkpoint_load_and_released_after(
-        self, harness
-    ):
+    def test_lock_held_during_checkpoint_load_and_released_after(self, harness):
         assert _run(harness) == 0
         # Checkpoint loading ran while the directory was locked...
         assert harness.state.store_saw_lock == [True]

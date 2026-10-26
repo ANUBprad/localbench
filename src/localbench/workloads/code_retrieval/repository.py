@@ -204,9 +204,7 @@ class GitRepository:
                 raise RevisionNotFoundError(reference, self.source.id)
             return sha
         except subprocess.CalledProcessError as exc:
-            raise RevisionNotFoundError(
-                reference, self.source.id
-            ) from exc
+            raise RevisionNotFoundError(reference, self.source.id) from exc
 
     def _checkout(self, commit: str) -> None:
         """Checkout a specific commit (detached HEAD)."""

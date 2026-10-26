@@ -21,8 +21,7 @@ class TestHelp:
         """system --help shows command description."""
         result = runner.invoke(app, ["system", "--help"])
         assert result.exit_code == 0
-        assert "system" in result.output.lower() or \
-            "hardware" in result.output.lower()
+        assert "system" in result.output.lower() or "hardware" in result.output.lower()
 
     def test_models_help(self):
         """models --help shows command description."""
@@ -106,8 +105,9 @@ class TestModelsCommand:
 
         result = runner.invoke(app, ["models"])
         assert result.exit_code == 0
-        assert "No models found" in result.output or \
-            "no models" in result.output.lower()
+        assert (
+            "No models found" in result.output or "no models" in result.output.lower()
+        )
 
     @patch("localbench.cli.OllamaAdapter")
     def test_models_handles_ollama_unavailable(self, mock_adapter_cls):
@@ -116,8 +116,7 @@ class TestModelsCommand:
 
         result = runner.invoke(app, ["models"])
         assert result.exit_code == 1
-        assert "Ollama" in result.output or \
-            "ollama" in result.output.lower()
+        assert "Ollama" in result.output or "ollama" in result.output.lower()
 
 
 class TestAskCommand:
@@ -146,9 +145,7 @@ class TestAskCommand:
         """ask fails cleanly when Ollama is unavailable."""
         mock_adapter_cls.side_effect = OllamaUnavailableError()
 
-        result = runner.invoke(
-            app, ["ask", "--model", "phi-3-mini", "test"]
-        )
+        result = runner.invoke(app, ["ask", "--model", "phi-3-mini", "test"])
         assert result.exit_code == 1
 
     def test_ask_requires_model(self):

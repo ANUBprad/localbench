@@ -182,9 +182,7 @@ def _detect_error_handling(tree: ast.Module) -> str:
                 elif isinstance(handler.type, ast.Name):
                     handlers.append(handler.type.id)
                 elif isinstance(handler.type, ast.Tuple):
-                    names = [
-                        e.id for e in handler.type.elts if isinstance(e, ast.Name)
-                    ]
+                    names = [e.id for e in handler.type.elts if isinstance(e, ast.Name)]
                     handlers.append(", ".join(names))
             if handlers:
                 patterns.append(f"catches {', '.join(handlers)}")
@@ -228,7 +226,8 @@ def _count_parameters(tree: ast.Module) -> str:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             args = node.args
             positional = [
-                a for a in args.args
+                a
+                for a in args.args
                 if not (a == args.args[0] and a.arg in ("self", "cls"))
             ]
             vararg_count = 1 if args.vararg else 0
@@ -305,10 +304,22 @@ def _count_operation_categories(source_code: str) -> list[str]:
 # Identifier-free semantic behavior-signal detectors
 # ---------------------------------------------------------------------------
 
-_STRING_MANIPULATION_METHODS = frozenset({
-    "split", "strip", "rstrip", "lstrip", "replace", "lower", "upper",
-    "join", "format", "translate", "partition", "splitlines",
-})
+_STRING_MANIPULATION_METHODS = frozenset(
+    {
+        "split",
+        "strip",
+        "rstrip",
+        "lstrip",
+        "replace",
+        "lower",
+        "upper",
+        "join",
+        "format",
+        "translate",
+        "partition",
+        "splitlines",
+    }
+)
 
 
 def _detect_string_operation(tree: ast.Module) -> str | None:
@@ -355,11 +366,20 @@ def _detect_comparison(tree: ast.Module) -> str | None:
     for node in ast.walk(tree):
         if isinstance(node, ast.Compare):
             for op in node.ops:
-                if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot,
-                                   ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
-                    return (
-                        "checks whether a value satisfies a comparison condition"
-                    )
+                if isinstance(
+                    op,
+                    (
+                        ast.Eq,
+                        ast.NotEq,
+                        ast.Is,
+                        ast.IsNot,
+                        ast.Lt,
+                        ast.LtE,
+                        ast.Gt,
+                        ast.GtE,
+                    ),
+                ):
+                    return "checks whether a value satisfies a comparison condition"
     return None
 
 
@@ -387,9 +407,11 @@ def _detect_attribute_read(tree: ast.Module) -> str | None:
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
     }
     for node in ast.walk(tree):
-        if (isinstance(node, ast.Attribute)
-                and isinstance(node.ctx, ast.Load)
-                and id(node) not in method_call_attr_ids):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.ctx, ast.Load)
+            and id(node) not in method_call_attr_ids
+        ):
             return "reads a value from an associated object"
     return None
 
@@ -507,8 +529,10 @@ _DOMAIN_CALL_TABLE: tuple[tuple[tuple[str, ...], str], ...] = (
     (("add_column", "add_row"), "tabulated row/column layout"),
     (("add_task",), "progress tracking"),
     (("wrap_file",), "progress-tracked file reading"),
-    (("_setconsolecursorposition", "setconsolecursorposition"),
-     "terminal cursor positioning"),
+    (
+        ("_setconsolecursorposition", "setconsolecursorposition"),
+        "terminal cursor positioning",
+    ),
     (("maketxtfile",), "temporary file creation"),
     (("maketmpdir",), "temporary directory creation"),
     (("mkdir", "makedirs"), "directory creation"),
@@ -677,12 +701,12 @@ def extract_behavior_facts(
         tree, raises, side_effects, operation_categories
     )
     domain_concepts = _detect_domain_concepts(tree, imports)
-    observable_effects = _detect_observable_effects(
-        tree, imports, side_effects
-    )
+    observable_effects = _detect_observable_effects(tree, imports, side_effects)
 
-    if (primary_purpose == "performs an operation"
-            or primary_purpose == "performs processing operations"):
+    if (
+        primary_purpose == "performs an operation"
+        or primary_purpose == "performs processing operations"
+    ):
         lead = _domain_lead(domain_concepts)
         if lead:
             primary_purpose = lead

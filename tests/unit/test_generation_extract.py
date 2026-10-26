@@ -15,7 +15,7 @@ class TestExtractCleanJSON:
 
     def test_extracts_plain_array(self):
         """Clean JSON array is parsed directly."""
-        raw = '[1, 2, 3]'
+        raw = "[1, 2, 3]"
         result = extract_json(raw)
         assert result == [1, 2, 3]
 
@@ -67,7 +67,7 @@ class TestExtractBraceMatching:
 
     def test_extracts_array_with_surrounding_text(self):
         """Arrays are extracted via brace matching."""
-        raw = 'Result: [1, 2, 3] done'
+        raw = "Result: [1, 2, 3] done"
         result = extract_json(raw)
         assert result == [1, 2, 3]
 
@@ -95,7 +95,7 @@ class TestExtractErrors:
 
     def test_invalid_fence_content_raises(self):
         """Fenced block with invalid JSON raises MalformedJSON."""
-        raw = '```json\n{not valid json}\n```'
+        raw = "```json\n{not valid json}\n```"
         with pytest.raises(MalformedJSONError):
             extract_json(raw)
 

@@ -150,11 +150,16 @@ _SPECS: dict[str, _LangSpec] = {
         cond_nodes=frozenset(
             {"if_statement", "if_expression", "conditional_expression"}
         ),
-        loop_nodes=frozenset({
-            "for_statement", "while_statement", "list_comprehension",
-            "dictionary_comprehension", "set_comprehension",
-            "generator_expression",
-        }),
+        loop_nodes=frozenset(
+            {
+                "for_statement",
+                "while_statement",
+                "list_comprehension",
+                "dictionary_comprehension",
+                "set_comprehension",
+                "generator_expression",
+            }
+        ),
         assign_nodes=frozenset({"assignment", "augmented_assignment"}),
         try_nodes=frozenset({"try_statement"}),
         catch_nodes=frozenset({"except_clause"}),
@@ -173,9 +178,7 @@ _SPECS: dict[str, _LangSpec] = {
         ts_name="java",
         unit_nodes=frozenset({"method_declaration", "constructor_declaration"}),
         param_nodes=frozenset({"formal_parameters"}),
-        call_nodes=frozenset(
-            {"method_invocation", "object_creation_expression"}
-        ),
+        call_nodes=frozenset({"method_invocation", "object_creation_expression"}),
         return_nodes=frozenset({"return_statement"}),
         cond_nodes=frozenset(
             {"if_statement", "ternary_expression", "switch_expression"}
@@ -183,23 +186,28 @@ _SPECS: dict[str, _LangSpec] = {
         loop_nodes=frozenset(
             {"for_statement", "enhanced_for_statement", "while_statement"}
         ),
-        assign_nodes=frozenset({
-            "local_variable_declaration", "assignment_expression",
-        }),
+        assign_nodes=frozenset(
+            {
+                "local_variable_declaration",
+                "assignment_expression",
+            }
+        ),
         try_nodes=frozenset({"try_statement", "try_with_resources_statement"}),
         catch_nodes=frozenset({"catch_clause"}),
         throw_nodes=frozenset({"throw_statement"}),
         await_nodes=frozenset(),
         closure_nodes=frozenset({"lambda_expression"}),
-        method_units=frozenset(
-            {"method_declaration", "constructor_declaration"}
-        ),
+        method_units=frozenset({"method_declaration", "constructor_declaration"}),
         method_parents=frozenset(),
         tail_value=False,
         result_field="type",
         member_access_nodes=frozenset(
-            {"method_invocation", "field_access", "method_reference",
-             "object_creation_expression"}
+            {
+                "method_invocation",
+                "field_access",
+                "method_reference",
+                "object_creation_expression",
+            }
         ),
     ),
     "go": _LangSpec(
@@ -210,10 +218,15 @@ _SPECS: dict[str, _LangSpec] = {
         return_nodes=frozenset({"return_statement"}),
         cond_nodes=frozenset({"if_statement", "expression_switch_statement"}),
         loop_nodes=frozenset({"for_statement", "go_statement"}),
-        assign_nodes=frozenset({
-            "short_var_declaration", "var_declaration", "assignment_statement",
-            "inc_statement", "dec_statement",
-        }),
+        assign_nodes=frozenset(
+            {
+                "short_var_declaration",
+                "var_declaration",
+                "assignment_statement",
+                "inc_statement",
+                "dec_statement",
+            }
+        ),
         try_nodes=frozenset(),
         catch_nodes=frozenset(),
         # Go signals failure by returning an error value or panicking.
@@ -235,9 +248,7 @@ _SPECS: dict[str, _LangSpec] = {
         call_nodes=frozenset({"call_expression", "macro_invocation"}),
         return_nodes=frozenset({"return_expression"}),
         cond_nodes=frozenset({"if_expression", "match_expression"}),
-        loop_nodes=frozenset(
-            {"for_expression", "while_expression", "loop_expression"}
-        ),
+        loop_nodes=frozenset({"for_expression", "while_expression", "loop_expression"}),
         assign_nodes=frozenset({"let_declaration", "assignment_expression"}),
         try_nodes=frozenset(),
         catch_nodes=frozenset(),
@@ -250,31 +261,50 @@ _SPECS: dict[str, _LangSpec] = {
         tail_value=True,
         result_field="return_type",
         member_access_nodes=frozenset(
-            {"field_expression", "scoped_identifier", "macro_invocation",
-             "call_expression"}
+            {
+                "field_expression",
+                "scoped_identifier",
+                "macro_invocation",
+                "call_expression",
+            }
         ),
     ),
     "javascript": _LangSpec(
         ts_name="javascript",
-        unit_nodes=frozenset({
-            "function_declaration", "generator_function_declaration",
-            "method_definition",
-        }),
+        unit_nodes=frozenset(
+            {
+                "function_declaration",
+                "generator_function_declaration",
+                "method_definition",
+            }
+        ),
         param_nodes=frozenset({"formal_parameters"}),
         call_nodes=frozenset({"call_expression", "new_expression"}),
         return_nodes=frozenset({"return_statement"}),
-        cond_nodes=frozenset({
-            "if_statement", "ternary_expression", "switch_statement",
-        }),
-        loop_nodes=frozenset({
-            "for_statement", "for_in_statement", "while_statement",
-            "do_statement",
-        }),
-        assign_nodes=frozenset({
-            "variable_declarator", "variable_declaration",
-            "lexical_declaration", "assignment_expression",
-            "augmented_assignment_expression",
-        }),
+        cond_nodes=frozenset(
+            {
+                "if_statement",
+                "ternary_expression",
+                "switch_statement",
+            }
+        ),
+        loop_nodes=frozenset(
+            {
+                "for_statement",
+                "for_in_statement",
+                "while_statement",
+                "do_statement",
+            }
+        ),
+        assign_nodes=frozenset(
+            {
+                "variable_declarator",
+                "variable_declaration",
+                "lexical_declaration",
+                "assignment_expression",
+                "augmented_assignment_expression",
+            }
+        ),
         try_nodes=frozenset({"try_statement"}),
         catch_nodes=frozenset({"catch_clause"}),
         throw_nodes=frozenset({"throw_statement"}),
@@ -366,8 +396,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     # --- collections -----------------------------------------------------
     ("map", "transforms each item of a collection", _D_COLL),
     ("flatmap", "transforms and flattens each item of a collection", _D_COLL),
-    ("filter", "keeps only the items of a collection that match a predicate",
-     _D_COLL),
+    ("filter", "keeps only the items of a collection that match a predicate", _D_COLL),
     ("reduce", "folds a collection into one accumulated value", _D_COLL),
     ("fold", "folds a collection into one accumulated value", _D_COLL),
     ("foreach", "applies an action to every item of a collection", _D_COLL),
@@ -412,8 +441,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     ("containskey", "checks whether a stored mapping holds a key", _D_COLL),
     ("hasownproperty", "checks whether a stored mapping holds a key", _D_COLL),
     ("contain", "checks whether a collection holds a value", _D_COLL),
-    ("getordefault", "looks up a key and falls back to a default value",
-     _D_COLL),
+    ("getordefault", "looks up a key and falls back to a default value", _D_COLL),
     ("getkey", "looks up a value by key in a stored mapping", _D_COLL),
     ("setdefault", "stores a default value under a key when absent", _D_COLL),
     ("get", "looks up a value by key in a stored mapping", _D_COLL),
@@ -445,8 +473,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     ("marshal", "serializes a value into a portable representation", _D_SER),
     ("unmarshal", "deserializes a value from a portable representation", _D_SER),
     ("serialize", "serializes a value into a portable representation", _D_SER),
-    ("deserialize", "deserializes a value from a portable representation",
-     _D_SER),
+    ("deserialize", "deserializes a value from a portable representation", _D_SER),
     ("fromstr", "deserializes a value from its portable representation", _D_SER),
     ("tostring", "renders a value as text", _D_SER),
     ("b64encode", "encodes binary data as base64 text", _D_SER),
@@ -573,14 +600,11 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     ("log", "records a diagnostic message", _D_LOG),
     # --- terminal / console ---------------------------------------------
     ("system.out", "writes to the standard output stream", _D_CONSOLE),
-    ("system.err", "writes a diagnostic message to the error stream",
-     _D_CONSOLE),
+    ("system.err", "writes a diagnostic message to the error stream", _D_CONSOLE),
     ("sys.stdout", "writes to the standard output stream", _D_CONSOLE),
-    ("sys.stderr", "writes a diagnostic message to the error stream",
-     _D_CONSOLE),
+    ("sys.stderr", "writes a diagnostic message to the error stream", _D_CONSOLE),
     ("stdout.write", "writes to the standard output stream", _D_CONSOLE),
-    ("stderr.write", "writes a diagnostic message to the error stream",
-     _D_CONSOLE),
+    ("stderr.write", "writes a diagnostic message to the error stream", _D_CONSOLE),
     ("console.log", "writes a line to the console", _D_CONSOLE),
     ("console.info", "writes a line to the console", _D_CONSOLE),
     ("console.debug", "writes a line to the console", _D_CONSOLE),
@@ -590,8 +614,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     ("fmt.print", "writes to the standard output stream", _D_CONSOLE),
     ("fmt.println", "writes a line to the standard output stream", _D_CONSOLE),
     ("fmt.printf", "writes formatted text to the output stream", _D_CONSOLE),
-    ("setconsolecursorposition", "moves the terminal cursor to a position",
-     _D_CONSOLE),
+    ("setconsolecursorposition", "moves the terminal cursor to a position", _D_CONSOLE),
     ("setcursor", "moves the terminal cursor to a position", _D_CONSOLE),
     ("movecursor", "moves the terminal cursor", _D_CONSOLE),
     ("showcursor", "shows the terminal cursor", _D_CONSOLE),
@@ -638,8 +661,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     # --- object construction ---------------------------------------------
     ("init", "initializes an owned object", _D_STATE),
     ("new", "constructs a new value", _D_STATE),
-    ("builder", "builds a value incrementally through chained setters",
-     _D_STATE),
+    ("builder", "builds a value incrementally through chained setters", _D_STATE),
     # --- ubiquitous stdlib module names, used to ground domains from the
     #     unit's import list the way the production extractor does ---------
     ("os", "interacts with the operating system", _D_FILE),
@@ -655,8 +677,7 @@ _CUES: tuple[tuple[str, str, str], ...] = (
     ("socket", "exchanges raw data with a network peer", _D_HTTP),
     ("asyncio", "runs asynchronous concurrent work", _D_STATE),
     ("threading", "runs work concurrently on threads", _D_STATE),
-    ("multiprocessing", "runs work concurrently in separate processes",
-     _D_STATE),
+    ("multiprocessing", "runs work concurrently in separate processes", _D_STATE),
     ("sqlite3", "queries an embedded SQL database", _D_DB),
     ("pickle", "serializes Python objects to bytes", _D_SER),
     ("base64", "encodes and decodes base64 text", _D_SER),
@@ -685,19 +706,52 @@ _CUE_MAP: dict[str, tuple[str, str]] = {
 }
 
 # Cue phrases that mean "stores a value for a later lookup".
-_STORE_CUES = frozenset({
-    "put", "update", "setdefault", "insert", "add", "cache", "lru_cache",
-    "store", "addcolumn", "addrow", "addtask",
-})
+_STORE_CUES = frozenset(
+    {
+        "put",
+        "update",
+        "setdefault",
+        "insert",
+        "add",
+        "cache",
+        "lru_cache",
+        "store",
+        "addcolumn",
+        "addrow",
+        "addtask",
+    }
+)
 # Cue phrases that mean "reads a value out of a stored structure".
-_LOOKUP_CUES = frozenset({
-    "get", "containskey", "getordefault", "lookup", "getkey", "find", "has",
-    "index", "indexof", "hasownproperty", "contain",
-})
-_MAPPING_TYPES = frozenset({
-    "map", "dict", "hashmap", "treemap", "mapping", "json", "record", "tbl",
-    "htable", "object", "struct",
-})
+_LOOKUP_CUES = frozenset(
+    {
+        "get",
+        "containskey",
+        "getordefault",
+        "lookup",
+        "getkey",
+        "find",
+        "has",
+        "index",
+        "indexof",
+        "hasownproperty",
+        "contain",
+    }
+)
+_MAPPING_TYPES = frozenset(
+    {
+        "map",
+        "dict",
+        "hashmap",
+        "treemap",
+        "mapping",
+        "json",
+        "record",
+        "tbl",
+        "htable",
+        "object",
+        "struct",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Tree-sitter plumbing
@@ -705,15 +759,17 @@ _MAPPING_TYPES = frozenset({
 
 _NON_ALNUM = re.compile(r"[^0-9a-z]+")
 _OP_CHARS = frozenset("+-*/%<>=!&|^~?:.")
-_IDENT_TYPES = frozenset({
-    "identifier",
-    "property_identifier",
-    "field_identifier",
-    "package_identifier",
-    "type_identifier",
-    "primitive_type",
-    "shorthand_property_identifier",
-})
+_IDENT_TYPES = frozenset(
+    {
+        "identifier",
+        "property_identifier",
+        "field_identifier",
+        "package_identifier",
+        "type_identifier",
+        "primitive_type",
+        "shorthand_property_identifier",
+    }
+)
 _OPAQUE = "opaque input"
 _NONE_HANDLING = "no explicit failure handling; failures are not intercepted"
 _FAILS = re.compile(r"\b(err|error|exception|failure|panic)\b", re.IGNORECASE)
@@ -744,24 +800,55 @@ def _add(bucket: list[str], value: str) -> None:
 
 
 #: assignment targets that write a field rather than a local
-_ATTRIBUTE_TARGETS = frozenset({
-    "attribute", "field_access", "field_expression", "member_expression",
-    "selector_expression", "scoped_identifier",
-})
+_ATTRIBUTE_TARGETS = frozenset(
+    {
+        "attribute",
+        "field_access",
+        "field_expression",
+        "member_expression",
+        "selector_expression",
+        "scoped_identifier",
+    }
+)
 #: wrappers whose children hold a declared name rather than a value
-_DECLARATION_WRAPPERS = frozenset({
-    "parameters", "formal_parameters", "parameter", "typed_parameter",
-    "default_parameter", "typed_default_parameter", "optional_parameter",
-    "variadic_parameter", "typed_variadic_parameter", "parameter_list",
-    "function_definition", "function_declaration", "method_definition",
-    "method_declaration", "method", "func_declaration", "function_item",
-    "arrow_function", "lambda", "lambda_parameters", "catch_formal_parameter",
-})
+_DECLARATION_WRAPPERS = frozenset(
+    {
+        "parameters",
+        "formal_parameters",
+        "parameter",
+        "typed_parameter",
+        "default_parameter",
+        "typed_default_parameter",
+        "optional_parameter",
+        "variadic_parameter",
+        "typed_variadic_parameter",
+        "parameter_list",
+        "function_definition",
+        "function_declaration",
+        "method_definition",
+        "method_declaration",
+        "method",
+        "func_declaration",
+        "function_item",
+        "arrow_function",
+        "lambda",
+        "lambda_parameters",
+        "catch_formal_parameter",
+    }
+)
 #: destructuring patterns, which bind a name per element
-_PATTERN_NODES = frozenset({
-    "pattern_list", "tuple_pattern", "list_pattern", "expression_list",
-    "tuple", "list", "array_pattern", "slice_pattern",
-})
+_PATTERN_NODES = frozenset(
+    {
+        "pattern_list",
+        "tuple_pattern",
+        "list_pattern",
+        "expression_list",
+        "tuple",
+        "list",
+        "array_pattern",
+        "slice_pattern",
+    }
+)
 #: the receiver a language gives its own instances.  These are the language's
 #: token, not the author's: ``self``/``this`` are keywords or convention that
 #: the grammar and every linter agree on, so keying on them is structural in
@@ -817,7 +904,10 @@ def _assign_sides(node) -> tuple[Any, Any]:
             return left, right
     for child in node.children:
         if child.is_named and child.type in {
-            "variable_declarator", "var_spec", "const_spec", "expression_list"
+            "variable_declarator",
+            "var_spec",
+            "const_spec",
+            "expression_list",
         }:
             left = child.child_by_field_name("name")
             right = child.child_by_field_name("value")
@@ -857,8 +947,7 @@ def _value_identifiers(node, spec: _LangSpec) -> set[str]:
     stack = [node]
     while stack:
         current = stack.pop()
-        if current.type in _IDENT_TYPES \
-                and not _is_member_name(current, spec):
+        if current.type in _IDENT_TYPES and not _is_member_name(current, spec):
             found.add(_text(current))
         stack.extend(current.children)
     return found
@@ -866,8 +955,9 @@ def _value_identifiers(node, spec: _LangSpec) -> set[str]:
 
 _OP_CHARS = frozenset("+-*/%<>=!&|^~")
 #: operators that make a value a *derived quantity* rather than a pass-through
-_ARITH_OPS = frozenset({"+", "-", "*", "/", "%", "++", "--", "+=", "-=", "*=",
-                        "/=", "%="})
+_ARITH_OPS = frozenset(
+    {"+", "-", "*", "/", "%", "++", "--", "+=", "-=", "*=", "/=", "%="}
+)
 
 
 def _operator_tokens(node) -> set[str]:
@@ -883,9 +973,7 @@ def _operator_tokens(node) -> set[str]:
                     found.add(raw)
             elif child.type.endswith("_operator"):
                 found.update(
-                    part
-                    for part in re.split(r"[^-+*/%<>=!&|^~]+", raw)
-                    if part
+                    part for part in re.split(r"[^-+*/%<>=!&|^~]+", raw) if part
                 )
             else:
                 stack.append(child)
@@ -893,10 +981,14 @@ def _operator_tokens(node) -> set[str]:
 
 
 #: node types that dispatch on a value's type/kind by grammar, not by text
-_MATCH_SWITCH_NODES = frozenset({
-    "match_expression", "switch_expression", "switch_statement",
-    "expression_switch_statement",
-})
+_MATCH_SWITCH_NODES = frozenset(
+    {
+        "match_expression",
+        "switch_expression",
+        "switch_statement",
+        "expression_switch_statement",
+    }
+)
 _TYPE_TEST_TOKENS = frozenset({"instanceof", "typeof"})
 _TYPE_TEST_CALLS = frozenset({"isinstance", "type"})
 
@@ -921,8 +1013,11 @@ def _is_type_branch(node, cond, spec: _LangSpec) -> bool:
         if current.type in spec.call_nodes:
             for field in ("function", "name"):
                 target = current.child_by_field_name(field)
-                if target is not None and target.type in _IDENT_TYPES \
-                        and _text(target) in _TYPE_TEST_CALLS:
+                if (
+                    target is not None
+                    and target.type in _IDENT_TYPES
+                    and _text(target) in _TYPE_TEST_CALLS
+                ):
                     return True
         stack.extend(current.children)
     return False
@@ -1119,8 +1214,11 @@ class _Scanner:
             raw = f"{_text(receiver)}.{_text(target)}"
         elif target is None:
             return []
-        elif target.type in _IDENT_TYPES and not _is_member_name(target, self.spec) \
-                and _text(target) in self.local_names:
+        elif (
+            target.type in _IDENT_TYPES
+            and not _is_member_name(target, self.spec)
+            and _text(target) in self.local_names
+        ):
             # A bare callee the unit itself binds (a nested def or a
             # parameter) is the author's function, not a library API.  Cueing
             # on its name made ``filter(items)`` -- a local -- read as the
@@ -1153,8 +1251,10 @@ class _Scanner:
                 if len(self._callee_segments(node)) > 1:
                     # The mapping is a receiver, not something built here.
                     self.facts.has_retained_store = True
-                _add(self.facts.state_changes,
-                     "stores a computed value under a key in a mapping")
+                _add(
+                    self.facts.state_changes,
+                    "stores a computed value under a key in a mapping",
+                )
             if key in _LOOKUP_CUES:
                 self.facts.has_lookup = True
 
@@ -1202,9 +1302,7 @@ class _Scanner:
 
     def _record_effect(self, phrase: str, domain: str) -> None:
         _add(self.facts.transformations, phrase)
-        if domain in {
-            _D_FILE, _D_HTTP, _D_PROC, _D_LOG, _D_CONSOLE, _D_DB, _D_TIME
-        }:
+        if domain in {_D_FILE, _D_HTTP, _D_PROC, _D_LOG, _D_CONSOLE, _D_DB, _D_TIME}:
             _add(self.facts.side_effects, phrase)
         effect = {
             _D_CONSOLE: "emits output visible on the console or terminal",
@@ -1217,9 +1315,7 @@ class _Scanner:
         if effect:
             _add(self.facts.observable_effects, effect)
         elif domain == _D_FILE:
-            writes = phrase.startswith(
-                ("writes", "creates", "removes", "renames")
-            )
+            writes = phrase.startswith(("writes", "creates", "removes", "renames"))
             _add(
                 self.facts.observable_effects,
                 "produces or modifies a file on disk"
@@ -1303,8 +1399,10 @@ class _Scanner:
         produced = self._transformation_chain(right) if right is not None else []
         fed_by = self._feeds_params(right) if right is not None else set()
         # State the unit did not build itself cannot be a local cache.
-        retained = bool(left_names) and not (left_names & param_names) and not (
-            left_names & set(self.env)
+        retained = (
+            bool(left_names)
+            and not (left_names & param_names)
+            and not (left_names & set(self.env))
         )
         if right is not None and _ARITH_OPS & _operator_tokens(right):
             self.facts.derived |= left_names
@@ -1317,7 +1415,10 @@ class _Scanner:
         ):
             _add(self.facts.state_changes, "writes a field of an owned object")
         elif left.type in {
-            "index_expression", "subscript", "subscript_expression", "array_access"
+            "index_expression",
+            "subscript",
+            "subscript_expression",
+            "array_access",
         }:
             self.facts.has_store = True
             if retained:
@@ -1342,9 +1443,7 @@ class _Scanner:
                 "accumulates or refines a value across iterations",
             )
         else:
-            _add(
-                self.facts.state_changes, "computes a local value from its inputs"
-            )
+            _add(self.facts.state_changes, "computes a local value from its inputs")
 
     def _own_cues(self, node) -> list[str]:
         """Cue phrases applied by calls inside ``node``, outermost first."""
@@ -1384,13 +1483,17 @@ class _Scanner:
 # Output classification
 # ---------------------------------------------------------------------------
 
-_COLLECTION_NODES = frozenset({
-    "list_comprehension", "array_expression", "list_literal",
-    "array_creation_expression", "comprehension_expression", "tuple",
-})
-_COLLECTION_TEXT = re.compile(
-    r"\[\s*[^\[\]]*for\s|for\s+\w+\s+in\s|\.(map|filter)\("
+_COLLECTION_NODES = frozenset(
+    {
+        "list_comprehension",
+        "array_expression",
+        "list_literal",
+        "array_creation_expression",
+        "comprehension_expression",
+        "tuple",
+    }
 )
+_COLLECTION_TEXT = re.compile(r"\[\s*[^\[\]]*for\s|for\s+\w+\s+in\s|\.(map|filter)\(")
 _LOOKUP_TEXT = re.compile(
     r"\b(get|getOrDefault|lookup|readValue|getString|getInt)\s*\(|"
     r"^\s*[\w.]+\s*\["
@@ -1453,9 +1556,7 @@ def _classify_output(facts: _Facts, cache: bool, spec: _LangSpec) -> tuple[str, 
     if (
         facts.declared_failure
         or _FAILS.search(returned)
-        or any(
-            len(_text(v).split(",")) >= 2 for v in values
-        )
+        or any(len(_text(v).split(",")) >= 2 for v in values)
     ):
         return _FAILURE_RETURN
 
@@ -1468,12 +1569,13 @@ def _classify_output(facts: _Facts, cache: bool, spec: _LangSpec) -> tuple[str, 
             )
         if node.type in _COLLECTION_NODES or _COLLECTION_TEXT.search(text):
             return (
-                "builds and returns a collection of items derived from its "
-                "inputs",
+                "builds and returns a collection of items derived from its inputs",
                 "a collection of derived items",
             )
         if _LOOKUP_TEXT.search(text) or node.type in {
-            "subscript", "index_expression", "subscript_expression",
+            "subscript",
+            "index_expression",
+            "subscript_expression",
             "array_access",
         }:
             return (
@@ -1500,8 +1602,7 @@ def _classify_output(facts: _Facts, cache: bool, spec: _LangSpec) -> tuple[str, 
             return ("returns a fixed constant value", "a constant value")
     if facts.has_early_return:
         return (
-            "returns early on a condition and otherwise returns a later "
-            "computed value",
+            "returns early on a condition and otherwise returns a later computed value",
             "an early or computed value",
         )
     return (
@@ -1520,18 +1621,62 @@ def _classify_output(facts: _Facts, cache: bool, spec: _LangSpec) -> tuple[str, 
 _MAPPING_SHAPE = re.compile(r"\bmap\b|dict|hashmap|treemap|record|\[\s*string\s*:\s*")
 _COLLECTION_SHAPE = re.compile(r"\[|&|\bvec\b|slice|\blist\b|iterable|buffer")
 _TYPE_ROLES: tuple[tuple[frozenset[str], str], ...] = (
-    (frozenset({"string", "str", "char", "varchar", "bytestring",
-                "stringliteral"}), "textual input"),
-    (frozenset({"int", "int32", "int64", "i32", "i64", "u32", "u64", "long",
-                "short", "byte", "integer", "float", "float32", "float64",
-                "double", "number", "usize", "size"}), "numeric input"),
-    (frozenset({"list", "slice", "array", "vec", "sequence", "iterable",
-                "buffer", "set"}), "collection input"),
-    (frozenset({"map", "dict", "hashmap", "mapping", "object", "record",
-                "table"}), "mapping input"),
+    (
+        frozenset({"string", "str", "char", "varchar", "bytestring", "stringliteral"}),
+        "textual input",
+    ),
+    (
+        frozenset(
+            {
+                "int",
+                "int32",
+                "int64",
+                "i32",
+                "i64",
+                "u32",
+                "u64",
+                "long",
+                "short",
+                "byte",
+                "integer",
+                "float",
+                "float32",
+                "float64",
+                "double",
+                "number",
+                "usize",
+                "size",
+            }
+        ),
+        "numeric input",
+    ),
+    (
+        frozenset(
+            {"list", "slice", "array", "vec", "sequence", "iterable", "buffer", "set"}
+        ),
+        "collection input",
+    ),
+    (
+        frozenset({"map", "dict", "hashmap", "mapping", "object", "record", "table"}),
+        "mapping input",
+    ),
     (frozenset({"bool", "boolean"}), "flag input"),
-    (frozenset({"io", "result", "option", "context", "generator", "coroutine",
-                "channel", "stream", "error"}), "effectful input"),
+    (
+        frozenset(
+            {
+                "io",
+                "result",
+                "option",
+                "context",
+                "generator",
+                "coroutine",
+                "channel",
+                "stream",
+                "error",
+            }
+        ),
+        "effectful input",
+    ),
 )
 
 
@@ -1576,9 +1721,7 @@ def _input_roles(facts: _Facts) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _build_relations(
-    facts: _Facts, roles: list[str], output_noun: str
-) -> list[str]:
+def _build_relations(facts: _Facts, roles: list[str], output_noun: str) -> list[str]:
     """input -> transformation -> output chains, one per linked input."""
     relations: list[str] = []
     for (name, _declared), role in zip(facts.params, roles, strict=False):
@@ -1731,14 +1874,11 @@ def build_semantic_ir(
     if facts.has_construct:
         _add(facts.transformations, "constructs a new value of a given shape")
     if facts.has_await:
-        _add(facts.transformations,
-             "waits on an asynchronous result before continuing")
+        _add(facts.transformations, "waits on an asynchronous result before continuing")
     if facts.has_loop:
-        _add(facts.transformations,
-             "repeats its work over a collection of items")
+        _add(facts.transformations, "repeats its work over a collection of items")
     if facts.has_closure:
-        _add(facts.transformations,
-             "delegates per-item work to an inline callback")
+        _add(facts.transformations, "delegates per-item work to an inline callback")
 
     cache = "caching" in facts.domains
     output, output_noun = _classify_output(facts, cache, spec)
@@ -1802,9 +1942,7 @@ def informativeness(ir: SemanticIR) -> Informativeness:
         "observable_effects": len(set(ir.observable_effects)),
         "error_behavior": int(not ir.error_behavior.startswith("no explicit")),
     }
-    return Informativeness(
-        anchor_count=sum(breakdown.values()), breakdown=breakdown
-    )
+    return Informativeness(anchor_count=sum(breakdown.values()), breakdown=breakdown)
 
 
 # ---------------------------------------------------------------------------
@@ -1814,20 +1952,34 @@ def informativeness(ir: SemanticIR) -> Informativeness:
 #: names that must survive renaming, because they are the language's own
 #: vocabulary rather than something the author chose
 #: subtree types that hold a declared type; nothing inside is an author name
-_TYPE_CONTEXTS = frozenset({
-    "type", "union_type", "generic_type", "type_parameter", "sized_type",
-    "type_annotation", "type_identifier", "scoped_type_identifier",
-    "primitive_type", "integral_type", "floating_point_type", "boolean_type",
-    "void_type", "array_type", "object_type", "function_type",
-})
+_TYPE_CONTEXTS = frozenset(
+    {
+        "type",
+        "union_type",
+        "generic_type",
+        "type_parameter",
+        "sized_type",
+        "type_annotation",
+        "type_identifier",
+        "scoped_type_identifier",
+        "primitive_type",
+        "integral_type",
+        "floating_point_type",
+        "boolean_type",
+        "void_type",
+        "array_type",
+        "object_type",
+        "function_type",
+    }
+)
 #: the receiver segment of every receiver-qualified cue key.  A name the
 #: detector itself keys off (json.dumps, logging.error) is a library's name,
 #: not the author's, so the renamer must leave it alone -- exactly as the
 #: production extractor treats module imports.  Derived from the table so a new
 #: qualified cue cannot silently reintroduce the dependency.
-_CUE_RECEIVERS = frozenset(
-    key.split(".")[0] for key in _CUE_MAP if "." in key
-) | {"json"}
+_CUE_RECEIVERS = frozenset(key.split(".")[0] for key in _CUE_MAP if "." in key) | {
+    "json"
+}
 #: Names the renamer must not touch even when the unit binds them.  This used
 #: to be one flat list of every keyword in all five languages, which quietly
 #: protected real author words: a Python unit with a parameter called ``path``,
@@ -1843,11 +1995,22 @@ _RESERVED = _CUE_RECEIVERS | frozenset(
 _RENAME_TOKEN = "qqqqzzz"
 #: node types whose text is a type/field/property name: renaming those changes
 #: the program's meaning, so they are left alone
-_NOT_RENAMEABLE = frozenset({
-    "field_identifier", "property_identifier", "class_name", "type_identifier",
-    "primitive_type", "integral_type", "floating_point_type", "boolean_type",
-    "void_type", "scoped_type_identifier", "generic_type", "type_annotation",
-})
+_NOT_RENAMEABLE = frozenset(
+    {
+        "field_identifier",
+        "property_identifier",
+        "class_name",
+        "type_identifier",
+        "primitive_type",
+        "integral_type",
+        "floating_point_type",
+        "boolean_type",
+        "void_type",
+        "scoped_type_identifier",
+        "generic_type",
+        "type_annotation",
+    }
+)
 #: when this many words accumulate into one identifier it is a phrase, not a
 #: name, and the IR must never contain it verbatim
 _PHRASE_FLOOR = 3
@@ -1863,10 +2026,19 @@ def source_identifiers(source_code: str, min_length: int = 4) -> set[str]:
 
 
 #: grammar fields that hold "the name after the dot"
-_MEMBER_NAME_FIELDS = frozenset({
-    "attribute", "field", "property", "method", "function", "macro",
-    "constructor", "name", "type",
-})
+_MEMBER_NAME_FIELDS = frozenset(
+    {
+        "attribute",
+        "field",
+        "property",
+        "method",
+        "function",
+        "macro",
+        "constructor",
+        "name",
+        "type",
+    }
+)
 #: ...but only on a node that is a *member access*.  ``call`` is in
 #: ``member_access_nodes`` so that ``x.foo()`` keeps ``foo``, and it shares
 #: the ``function`` field with a bare ``f()``, whose name is a local binding
@@ -1939,8 +2111,11 @@ def _declared_names(node, spec: _LangSpec, own_name: str) -> set[str]:
     names: set[str] = set()
 
     def add(child) -> None:
-        if child is None or child.type in _TYPE_CONTEXTS \
-                or child.type in _NOT_RENAMEABLE:
+        if (
+            child is None
+            or child.type in _TYPE_CONTEXTS
+            or child.type in _NOT_RENAMEABLE
+        ):
             return
         if child.type in _IDENT_TYPES:
             name = _text(child)
@@ -2071,8 +2246,11 @@ def rename_identifiers(
     def visit(node) -> None:
         if node.type in _TYPE_CONTEXTS:
             return
-        if node.type == "identifier" and _renameable(node) \
-                and not _is_member_name(node, spec):
+        if (
+            node.type == "identifier"
+            and _renameable(node)
+            and not _is_member_name(node, spec)
+        ):
             name = _text(node)
             if name in bound and name not in _RESERVED:
                 emit(node, stub(name))
@@ -2089,13 +2267,11 @@ def rename_identifiers(
     # difference and reads like a classifier leak.
     data = text.encode("utf-8")
     for start, length, replacement in sorted(edits, reverse=True):
-        data = data[:start] + replacement.encode("utf-8") + data[start + length:]
+        data = data[:start] + replacement.encode("utf-8") + data[start + length :]
     return data.decode("utf-8")
 
 
-def assert_identifier_free(
-    ir: SemanticIR, source_code: str, language: str
-) -> None:
+def assert_identifier_free(ir: SemanticIR, source_code: str, language: str) -> None:
     """Raise unless the IR is byte-identical under a full rename.
 
     Comparing the IR built from renamed source against the original is the
@@ -2137,10 +2313,18 @@ def assert_identifier_free(
 def _all_phrases(ir: SemanticIR) -> str:
     """Every emitted phrase on one line, for provenance checks and diffing."""
     return " | ".join(
-        [ir.output_behavior, ir.error_behavior, *ir.input_roles,
-         *ir.domain_signals, *ir.transformations, *ir.relations,
-         *ir.conditions, *ir.state_changes, *ir.side_effects,
-         *ir.observable_effects]
+        [
+            ir.output_behavior,
+            ir.error_behavior,
+            *ir.input_roles,
+            *ir.domain_signals,
+            *ir.transformations,
+            *ir.relations,
+            *ir.conditions,
+            *ir.state_changes,
+            *ir.side_effects,
+            *ir.observable_effects,
+        ]
     )
 
 
@@ -2152,7 +2336,7 @@ def _phrase_leak(ir: SemanticIR, source_code: str) -> str | None:
         words = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", line)
         for size in range(_PHRASE_FLOOR, len(words) + 1):
             for start in range(len(words) - size + 1):
-                runs.add(" ".join(words[start:start + size]))
+                runs.add(" ".join(words[start : start + size]))
     emitted = _all_phrases(ir)
     for run in sorted(runs, key=len, reverse=True):
         if run in emitted:

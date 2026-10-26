@@ -168,25 +168,29 @@ def detect_overbudget(
                 orig_cands_by_id.get(uid, []) + orig_fails_by_id.get(uid, [])
             )
             for round_rec in round_recs:
-                quarantine_entries.append({
-                    "code_unit_id": uid,
-                    "candidate_id": round_rec.get("candidate_id", "?"),
-                    "generation_version": (
-                        "v2" if round_rec.get("candidate_id", "").startswith(
-                            "candidate_v2_"
-                        ) else "v3"
-                    ),
-                    "attempt_history": round_rec.get("attempts", []),
-                    "total_attempts": total,
-                    "max_allowed_attempts": MAX_ATTEMPTS,
-                    "quarantine_reason": (
-                        f"total generation attempts ({total}) exceeds "
-                        f"maximum ({MAX_ATTEMPTS})"
-                    ),
-                    "quarantine_timestamp": datetime.now(timezone.utc).isoformat(),
-                    "original_record_count": orig_rec_count,
-                    "round_record_count": len(round_recs),
-                })
+                quarantine_entries.append(
+                    {
+                        "code_unit_id": uid,
+                        "candidate_id": round_rec.get("candidate_id", "?"),
+                        "generation_version": (
+                            "v2"
+                            if round_rec.get("candidate_id", "").startswith(
+                                "candidate_v2_"
+                            )
+                            else "v3"
+                        ),
+                        "attempt_history": round_rec.get("attempts", []),
+                        "total_attempts": total,
+                        "max_allowed_attempts": MAX_ATTEMPTS,
+                        "quarantine_reason": (
+                            f"total generation attempts ({total}) exceeds "
+                            f"maximum ({MAX_ATTEMPTS})"
+                        ),
+                        "quarantine_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "original_record_count": orig_rec_count,
+                        "round_record_count": len(round_recs),
+                    }
+                )
 
     return quarantine_entries
 
@@ -254,8 +258,12 @@ def main() -> int:
 
     # Detect over-budget
     quarantine_entries = detect_overbudget(
-        original_candidates, original_failures, v2_candidates, v2_failures,
-        v3_candidates, v3_failures,
+        original_candidates,
+        original_failures,
+        v2_candidates,
+        v2_failures,
+        v3_candidates,
+        v3_failures,
     )
     quarantined_ids = {e["candidate_id"] for e in quarantine_entries}
     quarantined_unit_ids = {e["code_unit_id"] for e in quarantine_entries}
@@ -276,8 +284,7 @@ def main() -> int:
     quarantine_artifact = {
         "quarantine_version": "1.0.0",
         "quarantine_reason": (
-            "v2/v3 candidate generation exceeded "
-            "frozen 3-attempt maximum"
+            "v2/v3 candidate generation exceeded frozen 3-attempt maximum"
         ),
         "frozen_maximum_attempts": MAX_ATTEMPTS,
         "total_overbudget_code_units": len(quarantined_unit_ids),
@@ -348,9 +355,9 @@ def main() -> int:
     # Verify reproducibility
     verify_pool_hash = pool_hash(pool)
     verify_selected = select_final_queries(pool)
-    if verify_pool_hash != digest or [
-        c["code_unit_id"] for c in verify_selected
-    ] != [c["code_unit_id"] for c in selected]:
+    if verify_pool_hash != digest or [c["code_unit_id"] for c in verify_selected] != [
+        c["code_unit_id"] for c in selected
+    ]:
         logger.error("reproducibility verification FAILED - STOP")
         return 3
     logger.info("reproducibility verification passed")

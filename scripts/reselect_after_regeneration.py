@@ -89,9 +89,7 @@ def main() -> int:
         len(v3_failures),
     )
 
-    candidates = merge_round_candidates(
-        original, v2, v3, v2_failures, v3_failures
-    )
+    candidates = merge_round_candidates(original, v2, v3, v2_failures, v3_failures)
     logger.info("after deduplication: %d unique candidates", len(candidates))
 
     train_ids = _split_ids("train.jsonl")
@@ -140,9 +138,9 @@ def main() -> int:
 
     verify_pool_hash = pool_hash(pool)
     verify_selected = select_final_queries(pool)
-    if verify_pool_hash != digest or [
-        c["code_unit_id"] for c in verify_selected
-    ] != [c["code_unit_id"] for c in selected]:
+    if verify_pool_hash != digest or [c["code_unit_id"] for c in verify_selected] != [
+        c["code_unit_id"] for c in selected
+    ]:
         logger.error("reproducibility verification FAILED - STOP")
         return 3
     logger.info("reproducibility verification passed")
@@ -192,12 +190,8 @@ def main() -> int:
     logger.info("review artifact written: %s", REVIEW_OUTPUT)
 
     print(f"eligible_pool_sha256: {digest}")
-    print(
-        f"repository_distribution: {record['selected_repository_distribution']}"
-    )
-    print(
-        f"query_style_distribution: {record['selected_query_style_distribution']}"
-    )
+    print(f"repository_distribution: {record['selected_repository_distribution']}")
+    print(f"query_style_distribution: {record['selected_query_style_distribution']}")
     print("selected_code_unit_ids:")
     for unit in units:
         print(f"  {unit}")

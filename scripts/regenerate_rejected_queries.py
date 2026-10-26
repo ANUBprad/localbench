@@ -245,13 +245,14 @@ def regenerate(
                 continue
 
             remaining = budget_info[uid]["remaining"]
-            logger.info(
-                "Regenerating %s (remaining=%d)...", uid, remaining
-            )
+            logger.info("Regenerating %s (remaining=%d)...", uid, remaining)
 
             policy = RetryPolicy(max_attempts=remaining)
             generator = QueryGenerator(
-                model=adapter, policy=policy, top_p=TOP_P, seed=SEED,
+                model=adapter,
+                policy=policy,
+                top_p=TOP_P,
+                seed=SEED,
             )
             result = generator.generate(eu)
             success = result.success and result.candidate is not None
@@ -345,9 +346,7 @@ def regenerate(
     logger.info("New successful: %d", new_success)
     logger.info("New failed: %d", new_failed)
     logger.info("Exhausted (skipped): %d", len(exhausted))
-    logger.info(
-        "Prompt version: %s", QUERY_PROMPT_TEMPLATE_VERSION
-    )
+    logger.info("Prompt version: %s", QUERY_PROMPT_TEMPLATE_VERSION)
 
     if budget_violations:
         logger.error("BUDGET VIOLATIONS: %s", budget_violations)

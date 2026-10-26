@@ -70,9 +70,7 @@ def test_system_profile_gpus_default_empty():
         os_version="5.0",
         architecture="x86_64",
         python_version="3.10.0",
-        cpu=CPUInfo(
-            model="CPU", physical_cores=4, logical_cores=8
-        ),
+        cpu=CPUInfo(model="CPU", physical_cores=4, logical_cores=8),
         memory=MemoryInfo(
             total_bytes=8 * 1024**3,
             available_bytes=4 * 1024**3,

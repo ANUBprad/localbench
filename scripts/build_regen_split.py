@@ -85,8 +85,7 @@ def build_subset(
     expected = set(conflicted_ids)
     if len(expected) != len(conflicted_ids):
         logger.error(
-            "Conflict report contains duplicate CodeUnit IDs; refusing "
-            "to proceed."
+            "Conflict report contains duplicate CodeUnit IDs; refusing to proceed."
         )
         return EXIT_ERROR
 
@@ -141,9 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     report = json.loads(args.conflict_report.read_text(encoding="utf-8"))
     conflicted_ids = report["conflicted_unit_ids"]
-    logger.info(
-        "Conflict report lists %d conflicted CodeUnit(s)", len(conflicted_ids)
-    )
+    logger.info("Conflict report lists %d conflicted CodeUnit(s)", len(conflicted_ids))
     try:
         return build_subset(conflicted_ids, args.test_split, args.output)
     except FileNotFoundError as exc:

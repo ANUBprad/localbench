@@ -2,6 +2,7 @@
 
 Usage: python -m scripts.check_query_quality --review FILE --output FILE
 """
+
 from __future__ import annotations
 
 import argparse

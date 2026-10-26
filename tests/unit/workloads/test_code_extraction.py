@@ -42,7 +42,7 @@ SHORT_FUNC = "def add(a, b):\n    return a + b\n"
 LONG_FUNC = "def big():\n" + "    x = 1\n" * 105
 
 CLASS_METHODS = (
-    'class PaymentProcessor:\n'
+    "class PaymentProcessor:\n"
     '    """Process payments."""\n'
     "\n"
     "    def __init__(self, config):\n"
@@ -58,7 +58,7 @@ CLASS_METHODS = (
     "                return self._do_process(tid)\n"
     "            except Exception:\n"
     "                attempts += 1\n"
-    "        raise RuntimeError(\"Failed\")\n"
+    '        raise RuntimeError("Failed")\n'
     "\n"
     "    def _do_process(self, tid):\n"
     '        """Internal processing."""\n'
@@ -77,14 +77,10 @@ NESTED_FUNC = (
     "    return inner()\n"
 )
 
-PRIVATE_FUNC = (
-    "def _helper():\n"
-    '    """Private helper."""\n'
-    "    return 42\n"
-)
+PRIVATE_FUNC = 'def _helper():\n    """Private helper."""\n    return 42\n'
 
 DUNDER_CLASS = (
-    'class MyClass:\n'
+    "class MyClass:\n"
     '    """A class."""\n'
     "\n"
     "    def __init__(self, value):\n"
@@ -121,7 +117,7 @@ DECORATED_FUNC = (
 )
 
 STATIC_CLASS = (
-    'class Utilities:\n'
+    "class Utilities:\n"
     '    """Utility class."""\n'
     "\n"
     "    @staticmethod\n"
@@ -320,18 +316,14 @@ class TestCodeUnitId:
             "PaymentProcessor.process",
             "b" * 64,
         )
-        expected = (
-            "repo001_py_pkg_payments_py__PaymentProcessor_process_" + "b" * 12
-        )
+        expected = "repo001_py_pkg_payments_py__PaymentProcessor_process_" + "b" * 12
         assert result == expected
 
     def test_same_symbol_different_modules_do_not_collide(self) -> None:
         a = _build_code_unit_id(
             "repo002", "examples/aliases/aliases.py", "cli", "a" * 64
         )
-        b = _build_code_unit_id(
-            "repo002", "examples/repo/repo.py", "cli", "a" * 64
-        )
+        b = _build_code_unit_id("repo002", "examples/repo/repo.py", "cli", "a" * 64)
         assert a != b
 
     def test_repeated_definition_different_bodies_do_not_collide(self) -> None:
@@ -358,9 +350,7 @@ class TestCodeUnitId:
         assert a != b
 
     def test_windows_separators_normalized(self) -> None:
-        a = _build_code_unit_id(
-            "repo001", "src\\click\\cli.py", "cli", "a" * 64
-        )
+        a = _build_code_unit_id("repo001", "src\\click\\cli.py", "cli", "a" * 64)
         b = _build_code_unit_id("repo001", "src/click/cli.py", "cli", "a" * 64)
         assert a == b == "repo001_py_src_click_cli_py__cli_" + "a" * 12
 
@@ -545,9 +535,7 @@ class TestExtractCodeUnits:
         result = extract_code_units(tmp_path, "r", "c")
         assert len(result.code_units) == 1
         ctx = result.code_units[0].context
-        assert ctx.module_docstring is None or isinstance(
-            ctx.module_docstring, str
-        )
+        assert ctx.module_docstring is None or isinstance(ctx.module_docstring, str)
         assert "os" in ctx.imports
         assert "sys" in ctx.imports
         assert "pathlib" in ctx.imports
@@ -648,9 +636,10 @@ class TestExtractCodeUnits:
         expected_id = _build_code_unit_id(
             "repo001", u.file_path, u.symbol, u.content_hash
         )
-        assert _build_code_unit_id(
-            "repo001", u.file_path, u.symbol, u.content_hash
-        ) == expected_id
+        assert (
+            _build_code_unit_id("repo001", u.file_path, u.symbol, u.content_hash)
+            == expected_id
+        )
 
     def test_content_hash_matches_direct(self, tmp_path: Path) -> None:
         self._write(tmp_path, "g.py", SIMPLE_FUNC)

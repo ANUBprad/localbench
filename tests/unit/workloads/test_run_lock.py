@@ -92,26 +92,19 @@ class TestFailureMessage:
 
 
 class TestExistingSentinelIsNeverStolen:
-    def test_existing_sentinel_refused_without_being_modified(
-        self, tmp_path
-    ):
+    def test_existing_sentinel_refused_without_being_modified(self, tmp_path):
         _write_sentinel(tmp_path, b'{"pid": 999999999}')
         with pytest.raises(GenerationLockError, match="already using"):
             with generation_run_lock(tmp_path):
                 pass
-        assert (
-            (tmp_path / LOCK_FILENAME).read_bytes()
-            == b'{"pid": 999999999}'
-        )
+        assert (tmp_path / LOCK_FILENAME).read_bytes() == b'{"pid": 999999999}'
 
     def test_corrupt_sentinel_content_still_refuses(self, tmp_path):
         _write_sentinel(tmp_path, b"not json at all")
         with pytest.raises(GenerationLockError, match="already using"):
             with generation_run_lock(tmp_path):
                 pass
-        assert (
-            (tmp_path / LOCK_FILENAME).read_bytes() == b"not json at all"
-        )
+        assert (tmp_path / LOCK_FILENAME).read_bytes() == b"not json at all"
 
     def test_manual_deletion_restores_availability(self, tmp_path):
         """Documented operator recovery for a crashed run's sentinel."""

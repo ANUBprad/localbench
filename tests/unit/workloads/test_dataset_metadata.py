@@ -77,24 +77,25 @@ class TestQueryGenerationMetadata:
 
     def test_missing_model_name(self):
         with pytest.raises(ValidationError):
-            QueryGenerationMetadata(**{
-                k: v for k, v in _make_query_gen().items()
-                if k != "model_name"
-            })
+            QueryGenerationMetadata(
+                **{k: v for k, v in _make_query_gen().items() if k != "model_name"}
+            )
 
     def test_missing_seed(self):
         with pytest.raises(ValidationError):
-            QueryGenerationMetadata(**{
-                k: v for k, v in _make_query_gen().items()
-                if k != "seed"
-            })
+            QueryGenerationMetadata(
+                **{k: v for k, v in _make_query_gen().items() if k != "seed"}
+            )
 
     def test_missing_prompt_template_version(self):
         with pytest.raises(ValidationError):
-            QueryGenerationMetadata(**{
-                k: v for k, v in _make_query_gen().items()
-                if k != "prompt_template_version"
-            })
+            QueryGenerationMetadata(
+                **{
+                    k: v
+                    for k, v in _make_query_gen().items()
+                    if k != "prompt_template_version"
+                }
+            )
 
 
 # ===========================================================================
@@ -140,26 +141,26 @@ class TestDatasetMetadataValid:
 class TestDatasetMetadataInvalid:
     def test_counts_mismatch(self):
         with pytest.raises(ValidationError, match="total_code_units"):
-            DatasetMetadata(**_make_metadata(
-                total_code_units=400,
-                train_cases=225,
-                validation_cases=112,
-                test_cases=113,
-            ))
+            DatasetMetadata(
+                **_make_metadata(
+                    total_code_units=400,
+                    train_cases=225,
+                    validation_cases=112,
+                    test_cases=113,
+                )
+            )
 
     def test_missing_version(self):
         with pytest.raises(ValidationError):
-            DatasetMetadata(**{
-                k: v for k, v in _make_metadata().items()
-                if k != "version"
-            })
+            DatasetMetadata(
+                **{k: v for k, v in _make_metadata().items() if k != "version"}
+            )
 
     def test_missing_schema_version(self):
         with pytest.raises(ValidationError):
-            DatasetMetadata(**{
-                k: v for k, v in _make_metadata().items()
-                if k != "schema_version"
-            })
+            DatasetMetadata(
+                **{k: v for k, v in _make_metadata().items() if k != "schema_version"}
+            )
 
 
 # ===========================================================================

@@ -46,9 +46,7 @@ def _candidate(unit_id: str) -> dict:
 
 def _fixture(count: int = FINAL_QUERY_COUNT) -> tuple[dict, dict, dict]:
     units = {f"repo006_u{i:03d}": _unit(f"repo006_u{i:03d}") for i in range(count)}
-    candidates = {
-        f"cand_{unit_id}": _candidate(unit_id) for unit_id in sorted(units)
-    }
+    candidates = {f"cand_{unit_id}": _candidate(unit_id) for unit_id in sorted(units)}
     ordered_units = sorted(units)
     selection = {
         "selection_version": "1.0.0",

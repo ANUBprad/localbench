@@ -29,9 +29,12 @@ def export_adjudicated_cases(
         gold = label["relevant_code_units"]
         if not isinstance(cid, str) or not cid or cid in by_candidate:
             raise ValueError(f"Invalid or duplicate candidate label: {cid}")
-        if (not isinstance(gold, list) or not gold
-                or any(not isinstance(uid, str) or not uid for uid in gold)
-                or len(gold) != len(set(gold))):
+        if (
+            not isinstance(gold, list)
+            or not gold
+            or any(not isinstance(uid, str) or not uid for uid in gold)
+            or len(gold) != len(set(gold))
+        ):
             raise ValueError(f"Invalid relevance labels for {cid}")
         if not set(gold) <= corpus_ids:
             raise ValueError(f"Relevance outside corpus for {cid}")
@@ -48,8 +51,7 @@ def export_adjudicated_cases(
     if unknown:
         raise ValueError(f"Labels for unselected candidates: {sorted(unknown)}")
     non_accepted = sorted(
-        cid for cid in by_candidate
-        if selected[cid]["review"]["state"] != "accepted"
+        cid for cid in by_candidate if selected[cid]["review"]["state"] != "accepted"
     )
     if non_accepted:
         raise ValueError(f"Labels for non-accepted candidates: {non_accepted}")
@@ -69,11 +71,13 @@ def export_adjudicated_cases(
             raise ValueError(f"Audit-passed candidate missing labels: {cid}")
         if item["code_unit_id"] not in corpus_ids:
             raise ValueError(f"Selected target outside corpus: {cid}")
-        result.append({
-            "id": cid,
-            "query": item["query"],
-            "relevant_code_units": by_candidate[cid],
-        })
+        result.append(
+            {
+                "id": cid,
+                "query": item["query"],
+                "relevant_code_units": by_candidate[cid],
+            }
+        )
     if not result:
         raise ValueError("No accepted, adjudicated queries available")
     return result

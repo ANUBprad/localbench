@@ -224,8 +224,7 @@ def merge(queries_dir: Path, staging_dir: Path, dry_run: bool) -> int:
         signature = _semantic_signature(record)
         if unit_id in signatures and signatures[unit_id] != signature:
             raise ArtifactRecoveryError(
-                f"Merged candidates contain diverging payloads for "
-                f"'{unit_id}'."
+                f"Merged candidates contain diverging payloads for '{unit_id}'."
             )
         signatures[unit_id] = signature
 
@@ -233,30 +232,21 @@ def merge(queries_dir: Path, staging_dir: Path, dry_run: bool) -> int:
     new_failures = serialize_records(merged_failures)
 
     current_candidates = (
-        candidates_path.read_text(encoding="utf-8")
-        if candidates_path.exists()
-        else ""
+        candidates_path.read_text(encoding="utf-8") if candidates_path.exists() else ""
     )
     current_failures = (
-        failures_path.read_text(encoding="utf-8")
-        if failures_path.exists()
-        else ""
+        failures_path.read_text(encoding="utf-8") if failures_path.exists() else ""
     )
-    if (
-        new_candidates == current_candidates
-        and new_failures == current_failures
-    ):
+    if new_candidates == current_candidates and new_failures == current_failures:
         logger.info(
-            "Checkpoint already merged (%d candidates / %d failures); "
-            "nothing to do.",
+            "Checkpoint already merged (%d candidates / %d failures); nothing to do.",
             len(merged_candidates),
             len(merged_failures),
         )
         return EXIT_OK
 
     logger.info(
-        "Merge plan: %d candidates / %d failures "
-        "(%d + %d and %d + %d)",
+        "Merge plan: %d candidates / %d failures (%d + %d and %d + %d)",
         len(merged_candidates),
         len(merged_failures),
         len(recovered_candidates),

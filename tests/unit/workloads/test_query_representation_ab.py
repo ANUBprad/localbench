@@ -18,9 +18,7 @@ from localbench.runtime.model import GenerationRequest, GenerationResult
 from localbench.workloads.code_retrieval.schemas import CandidateQuery
 
 _SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "run_query_representation_ab.py"
+    Path(__file__).resolve().parents[3] / "scripts" / "run_query_representation_ab.py"
 )
 _spec = importlib.util.spec_from_file_location(
     "run_query_representation_ab", _SCRIPT_PATH
@@ -237,6 +235,7 @@ class TestRepresentations:
 
     def test_arm_b_is_guarded_not_guessing(self, sample_rows, monkeypatch):
         """A guard failure must surface, not be swallowed by a weaker check."""
+
         def boom(*_args, **_kwargs):
             raise AssertionError("leaked: domain_signals")
 
@@ -304,7 +303,7 @@ class TestPrompt:
             payload = (
                 ab.representation_a(unit) if arm == "A" else ab.representation_b(unit)
             )
-            region = ab.build_prompt(arm, payload)[len(ab.prompt_shell()):]
+            region = ab.build_prompt(arm, payload)[len(ab.prompt_shell()) :]
             for token in ab._FORBIDDEN_PROMPT_TOKENS:
                 assert token not in region, f"{arm} leaked {token}"
 
@@ -334,7 +333,7 @@ class TestPrompt:
     def test_ir_diagnostics_never_reach_the_prompt(self, sample_rows):
         unit = ab.to_code_unit(sample_rows["train"][0])
         payload = ab.representation_b(unit)
-        region = ab.build_prompt("B", payload)[len(ab.prompt_shell()):]
+        region = ab.build_prompt("B", payload)[len(ab.prompt_shell()) :]
         assert "anchor_count" not in region
         assert "parse_ok" not in region
 
@@ -442,9 +441,7 @@ class TestGeneration:
     def test_leakage_failure_is_caught(self, sample_rows):
         row = sample_rows["train"][0]
         model = FakeModel([good_reply(f"call {row['file_path']} in the module")])
-        record = ab.run_one(
-            "A", self._entry(), row, model, ab.RetryPolicy(), 42
-        )
+        record = ab.run_one("A", self._entry(), row, model, ab.RetryPolicy(), 42)
         assert record["success"] is False
         assert record["stage"] == "leakage"
         assert record["leakage_passed"] is False
@@ -525,11 +522,7 @@ class TestGeneration:
 def _records(sample_rows, train_n=3, validation_n=2, replies_per_arm=10):
     """Build paired records for a small run without touching a model."""
     sample = ab.build_sample(train_n, validation_n, 42)
-    bank = {
-        row["id"]: row
-        for split in SPLITS
-        for row in sample_rows[split]
-    }
+    bank = {row["id"]: row for split in SPLITS for row in sample_rows[split]}
     records = []
     for entry in sample:
         for arm in ab.ARMS:
@@ -537,8 +530,12 @@ def _records(sample_rows, train_n=3, validation_n=2, replies_per_arm=10):
             model = FakeModel([raw])
             records.append(
                 ab.run_one(
-                    arm, entry, bank[entry["code_unit_id"]], model,
-                    ab.RetryPolicy(), 42,
+                    arm,
+                    entry,
+                    bank[entry["code_unit_id"]],
+                    model,
+                    ab.RetryPolicy(),
+                    42,
                 )
             )
     return sample, records
@@ -660,14 +657,9 @@ class TestBlindReview:
         """All-A-then-all-B would reveal the label through ordering alone."""
         _sample, records = _records(sample_rows)
         key = ab.build_blind_review(records, 42)["key"]
-        sequence = [
-            entry["arm"]
-            for _slot, entry in sorted(key["mapping"].items())
-        ]
+        sequence = [entry["arm"] for _slot, entry in sorted(key["mapping"].items())]
         runs = [
-            arm
-            for i, arm in enumerate(sequence)
-            if i == 0 or arm != sequence[i - 1]
+            arm for i, arm in enumerate(sequence) if i == 0 or arm != sequence[i - 1]
         ]
         assert len(runs) > 2
 
@@ -809,8 +801,20 @@ class TestArtifacts:
 
     def test_sample_flag_writes_only_sample_and_manifest(self, sample_rows, tmp_path):
         out = tmp_path / "sample-only"
-        assert ab.main(["--sample", "--out-dir", str(out), "--train-sample", "2",
-                        "--validation-sample", "1"]) == 0
+        assert (
+            ab.main(
+                [
+                    "--sample",
+                    "--out-dir",
+                    str(out),
+                    "--train-sample",
+                    "2",
+                    "--validation-sample",
+                    "1",
+                ]
+            )
+            == 0
+        )
         assert {path.name for path in out.iterdir()} == {
             "manifest.json",
             "sample.jsonl",

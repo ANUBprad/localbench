@@ -8,6 +8,7 @@ with all items pending.
 DO NOT MODIFY: candidates.jsonl, candidate_failures.jsonl, candidates_v2.jsonl,
                candidate_failures_v2.jsonl
 """
+
 from __future__ import annotations
 
 import json
@@ -199,15 +200,11 @@ def main() -> int:
             continue
         passing_candidates.append(c)
 
-    print(
-        f"\nEligible pool (repaired detector + checks): "
-        f"{len(passing_candidates)}"
-    )
+    print(f"\nEligible pool (repaired detector + checks): {len(passing_candidates)}")
 
     if len(passing_candidates) < FINAL_QUERY_COUNT:
         print(
-            f"ERROR: Pool too small "
-            f"({len(passing_candidates)} < {FINAL_QUERY_COUNT})"
+            f"ERROR: Pool too small ({len(passing_candidates)} < {FINAL_QUERY_COUNT})"
         )
         return 1
 
@@ -239,12 +236,10 @@ def main() -> int:
     print(f"  eligible_pool_sha256: {selection_record['eligible_pool_sha256']}")
     print(f"  selected_count: {selection_record['selected_count']}")
     print(
-        f"  repo distribution: "
-        f"{selection_record['selected_repository_distribution']}"
+        f"  repo distribution: {selection_record['selected_repository_distribution']}"
     )
     print(
-        f"  style distribution: "
-        f"{selection_record['selected_query_style_distribution']}"
+        f"  style distribution: {selection_record['selected_query_style_distribution']}"
     )
 
     # 8. Build review artifact

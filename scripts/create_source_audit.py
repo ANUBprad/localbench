@@ -13,11 +13,13 @@ from localbench.workloads.code_retrieval.source_audit import write_template
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--review", type=Path,
+        "--review",
+        type=Path,
         default=Path("dataset/queries/review_artifact.json"),
     )
     parser.add_argument(
-        "--output", type=Path,
+        "--output",
+        type=Path,
         default=Path("dataset/queries/source_code_audit.json"),
     )
     args = parser.parse_args()

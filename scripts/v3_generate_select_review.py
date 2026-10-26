@@ -31,10 +31,8 @@ from localbench.workloads.code_retrieval.review import (
     validate_review_artifact,
 )
 from localbench.workloads.code_retrieval.selection import (
-    SelectionError,
     build_eligible_pool,
     build_selection_record,
-    distribution,
     pool_hash,
     select_final_queries,
 )
@@ -104,9 +102,7 @@ def step2_select() -> int:
     logger.info("eligible pool: %d candidates", len(pool))
 
     if len(pool) < 45:
-        logger.error(
-            "eligible pool has %d candidates; need at least 45", len(pool)
-        )
+        logger.error("eligible pool has %d candidates; need at least 45", len(pool))
         return 2
 
     digest = pool_hash(pool)
@@ -136,7 +132,6 @@ def step2_select() -> int:
     logger.info("post-selection audit passed")
 
     repo_by_unit = {u: rec["repository"] for u, rec in test_records.items()}
-    import platform
     record = build_selection_record(
         ordered_pool=pool,
         selected=selected,
@@ -208,7 +203,9 @@ def step3_review() -> int:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(artifact, f, indent=2, ensure_ascii=False)
 
-    all_pending = all(item["review"]["state"] == "pending" for item in artifact["items"])
+    all_pending = all(
+        item["review"]["state"] == "pending" for item in artifact["items"]
+    )
     logger.info(
         "Review artifact written: %s (%d items, all_pending=%s)",
         output_path,

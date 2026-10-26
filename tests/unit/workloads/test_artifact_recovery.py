@@ -24,9 +24,7 @@ from localbench.workloads.code_retrieval.candidate_store import (
 )
 
 _SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "recover_query_candidates.py"
+    Path(__file__).resolve().parents[3] / "scripts" / "recover_query_candidates.py"
 )
 _spec = importlib.util.spec_from_file_location(
     "recover_query_candidates_test", _SCRIPT_PATH
@@ -111,9 +109,7 @@ class TestReadJsonl:
 
     def test_ill_shaped_record_aborts(self, tmp_path):
         path = tmp_path / "art.jsonl"
-        path.write_text(
-            json.dumps({"code_unit_id": "u1"}) + "\n", encoding="utf-8"
-        )
+        path.write_text(json.dumps({"code_unit_id": "u1"}) + "\n", encoding="utf-8")
         with pytest.raises(ArtifactRecoveryError, match="success"):
             read_jsonl(path)
 
@@ -133,16 +129,12 @@ class TestPlanRecoveryRules:
 
     def test_telemetry_only_differences_collapse(self):
         first = success("u1", "2026-08-22T04:00:00+00:00")
-        slower = success(
-            "u1", "2026-08-22T05:00:00+00:00", generation_ms=99.9
-        )
+        slower = success("u1", "2026-08-22T05:00:00+00:00", generation_ms=99.9)
         plan = plan_recovery([first, slower], [])
         assert plan.recoverable and len(plan.candidates) == 1
 
     def test_triple_execution_leaves_two_superseded(self):
-        records = [
-            success("u1", f"2026-08-22T0{n}:00:00+00:00") for n in (3, 1, 2)
-        ]
+        records = [success("u1", f"2026-08-22T0{n}:00:00+00:00") for n in (3, 1, 2)]
         plan = plan_recovery(records, [])
         assert plan.recoverable
         assert len(plan.candidates) == 1 and len(plan.superseded) == 2
@@ -244,9 +236,7 @@ class TestSerialization:
 
 class TestStatsAndOverview:
     def test_file_stats_summarize_duplication(self):
-        stats = file_stats(
-            [success("a", "t1"), success("a", "t2"), failure("b", "t3")]
-        )
+        stats = file_stats([success("a", "t1"), success("a", "t2"), failure("b", "t3")])
         assert stats == {
             "records": 3,
             "unique_ids": 2,
@@ -290,10 +280,9 @@ class TestBuildConflictReport:
             [regression],
         )
         assert report["conflicted_unit_ids"] == ["u3"]
-        assert (
-            report["quarantined_records"]["candidates"] == [victory]
-            and report["quarantined_records"]["failures"] == [regression]
-        )
+        assert report["quarantined_records"]["candidates"] == [victory] and report[
+            "quarantined_records"
+        ]["failures"] == [regression]
 
     def test_report_bytes_are_independent_of_input_order(self):
         records_c = [
@@ -348,13 +337,9 @@ class TestRecoveryScript:
         return directory
 
     def _run(self, directory, extra_args=()):
-        return _script.main(
-            ["--queries-dir", str(directory), *extra_args]
-        )
+        return _script.main(["--queries-dir", str(directory), *extra_args])
 
-    def test_recovered_checkpoint_loads_through_candidate_store(
-        self, corrupted_dir
-    ):
+    def test_recovered_checkpoint_loads_through_candidate_store(self, corrupted_dir):
         assert self._run(corrupted_dir) == 0
         successful, failed = CandidateStore(
             corrupted_dir / "candidates.jsonl",
@@ -373,9 +358,7 @@ class TestRecoveryScript:
         )
         assert self._run(corrupted_dir) == 0
         backup_cand = corrupted_dir / "candidates.jsonl.pre-recovery.bak"
-        backup_fail = (
-            corrupted_dir / "candidate_failures.jsonl.pre-recovery.bak"
-        )
+        backup_fail = corrupted_dir / "candidate_failures.jsonl.pre-recovery.bak"
         assert backup_cand.read_bytes() == before[0]
         assert backup_fail.read_bytes() == before[1]
 
@@ -392,12 +375,8 @@ class TestRecoveryScript:
         )
         assert after_second == after_first
 
-    def test_dry_run_reports_plan_without_touching_files(
-        self, corrupted_dir
-    ):
-        before = {
-            p.name: p.read_bytes() for p in corrupted_dir.iterdir()
-        }
+    def test_dry_run_reports_plan_without_touching_files(self, corrupted_dir):
+        before = {p.name: p.read_bytes() for p in corrupted_dir.iterdir()}
         assert self._run(corrupted_dir, ["--dry-run"]) == 0
         after = {p.name: p.read_bytes() for p in corrupted_dir.iterdir()}
         assert after == before
@@ -446,13 +425,9 @@ class TestIsolationMode:
         return directory
 
     def _run(self, directory, *extra_args):
-        return _script.main(
-            ["--queries-dir", str(directory), *extra_args]
-        )
+        return _script.main(["--queries-dir", str(directory), *extra_args])
 
-    def test_without_flag_conflicts_still_refuse_the_run(
-        self, conflicted_dir
-    ):
+    def test_without_flag_conflicts_still_refuse_the_run(self, conflicted_dir):
         before = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
         assert self._run(conflicted_dir) == 2
         after = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
@@ -462,10 +437,7 @@ class TestIsolationMode:
         self, conflicted_dir, tmp_path
     ):
         report_path = tmp_path / "conflict_report.json"
-        assert (
-            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
-            == 0
-        )
+        assert self._run(conflicted_dir, "--isolate-conflicts", str(report_path)) == 0
         successful, failed = CandidateStore(
             conflicted_dir / "candidates.jsonl",
             conflicted_dir / "candidate_failures.jsonl",
@@ -481,16 +453,10 @@ class TestIsolationMode:
 
     def test_isolation_rerun_is_a_noop(self, conflicted_dir, tmp_path):
         report_path = tmp_path / "conflict_report.json"
-        assert (
-            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
-            == 0
-        )
+        assert self._run(conflicted_dir, "--isolate-conflicts", str(report_path)) == 0
         snapshot = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
         report_bytes = report_path.read_bytes()
-        assert (
-            self._run(conflicted_dir, "--isolate-conflicts", str(report_path))
-            == 0
-        )
+        assert self._run(conflicted_dir, "--isolate-conflicts", str(report_path)) == 0
         after = {p.name: p.read_bytes() for p in conflicted_dir.iterdir()}
         assert after == snapshot
         assert report_path.read_bytes() == report_bytes

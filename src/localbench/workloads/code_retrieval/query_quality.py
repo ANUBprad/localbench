@@ -2,6 +2,7 @@
 
 Flags are review hints, never evidence of correctness or relevance.
 """
+
 from __future__ import annotations
 
 import re

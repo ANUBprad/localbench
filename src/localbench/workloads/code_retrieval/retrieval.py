@@ -3,13 +3,14 @@
 The index is deliberately built from explicit CodeUnit IDs and text; it never
 uses test relevance labels, model-generated answers, or external services.
 """
+
 from __future__ import annotations
 
 import math
 import re
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 _TOKEN = re.compile(r"[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*")
 
@@ -29,16 +30,24 @@ class SearchHit:
 class BM25Index:
     """In-memory BM25 with stable ID tie-breaking and unique-document validation."""
 
-    def __init__(self, documents: Mapping[str, str], *, k1: float = 1.5, b: float = 0.75):
+    def __init__(
+        self, documents: Mapping[str, str], *, k1: float = 1.5, b: float = 0.75
+    ):
         if not (k1 > 0 and 0 <= b <= 1):
             raise ValueError("Expected k1 > 0 and 0 <= b <= 1")
         if not documents:
             raise ValueError("At least one document is required")
-        if any(not key or not isinstance(value, str) for key, value in documents.items()):
+        if any(
+            not key or not isinstance(value, str) for key, value in documents.items()
+        ):
             raise ValueError("Documents require nonempty IDs and string text")
         self.k1, self.b = k1, b
-        self._counts = {key: Counter(tokenize(value)) for key, value in documents.items()}
-        self._lengths = {key: sum(counts.values()) for key, counts in self._counts.items()}
+        self._counts = {
+            key: Counter(tokenize(value)) for key, value in documents.items()
+        }
+        self._lengths = {
+            key: sum(counts.values()) for key, counts in self._counts.items()
+        }
         self._avgdl = sum(self._lengths.values()) / len(documents)
         self._df = Counter()
         for counts in self._counts.values():
@@ -68,7 +77,9 @@ class BM25Index:
         return sorted(scores, key=lambda hit: (-hit.score, hit.code_unit_id))[:k]
 
 
-def code_unit_documents(units: list, *, representation: str = "source") -> dict[str, str]:
+def code_unit_documents(
+    units: list, *, representation: str = "source"
+) -> dict[str, str]:
     """Build a source-only index from canonical CodeUnit objects.
 
     No ground-truth relevance or held-out query text is included.

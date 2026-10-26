@@ -147,22 +147,24 @@ PROTECTED_ARTIFACTS: tuple[str, ...] = (
 
 #: Keys that must never appear in the blinded review input.  A review item
 #: carries only its own text, so any of these would reveal the arm.
-BLIND_FORBIDDEN_KEYS: frozenset[str] = frozenset({
-    "arm",
-    "arm_label",
-    "representation",
-    "variant",
-    "group",
-    "code_unit_id",
-    "split",
-    "symbol",
-    "file_path",
-    "repository",
-    "symbol_type",
-    "is_public",
-    "query_style",
-    "query_intent",
-})
+BLIND_FORBIDDEN_KEYS: frozenset[str] = frozenset(
+    {
+        "arm",
+        "arm_label",
+        "representation",
+        "variant",
+        "group",
+        "code_unit_id",
+        "split",
+        "symbol",
+        "file_path",
+        "repository",
+        "symbol_type",
+        "is_public",
+        "query_style",
+        "query_intent",
+    }
+)
 
 #: Whether either extractor receives the file's ``context.imports``.
 #:
@@ -324,9 +326,7 @@ def select_sample(
     return sorted(picked, key=lambda item: item["id"])
 
 
-def build_sample(
-    train_n: int, validation_n: int, seed: int
-) -> list[dict]:
+def build_sample(train_n: int, validation_n: int, seed: int) -> list[dict]:
     """The shared CodeUnit sample both arms run on."""
     sample: list[dict] = []
     for split, count in (("train", train_n), ("validation", validation_n)):
@@ -484,9 +484,7 @@ def build_prompt(arm: str, payload: dict[str, Any]) -> str:
 
 def prompt_shell() -> str:
     """The arm-independent part of every prompt, for the equivalence test."""
-    return (
-        f"{get_query_system_prompt()}\n\n{_TASK_BLOCK}\n\nBEHAVIOUR FACTS:\n"
-    )
+    return f"{get_query_system_prompt()}\n\n{_TASK_BLOCK}\n\nBEHAVIOUR FACTS:\n"
 
 
 # ---------------------------------------------------------------------------
@@ -698,9 +696,7 @@ def arm_summary(records: Sequence[dict]) -> dict[str, Any]:
         "success_rate": _rate(len(valid), total),
         "schema_valid": sum(1 for r in records if r["schema_valid"]),
         "leakage_passed": sum(1 for r in records if r["leakage_passed"] is True),
-        "provenance_passed": sum(
-            1 for r in records if r["provenance_passed"] is True
-        ),
+        "provenance_passed": sum(1 for r in records if r["provenance_passed"] is True),
         "meta_passed": sum(1 for r in records if r["meta_passed"] is True),
         "non_empty_query": sum(1 for q in queries if q and q.strip()),
         "guard_failures": guard_failed,
@@ -735,20 +731,12 @@ def paired_summary(records: Sequence[dict]) -> dict[str, Any]:
     both = [pair for pair in by_unit.values() if len(pair) == len(ARMS)]
     both_ok = sum(1 for pair in both if all(r["success"] for r in pair.values()))
     a_only = sum(
-        1
-        for pair in both
-        if pair["A"]["success"] and not pair["B"]["success"]
+        1 for pair in both if pair["A"]["success"] and not pair["B"]["success"]
     )
     b_only = sum(
-        1
-        for pair in both
-        if pair["B"]["success"] and not pair["A"]["success"]
+        1 for pair in both if pair["B"]["success"] and not pair["A"]["success"]
     )
-    neither = sum(
-        1
-        for pair in both
-        if not any(r["success"] for r in pair.values())
-    )
+    neither = sum(1 for pair in both if not any(r["success"] for r in pair.values()))
     return {
         "pairs": len(both),
         "both_succeeded": both_ok,
@@ -943,9 +931,7 @@ def build_manifest(
                     "keeping imports for A alone would give A import-grounded "
                     "domain signals B cannot match."
                 ),
-                "cost": (
-                    "import-grounded domain signals are absent on both arms"
-                ),
+                "cost": ("import-grounded domain signals are absent on both arms"),
             },
             "prompt_context_omitted": {
                 "value": True,
@@ -1017,11 +1003,7 @@ def run_experiment(
     write_json(out_dir / "manifest.json", manifest)
     write_jsonl(out_dir / "sample.jsonl", sample)
 
-    rows_by_id = {
-        row["id"]: row
-        for split in SPLITS
-        for row in load_split(split)
-    }
+    rows_by_id = {row["id"]: row for split in SPLITS for row in load_split(split)}
     records: list[dict] = []
     for entry in sample:
         row = rows_by_id[entry["code_unit_id"]]

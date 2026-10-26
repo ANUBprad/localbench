@@ -101,18 +101,14 @@ def read_jsonl(path: Path) -> list[dict]:
             try:
                 validate_record(record)
             except CandidateArtifactError as exc:
-                raise ArtifactRecoveryError(
-                    f"{path}:{number}: {exc}"
-                ) from exc
+                raise ArtifactRecoveryError(f"{path}:{number}: {exc}") from exc
             records.append(record)
     return records
 
 
 def _order_key(record: dict) -> tuple[str, str]:
     """Execution time first, then content — order-independent ranking."""
-    return record.get("completed_utc", ""), json.dumps(
-        record, sort_keys=True
-    )
+    return record.get("completed_utc", ""), json.dumps(record, sort_keys=True)
 
 
 def _semantic_signature(record: dict) -> tuple:
@@ -164,9 +160,7 @@ def cross_file_overview(candidates: list[dict], failures: list[dict]) -> dict:
     }
 
 
-def plan_recovery(
-    candidates: list[dict], failures: list[dict]
-) -> RecoveryPlan:
+def plan_recovery(candidates: list[dict], failures: list[dict]) -> RecoveryPlan:
     """Build canonical replacement sets or an explicit conflict report."""
     grouped: dict[str, dict[str, list[dict]]] = defaultdict(
         lambda: {"success": [], "failure": []}
@@ -207,10 +201,7 @@ def plan_recovery(
                 Conflict(
                     kind="semantic_candidate_conflict",
                     code_unit_id=unit_id,
-                    detail=(
-                        f"{len(payload_signatures)} distinct successful "
-                        "payloads"
-                    ),
+                    detail=(f"{len(payload_signatures)} distinct successful payloads"),
                 )
             )
             continue
@@ -220,8 +211,7 @@ def plan_recovery(
                     kind="methodology_mismatch",
                     code_unit_id=unit_id,
                     detail=(
-                        "duplicate executions disagree on frozen "
-                        "generation parameters"
+                        "duplicate executions disagree on frozen generation parameters"
                     ),
                 )
             )
@@ -231,9 +221,7 @@ def plan_recovery(
             canonical_failure = max(fails, key=_order_key)
             plan.failures.append(canonical_failure)
             plan.superseded.extend(
-                record
-                for record in fails
-                if record is not canonical_failure
+                record for record in fails if record is not canonical_failure
             )
             continue
 
@@ -241,9 +229,7 @@ def plan_recovery(
             latest_success = max(
                 record.get("completed_utc", "") for record in successes
             )
-            latest_failure = max(
-                record.get("completed_utc", "") for record in fails
-            )
+            latest_failure = max(record.get("completed_utc", "") for record in fails)
             if latest_failure > latest_success:
                 plan.conflicts.append(
                     Conflict(
@@ -260,9 +246,7 @@ def plan_recovery(
         canonical_success = min(successes, key=_order_key)
         plan.candidates.append(canonical_success)
         plan.superseded.extend(
-            record
-            for record in successes
-            if record is not canonical_success
+            record for record in successes if record is not canonical_success
         )
         plan.superseded.extend(fails)
     return plan
@@ -276,8 +260,7 @@ def serialize_records(records: list[dict]) -> str:
         unit_id = record["code_unit_id"]
         if unit_id in seen:
             raise ArtifactRecoveryError(
-                f"Internal error: recovered set still contains a "
-                f"duplicate '{unit_id}'."
+                f"Internal error: recovered set still contains a duplicate '{unit_id}'."
             )
         seen.add(unit_id)
         lines.append(json.dumps(record, ensure_ascii=False))
@@ -301,11 +284,7 @@ def build_conflict_report(
 
     def quarantined(records: list[dict]) -> list[dict]:
         return sorted(
-            (
-                record
-                for record in records
-                if record["code_unit_id"] in id_set
-            ),
+            (record for record in records if record["code_unit_id"] in id_set),
             key=lambda record: (
                 record["code_unit_id"],
                 json.dumps(record, sort_keys=True),
@@ -320,9 +299,7 @@ def build_conflict_report(
                 "code_unit_id": conflict.code_unit_id,
                 "detail": conflict.detail,
             }
-            for conflict in sorted(
-                conflicts, key=lambda c: (c.kind, c.code_unit_id)
-            )
+            for conflict in sorted(conflicts, key=lambda c: (c.kind, c.code_unit_id))
         ],
         "quarantined_records": {
             "candidates": quarantined(candidates),

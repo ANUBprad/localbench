@@ -80,9 +80,7 @@ class TestRetryPolicyIsRetryable:
     def test_constraint_violation_is_retryable(self):
         """ConstraintViolationError is retryable by default."""
         policy = RetryPolicy()
-        assert policy.is_retryable(
-            ConstraintViolationError("x", "too small")
-        ) is True
+        assert policy.is_retryable(ConstraintViolationError("x", "too small")) is True
 
     def test_custom_policy_restricts_retryable(self):
         """Only listed failures are retryable."""

@@ -25,9 +25,7 @@ SymbolType = Literal["function", "method"]
 Language = Literal["python"]
 """Supported language for v1."""
 
-RelevanceLabel = Literal[
-    "direct_match", "highly_relevant", "related", "not_relevant"
-]
+RelevanceLabel = Literal["direct_match", "highly_relevant", "related", "not_relevant"]
 """Ground-truth relevance categories (§3.4)."""
 
 CreatedBy = Literal["human", "model_generated", "hybrid"]
@@ -119,6 +117,7 @@ class StructuredBehaviorFacts:
     What a caller or end-user would observe (e.g. "moves the terminal
     cursor", "captures standard output/error", "renders a table to the
     console").  Emitted only when the source evidence supports the effect."""
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -233,8 +232,7 @@ class SemanticLabel(BaseModel):
         """At least 2 concepts required (§4.3)."""
         if len(self.concepts) < _MIN_CONCEPTS:
             raise ValueError(
-                f"Concepts has {len(self.concepts)} items, "
-                f"minimum is {_MIN_CONCEPTS}"
+                f"Concepts has {len(self.concepts)} items, minimum is {_MIN_CONCEPTS}"
             )
         return self
 

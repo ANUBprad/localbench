@@ -268,14 +268,9 @@ def _build_code_unit_id(
     pure function of the unit's identity fields and independent of
     extraction order.
     """
-    normalized_path = (
-        file_path.replace("\\", "_").replace("/", "_").replace(".", "_")
-    )
+    normalized_path = file_path.replace("\\", "_").replace("/", "_").replace(".", "_")
     normalized_symbol = symbol_path.replace(".", "_")
-    return (
-        f"{repository}_py_{normalized_path}__{normalized_symbol}_"
-        f"{content_hash[:12]}"
-    )
+    return f"{repository}_py_{normalized_path}__{normalized_symbol}_{content_hash[:12]}"
 
 
 def _hash_source(source_code: str) -> str:

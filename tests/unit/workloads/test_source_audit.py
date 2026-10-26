@@ -10,13 +10,15 @@ from localbench.workloads.code_retrieval.source_audit import (
 
 def review():
     return {
-        "items": [{
-            "candidate_id": "c1",
-            "code_unit_id": "u1",
-            "query": "Find color parser",
-            "target": {"source_code": "def parse(): pass"},
-            "review": {"state": "accepted"},
-        }]
+        "items": [
+            {
+                "candidate_id": "c1",
+                "code_unit_id": "u1",
+                "query": "Find color parser",
+                "target": {"source_code": "def parse(): pass"},
+                "review": {"state": "accepted"},
+            }
+        ]
     }
 
 

@@ -126,9 +126,7 @@ def merge_round_candidates(
     v2_failed = {r["code_unit_id"] for r in v2_failures}
     original = {r["code_unit_id"]: r for r in original_candidates}
 
-    units = sorted(
-        set(original) | set(v2_ok) | set(v3_ok) | v2_failed | v3_failed
-    )
+    units = sorted(set(original) | set(v2_ok) | set(v3_ok) | v2_failed | v3_failed)
     merged: list[dict[str, Any]] = []
     for unit in units:
         if unit in v3_failed:

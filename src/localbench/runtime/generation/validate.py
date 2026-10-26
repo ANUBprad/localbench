@@ -81,12 +81,8 @@ def _classify_validation_error(exc: ValidationError) -> list[StructuredError]:
 
         if code == "missing":
             failures.append(MissingFieldError(field_name))
-        elif code.startswith("type_error") or code.startswith(
-            "int_parsing"
-        ):
-            failures.append(
-                TypeMismatchError(field_name, _expected_type(code), msg)
-            )
+        elif code.startswith("type_error") or code.startswith("int_parsing"):
+            failures.append(TypeMismatchError(field_name, _expected_type(code), msg))
         else:
             failures.append(ConstraintViolationError(field_name, msg))
     return failures

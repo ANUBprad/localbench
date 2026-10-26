@@ -410,9 +410,7 @@ def _generate_one(
     """Generate one candidate record (thread-safe: no shared mutation)."""
     unit_id = _unit_id(unit)
     result = generator.generate(unit)
-    return _build_record(
-        unit_id, result, datetime.now(timezone.utc).isoformat()
-    )
+    return _build_record(unit_id, result, datetime.now(timezone.utc).isoformat())
 
 
 def generate_all(
@@ -448,8 +446,7 @@ def generate_all(
     pending = filter_pending(test_units, completed)
     total = len(test_units)
     logger.info(
-        "Checkpoint: %d completed (%d success / %d failed), "
-        "%d remaining of %d",
+        "Checkpoint: %d completed (%d success / %d failed), %d remaining of %d",
         len(completed),
         len(resumed_success),
         len(resumed_failed),
@@ -482,16 +479,13 @@ def generate_all(
         )
         try:
             futures = {
-                pool.submit(_generate_one, generator, unit): unit
-                for unit in pending
+                pool.submit(_generate_one, generator, unit): unit for unit in pending
             }
             # Completion order may differ from submission order (multi-worker,
             # and ``wait`` returns an unordered set). Define a deterministic
             # logical processing order (submission order) so "consecutive
             # provider failure" semantics are not an artifact of thread timing.
-            futures_order = {
-                future: index for index, future in enumerate(futures)
-            }
+            futures_order = {future: index for index, future in enumerate(futures)}
             outstanding = set(futures)
             aborted = False
             last_progress_at = time.monotonic()
@@ -508,10 +502,7 @@ def generate_all(
                     # completed for a long time, the provider is hung beyond
                     # the per-request deadline — abort rather than wait
                     # indefinitely.
-                    if (
-                        time.monotonic() - last_progress_at
-                        >= STALL_ABORT_SECONDS
-                    ):
+                    if time.monotonic() - last_progress_at >= STALL_ABORT_SECONDS:
                         logger.error(
                             "No completion for %.0f s; assuming a provider "
                             "outage and aborting. All completed records are "
@@ -525,9 +516,7 @@ def generate_all(
                     continue
 
                 last_progress_at = time.monotonic()
-                for future in sorted(
-                    done, key=futures_order.__getitem__
-                ):
+                for future in sorted(done, key=futures_order.__getitem__):
                     record = future.result()
                     record_dict = asdict(record)
                     processed += 1
@@ -547,18 +536,14 @@ def generate_all(
                             record.failure_category,
                             record.failure_reason,
                         )
-                        if (
-                            record.failure_category
-                            in _PROVIDER_FAILURE_CATEGORIES
-                        ):
+                        if record.failure_category in _PROVIDER_FAILURE_CATEGORIES:
                             consecutive_provider_failures += 1
                         else:
                             consecutive_provider_failures = 0
 
                     if (
                         not aborted
-                        and consecutive_provider_failures
-                        >= provider_failure_limit
+                        and consecutive_provider_failures >= provider_failure_limit
                     ):
                         logger.error(
                             "Aborting after %d consecutive provider "
@@ -574,15 +559,11 @@ def generate_all(
 
                     if (
                         index := processed
-                    ) % PROGRESS_LOG_INTERVAL == 0 or processed == len(
-                        pending
-                    ):
+                    ) % PROGRESS_LOG_INTERVAL == 0 or processed == len(pending):
                         elapsed = time.perf_counter() - started
                         rate = index / elapsed if elapsed > 0 else 0.0
                         eta_minutes = (
-                            ((len(pending) - index) / rate / 60)
-                            if rate > 0
-                            else 0.0
+                            ((len(pending) - index) / rate / 60) if rate > 0 else 0.0
                         )
                         logger.info(
                             "[%d/%d] completed=%d ok=%d failed=%d "
@@ -637,8 +618,9 @@ def generate_all(
     logger.info("Attempted (this pass): %d", len(fresh_success) + len(fresh_failed))
     logger.info("Successful candidates: %d", len(successful))
     logger.info("Failed candidates:     %d", len(failed))
-    logger.info("Total attempts:        %d",
-                sum(r["attempt_count"] for r in all_records))
+    logger.info(
+        "Total attempts:        %d", sum(r["attempt_count"] for r in all_records)
+    )
     logger.info("Wall clock (this pass): %.1f s", wall_clock)
     return exit_code
 
@@ -666,15 +648,12 @@ def build_metadata(
         if r["failure_category"] in _VALIDATION_ERROR_CATEGORIES.values()
     )
     provider_failures = sum(
-        1
-        for r in failed
-        if r["failure_category"] in _PROVIDER_FAILURE_CATEGORIES
+        1 for r in failed if r["failure_category"] in _PROVIDER_FAILURE_CATEGORIES
     )
     retry_exhausted = sum(
         1
         for r in failed
-        if r["attempt_count"] >= MAX_ATTEMPTS
-        and r["failure_category"] != "leakage"
+        if r["attempt_count"] >= MAX_ATTEMPTS and r["failure_category"] != "leakage"
     )
     avg_gen_ms = (
         sum(r["generation_ms"] for r in successful) / len(successful)
@@ -809,9 +788,7 @@ def main(argv: list[str] | None = None) -> int:
                     artifact = args.output_dir / filename
                     if artifact.exists():
                         artifact.unlink()
-                        logger.warning(
-                            "Deleted existing artifact %s", artifact
-                        )
+                        logger.warning("Deleted existing artifact %s", artifact)
 
             return generate_all(
                 test_units=test_units,

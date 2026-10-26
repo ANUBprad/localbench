@@ -31,11 +31,13 @@ class StrictArtifact(BaseModel):
 class TestValidOutput:
     def test_valid_json_passes(self):
         """Valid JSON matching schema returns valid result."""
-        raw = json.dumps({
-            "description": "A retry mechanism.",
-            "concepts": ["retry", "backoff"],
-            "confidence": 0.9,
-        })
+        raw = json.dumps(
+            {
+                "description": "A retry mechanism.",
+                "concepts": ["retry", "backoff"],
+                "confidence": 0.9,
+            }
+        )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is True
         assert result.data.description == "A retry mechanism."
@@ -45,10 +47,10 @@ class TestValidOutput:
     def test_valid_fenced_json_passes(self):
         """Fenced JSON is extracted and validated."""
         raw = (
-            '```json\n'
+            "```json\n"
             '{"description": "Test.", "concepts": ["a"], '
             '"confidence": 0.5}\n'
-            '```'
+            "```"
         )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is True
@@ -101,50 +103,52 @@ class TestValidationErrors:
 
     def test_wrong_type_returns_error(self):
         """Wrong field type produces TypeMismatch or ConstraintViolation."""
-        raw = json.dumps({
-            "description": "OK",
-            "concepts": ["a"],
-            "confidence": "not_a_number",
-        })
+        raw = json.dumps(
+            {
+                "description": "OK",
+                "concepts": ["a"],
+                "confidence": "not_a_number",
+            }
+        )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is False
         assert len(result.errors) >= 1
 
     def test_constraint_violation_below_min(self):
         """Value below minimum produces ConstraintViolationError."""
-        raw = json.dumps({
-            "description": "OK",
-            "concepts": ["a"],
-            "confidence": -0.5,
-        })
+        raw = json.dumps(
+            {
+                "description": "OK",
+                "concepts": ["a"],
+                "confidence": -0.5,
+            }
+        )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is False
-        assert any(
-            isinstance(e, ConstraintViolationError)
-            for e in result.errors
-        )
+        assert any(isinstance(e, ConstraintViolationError) for e in result.errors)
 
     def test_constraint_violation_above_max(self):
         """Value above maximum produces ConstraintViolationError."""
-        raw = json.dumps({
-            "description": "OK",
-            "concepts": ["a"],
-            "confidence": 1.5,
-        })
+        raw = json.dumps(
+            {
+                "description": "OK",
+                "concepts": ["a"],
+                "confidence": 1.5,
+            }
+        )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is False
-        assert any(
-            isinstance(e, ConstraintViolationError)
-            for e in result.errors
-        )
+        assert any(isinstance(e, ConstraintViolationError) for e in result.errors)
 
     def test_empty_list_violates_min_length(self):
         """Empty list violates min_length constraint."""
-        raw = json.dumps({
-            "description": "OK",
-            "concepts": [],
-            "confidence": 0.5,
-        })
+        raw = json.dumps(
+            {
+                "description": "OK",
+                "concepts": [],
+                "confidence": 0.5,
+            }
+        )
         result = validate_structured(raw, SampleArtifact)
         assert result.valid is False
 

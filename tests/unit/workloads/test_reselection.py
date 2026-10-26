@@ -173,9 +173,7 @@ class TestPoolBuildingWithV2:
 class TestSelectionDeterminism:
     def test_same_pool_same_selection(self) -> None:
         test_ids = {f"unit_{i:03d}" for i in range(50)}
-        candidates = [
-            _make_candidate(f"unit_{i:03d}") for i in range(50)
-        ]
+        candidates = [_make_candidate(f"unit_{i:03d}") for i in range(50)]
         pool = build_eligible_pool(candidates, test_code_unit_ids=test_ids)
         selected_1 = select_final_queries(pool, count=5, seed=42)
         selected_2 = select_final_queries(pool, count=5, seed=42)
@@ -185,9 +183,7 @@ class TestSelectionDeterminism:
 
     def test_pool_hash_deterministic(self) -> None:
         test_ids = {f"unit_{i:03d}" for i in range(50)}
-        candidates = [
-            _make_candidate(f"unit_{i:03d}") for i in range(50)
-        ]
+        candidates = [_make_candidate(f"unit_{i:03d}") for i in range(50)]
         pool = build_eligible_pool(candidates, test_code_unit_ids=test_ids)
         hash_1 = pool_hash(pool)
         hash_2 = pool_hash(pool)

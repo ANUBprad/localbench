@@ -11,14 +11,13 @@ from localbench.workloads.code_retrieval.ground_truth_export import export_from_
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--review", type=Path,
+        "--review",
+        type=Path,
         default=Path("dataset/queries/review_artifact.json"),
     )
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--audit", type=Path, required=True)
-    parser.add_argument(
-        "--units", type=Path, default=Path("dataset/splits/test.jsonl")
-    )
+    parser.add_argument("--units", type=Path, default=Path("dataset/splits/test.jsonl"))
     parser.add_argument(
         "--output", type=Path, default=Path("reports/adjudicated_queries.jsonl")
     )

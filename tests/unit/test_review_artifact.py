@@ -57,6 +57,7 @@ def candidates_by_id() -> dict[str, dict]:
             by_id[candidate_id] = candidate
     return by_id
 
+
 @pytest.fixture(scope="module")
 def test_units() -> list[dict]:
     return _load_jsonl(TEST_SPLIT_PATH)

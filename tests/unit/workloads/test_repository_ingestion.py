@@ -48,36 +48,64 @@ def local_git_repo(tmp_path: Path) -> Path:
     (work / "hello.py").write_text("def greet():\n    return 'hello'\n")
     subprocess.run(["git", "add", "."], cwd=work, check=True, capture_output=True)
     subprocess.run(
-        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test",
-         "commit", "-m", "initial"],
-        cwd=work, check=True, capture_output=True,
+        [
+            "git",
+            "-c",
+            "user.email=test@test.com",
+            "-c",
+            "user.name=Test",
+            "commit",
+            "-m",
+            "initial",
+        ],
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "push", "origin", "main"],
-        cwd=work, check=True, capture_output=True,
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
 
     # Tag v1.0
     subprocess.run(
         ["git", "tag", "v1.0"],
-        cwd=work, check=True, capture_output=True,
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "push", "origin", "v1.0"],
-        cwd=work, check=True, capture_output=True,
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
 
     # Commit 2
     (work / "hello.py").write_text("def greet():\n    return 'hello world'\n")
     subprocess.run(["git", "add", "."], cwd=work, check=True, capture_output=True)
     subprocess.run(
-        ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test",
-         "commit", "-m", "update greeting"],
-        cwd=work, check=True, capture_output=True,
+        [
+            "git",
+            "-c",
+            "user.email=test@test.com",
+            "-c",
+            "user.name=Test",
+            "commit",
+            "-m",
+            "update greeting",
+        ],
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "push", "origin", "main"],
-        cwd=work, check=True, capture_output=True,
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
 
     return bare
@@ -87,7 +115,10 @@ def _commit_sha(bare: Path, ref: str) -> str:
     """Get the full SHA for a ref in a bare repo."""
     result = subprocess.run(
         ["git", "rev-parse", "--verify", ref],
-        cwd=bare, capture_output=True, text=True, check=True,
+        cwd=bare,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return result.stdout.strip()
 
@@ -127,9 +158,7 @@ class TestRepositorySource:
 
 
 class TestGitRepositoryAcquire:
-    def test_acquire_returns_snapshot(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_acquire_returns_snapshot(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         src = RepositorySource(
             id="repo001",
@@ -145,9 +174,7 @@ class TestGitRepositoryAcquire:
         assert snap.reference == "main"
         assert Path(snap.local_path).is_dir()
 
-    def test_acquire_with_tag(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_acquire_with_tag(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         src = RepositorySource(
             id="repo002",
@@ -183,9 +210,7 @@ class TestGitRepositoryAcquire:
 
         assert snap.commit == commit
 
-    def test_acquire_with_explicit_sha(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_acquire_with_explicit_sha(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         sha = _commit_sha(local_git_repo, "v1.0")
         src = RepositorySource(
@@ -197,18 +222,14 @@ class TestGitRepositoryAcquire:
         snap = repo.acquire()
         assert snap.commit == sha
 
-    def test_acquire_creates_workspace(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_acquire_creates_workspace(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "deep" / "nested" / "ws"
         src = RepositorySource(id="r", url=str(local_git_repo))
         repo = GitRepository(src, workspace=workspace)
         repo.acquire()
         assert workspace.is_dir()
 
-    def test_content_hash_is_deterministic(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_content_hash_is_deterministic(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         src = RepositorySource(id="r", url=str(local_git_repo))
         repo = GitRepository(src, workspace=workspace)
@@ -217,9 +238,7 @@ class TestGitRepositoryAcquire:
         snap2 = repo.acquire()
         assert snap1.content_hash == snap2.content_hash
 
-    def test_existing_clone_fetches(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_existing_clone_fetches(self, local_git_repo: Path, tmp_path: Path):
         workspace = tmp_path / "ws"
         src = RepositorySource(id="r", url=str(local_git_repo))
         repo = GitRepository(src, workspace=workspace)
@@ -245,9 +264,7 @@ class TestGitRepositoryFailures:
         with pytest.raises(CloneFailedError):
             repo.acquire()
 
-    def test_invalid_revision(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_invalid_revision(self, local_git_repo: Path, tmp_path: Path):
         src = RepositorySource(
             id="r",
             url=str(local_git_repo),
@@ -258,9 +275,7 @@ class TestGitRepositoryFailures:
             repo.acquire()
         assert exc_info.value.revision == "nonexistent-tag"
 
-    def test_workspace_creation_failure(
-        self, local_git_repo: Path, tmp_path: Path
-    ):
+    def test_workspace_creation_failure(self, local_git_repo: Path, tmp_path: Path):
         # Create a file where the workspace directory should be
         blocked = tmp_path / "blocked"
         blocked.write_text("not a directory")

@@ -174,9 +174,7 @@ class TestBuildQueryGenerationPrompt:
         assert "query_intent" in prompt
 
     def test_function_symbol_type(self) -> None:
-        prompt = build_query_generation_prompt(
-            _make_input(symbol_type="function")
-        )
+        prompt = build_query_generation_prompt(_make_input(symbol_type="function"))
         assert "function" in prompt
 
     def test_no_docstring(self) -> None:
@@ -315,12 +313,8 @@ class TestBuildQueryGenerationPromptV2:
 
     def test_v2_deterministic(self) -> None:
         facts = _make_facts()
-        p1 = build_query_generation_prompt_v2(
-            facts, source_code="def foo():\n    pass"
-        )
-        p2 = build_query_generation_prompt_v2(
-            facts, source_code="def foo():\n    pass"
-        )
+        p1 = build_query_generation_prompt_v2(facts, source_code="def foo():\n    pass")
+        p2 = build_query_generation_prompt_v2(facts, source_code="def foo():\n    pass")
         assert p1 == p2
 
     def test_v2_no_docstring_keyword(self) -> None:
@@ -357,9 +351,7 @@ class TestQueryPromptDomainBlocks:
             facts, source_code="def foo():\n    pass", symbol_type="function"
         )
         assert "Domain concepts: terminal/console rendering, progress display" in prompt
-        assert (
-            "Observable effects: renders a table of items to the console" in prompt
-        )
+        assert "Observable effects: renders a table of items to the console" in prompt
 
     def test_v2_empty_domain_blocks_omitted(self) -> None:
         facts = _make_facts()

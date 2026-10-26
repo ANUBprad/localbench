@@ -35,8 +35,8 @@ _SYSTEM_PROMPT = (
     "- input_types: list of strings (parameter descriptions)\n"
     "- output_type: string (return type description)\n"
     "- side_effects: list of strings (state modifications)\n"
-    "- created_by: always \"model_generated\"\n"
-    "- label_version: always \"1.0.0\"\n"
+    '- created_by: always "model_generated"\n'
+    '- label_version: always "1.0.0"\n'
     "\n"
     "Output ONLY valid JSON.  No markdown fences, no commentary."
 )

@@ -73,13 +73,13 @@ _SYSTEM_PROMPT = (
     "\n"
     "Output ONLY valid JSON with these fields:\n"
     "- query: string (the natural language retrieval query)\n"
-    "- query_style: EXACTLY one of the four literals \"natural\", \"technical\", "
-    "\"verbose\", or \"concise\". Use one of those four exact lowercase strings "
+    '- query_style: EXACTLY one of the four literals "natural", "technical", '
+    '"verbose", or "concise". Use one of those four exact lowercase strings '
     "only; never invent or paraphrase a style label (e.g. do not return "
-    "\"Descriptive\", \"Expository\", or \"Natural Language\").\n"
-    "- query_intent: a short descriptor like \"find_implementation\", "
-    "\"find_error_handling\", \"find_optimization\", \"understand_behavior\", "
-    "\"find_usage\"\n"
+    '"Descriptive", "Expository", or "Natural Language").\n'
+    '- query_intent: a short descriptor like "find_implementation", '
+    '"find_error_handling", "find_optimization", "understand_behavior", '
+    '"find_usage"\n'
     "\n"
     "No markdown fences, no commentary, no trailing period after the JSON."
 )
@@ -112,7 +112,7 @@ _USER_TEMPLATE_V2 = (
     "behavior and effects, not just the general area of work).\n"
     "\n"
     "Return a JSON object with: query, and query_style exactly one of "
-    "\"natural\", \"technical\", \"verbose\", \"concise\", and query_intent."
+    '"natural", "technical", "verbose", "concise", and query_intent.'
 )
 
 # ---------------------------------------------------------------------------
@@ -228,15 +228,11 @@ def build_query_generation_prompt_v2(
     A string prompt ready to send to a ``LocalModel``.
     """
     side_effects_block = _build_list_block("Side effects", facts.side_effects)
-    error_handling_block = _build_behavior_block(
-        "Error handling", facts.error_handling
-    )
+    error_handling_block = _build_behavior_block("Error handling", facts.error_handling)
     control_flow_block = _build_behavior_block("Control flow", facts.control_flow)
     key_operations_block = _build_list_block("Key operations", facts.key_operations)
     raises_block = _build_list_block("Raises", facts.raises)
-    domain_concepts_block = _build_list_block(
-        "Domain concepts", facts.domain_concepts
-    )
+    domain_concepts_block = _build_list_block("Domain concepts", facts.domain_concepts)
     observable_effects_block = _build_list_block(
         "Observable effects", facts.observable_effects
     )

@@ -3,6 +3,7 @@
 The encoder is responsible for producing vectors; this module never downloads
 models, accesses relevance labels, or sends source code to a remote service.
 """
+
 from __future__ import annotations
 
 import math
@@ -29,8 +30,10 @@ class DenseIndex:
     def __init__(self, documents: Mapping[str, str], encoder: Encoder):
         if not documents:
             raise ValueError("At least one document is required")
-        if any(not isinstance(key, str) or not key or not isinstance(value, str)
-               for key, value in documents.items()):
+        if any(
+            not isinstance(key, str) or not key or not isinstance(value, str)
+            for key, value in documents.items()
+        ):
             raise ValueError("Documents require nonempty string IDs and text")
         self._encoder = encoder
         self._ids = sorted(documents)

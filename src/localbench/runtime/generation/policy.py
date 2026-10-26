@@ -43,9 +43,7 @@ class RetryPolicy:
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
-            raise ValueError(
-                f"max_attempts must be >= 1, got {self.max_attempts}"
-            )
+            raise ValueError(f"max_attempts must be >= 1, got {self.max_attempts}")
 
     def is_retryable(self, error: StructuredError) -> bool:
         """Return True if *error* should trigger a retry."""

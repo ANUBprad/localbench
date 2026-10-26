@@ -38,7 +38,7 @@ def main(
         help="Show version and exit.",
         callback=version_callback,
         is_eager=True,
-    )
+    ),
 ) -> None:
     """LocalBench CLI: benchmarking and model-selection platform."""
 
@@ -110,12 +110,8 @@ def models() -> None:
 
 @app.command()
 def ask(
-    model: str = typer.Option(
-        ..., "--model", "-m", help="Model to use."
-    ),
-    prompt: str = typer.Argument(
-        ..., help="The prompt to send."
-    ),
+    model: str = typer.Option(..., "--model", "-m", help="Model to use."),
+    prompt: str = typer.Argument(..., help="The prompt to send."),
 ) -> None:
     """Send a prompt to a local model and display the response."""
     try:

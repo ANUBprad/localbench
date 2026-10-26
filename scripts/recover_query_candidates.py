@@ -155,27 +155,18 @@ def recover(
             len(plan.candidates),
             len(plan.failures),
         )
-        report_payload = build_conflict_report(
-            plan.conflicts, candidates, failures
-        )
+        report_payload = build_conflict_report(plan.conflicts, candidates, failures)
 
     new_candidates = serialize_records(plan.candidates)
     new_failures = serialize_records(plan.failures)
 
     current_candidates = (
-        candidates_path.read_text(encoding="utf-8")
-        if candidates_path.exists()
-        else ""
+        candidates_path.read_text(encoding="utf-8") if candidates_path.exists() else ""
     )
     current_failures = (
-        failures_path.read_text(encoding="utf-8")
-        if failures_path.exists()
-        else ""
+        failures_path.read_text(encoding="utf-8") if failures_path.exists() else ""
     )
-    if (
-        new_candidates == current_candidates
-        and new_failures == current_failures
-    ):
+    if new_candidates == current_candidates and new_failures == current_failures:
         logger.info(
             "Artifacts are already recovered (%d candidates / %d "
             "failures); nothing to do.",
@@ -185,8 +176,7 @@ def recover(
         return EXIT_OK
 
     logger.info(
-        "Plan: %d canonical candidates, %d canonical failures, "
-        "%d superseded records",
+        "Plan: %d canonical candidates, %d canonical failures, %d superseded records",
         len(plan.candidates),
         len(plan.failures),
         len(plan.superseded),

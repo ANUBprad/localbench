@@ -13,13 +13,10 @@ from localbench.runtime.model import GenerationRequest, ModelInfo
 from localbench.workloads.code_retrieval.extraction import ExtractedCodeUnit
 from localbench.workloads.code_retrieval.query_generator import (
     LeakageCheckResult,
-    ProvenanceCheckResult,
     QueryGenerationResult,
     QueryGenerator,
     _extract_identifier_parts,
     _extract_param_names,
-    _extract_sphinx_ref_names,
-    _extract_docstring_content,
     _make_identifier_pattern,
     check_meta_query,
     check_query_leakage,
@@ -136,9 +133,7 @@ class TestLeakageCheckResult:
         assert result.violations == []
 
     def test_failed_fields(self) -> None:
-        result = LeakageCheckResult(
-            passed=False, violations=["leaked path"]
-        )
+        result = LeakageCheckResult(passed=False, violations=["leaked path"])
         assert result.passed is False
         assert len(result.violations) == 1
 
@@ -159,55 +154,41 @@ class TestCheckQueryLeakage:
 
     def test_file_extension_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Find the retry logic in processor.py", unit
-        )
+        result = check_query_leakage("Find the retry logic in processor.py", unit)
         assert result.passed is False
         assert any(".py" in v for v in result.violations)
 
     def test_github_url_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Check github.com for the retry function", unit
-        )
+        result = check_query_leakage("Check github.com for the retry function", unit)
         assert result.passed is False
 
     def test_repository_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Find the function in repo001", unit
-        )
+        result = check_query_leakage("Find the function in repo001", unit)
         assert result.passed is False
         assert any("repo001" in v for v in result.violations)
 
     def test_file_path_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Find the function at payment/processor.py", unit
-        )
+        result = check_query_leakage("Find the function at payment/processor.py", unit)
         assert result.passed is False
         assert any("payment/processor.py" in v for v in result.violations)
 
     def test_symbol_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Find PaymentProcessor.process_retry", unit
-        )
+        result = check_query_leakage("Find PaymentProcessor.process_retry", unit)
         assert result.passed is False
         assert any("PaymentProcessor.process_retry" in v for v in result.violations)
 
     def test_java_extension_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Find the handler in MyClass.java", unit
-        )
+        result = check_query_leakage("Find the handler in MyClass.java", unit)
         assert result.passed is False
 
     def test_gitlab_detected(self) -> None:
         unit = _make_code_unit()
-        result = check_query_leakage(
-            "Check gitlab.com for the function", unit
-        )
+        result = check_query_leakage("Check gitlab.com for the function", unit)
         assert result.passed is False
 
     # ----------------------------------------------------------------
@@ -230,9 +211,7 @@ class TestCheckQueryLeakage:
             symbol="PromptBase.render_default",
             context=CodeUnitContext(class_name="PromptBase"),
         )
-        result = check_query_leakage(
-            "How does the render_default method work?", unit
-        )
+        result = check_query_leakage("How does the render_default method work?", unit)
         assert result.passed is False
         assert any("render_default" in v for v in result.violations)
 
@@ -305,9 +284,7 @@ class TestCheckQueryLeakage:
             context=CodeUnitContext(),
             source_code="def bar(self, ok, id):\n    pass\n",
         )
-        result = check_query_leakage(
-            "Is the operation ok to proceed?", unit
-        )
+        result = check_query_leakage("Is the operation ok to proceed?", unit)
         assert result.passed is True
 
     def test_context_class_name_checked(self) -> None:
@@ -359,10 +336,7 @@ class TestCheckQueryLeakage:
                 "Return an initialized :class:`~pytest.Config`, "
                 "parsing the specified args."
             ),
-            source_code=(
-                "def pytest_cmdline_parse(pluginmanager, args):\n"
-                "    pass\n"
-            ),
+            source_code=("def pytest_cmdline_parse(pluginmanager, args):\n    pass\n"),
         )
         result = check_query_leakage(
             "Parse command line arguments and return a config object.",
@@ -422,8 +396,7 @@ class TestCheckQueryLeakage:
                 "asserts that all tests passed."
             ),
             source_code=(
-                "def test_scope_module_uses_session(self, pytester):\n"
-                "    pass\n"
+                "def test_scope_module_uses_session(self, pytester):\n    pass\n"
             ),
         )
         result = check_query_leakage(
@@ -445,8 +418,7 @@ class TestCheckQueryLeakage:
                 "yields the same value as request.param."
             ),
             source_code=(
-                "def test_funcarg(self, pytester, scope, ok, error):\n"
-                "    pass\n"
+                "def test_funcarg(self, pytester, scope, ok, error):\n    pass\n"
             ),
         )
         result = check_query_leakage(
@@ -484,10 +456,7 @@ class TestCheckQueryLeakage:
                 ":attr:`path`. This is undone automatically when this "
                 "object dies at the end of each test."
             ),
-            source_code=(
-                "def syspathinsert(self, path=None):\n"
-                "    pass\n"
-            ),
+            source_code=("def syspathinsert(self, path=None):\n    pass\n"),
         )
         result = check_query_leakage(
             "Prepend a directory to sys.path, defaults to :attr:`path`. "
@@ -562,9 +531,7 @@ class TestLeakageHardeningRegression:
             unit,
         )
         assert result.passed is False
-        assert any(
-            "sibling method name" in v for v in result.violations
-        )
+        assert any("sibling method name" in v for v in result.violations)
 
     def test_underscored_sibling_leak_detected(self) -> None:
         unit = _make_code_unit(
@@ -584,9 +551,7 @@ class TestLeakageHardeningRegression:
             unit,
         )
         assert result.passed is False
-        assert any(
-            "sibling method name" in v for v in result.violations
-        )
+        assert any("sibling method name" in v for v in result.violations)
 
     def test_camelcase_sibling_leak_detected(self) -> None:
         unit = _make_code_unit(
@@ -602,9 +567,7 @@ class TestLeakageHardeningRegression:
             unit,
         )
         assert result.passed is False
-        assert any(
-            "sibling method name" in v for v in result.violations
-        )
+        assert any("sibling method name" in v for v in result.violations)
 
     def test_dunder_sibling_leak_detected(self) -> None:
         unit = _make_code_unit(
@@ -674,8 +637,7 @@ class TestLeakageHardeningRegression:
             symbol="auto",
             context=CodeUnitContext(class_name="Auto"),
             source_code=(
-                "def auto(rich=None):\n"
-                "    raise ReprError('cannot build repr')\n"
+                "def auto(rich=None):\n    raise ReprError('cannot build repr')\n"
             ),
         )
         result = check_query_leakage(
@@ -690,8 +652,7 @@ class TestLeakageHardeningRegression:
             symbol="auto",
             context=CodeUnitContext(class_name="Auto"),
             source_code=(
-                "def auto(rich=None):\n"
-                "    raise RuntimeError('cannot build repr')\n"
+                "def auto(rich=None):\n    raise RuntimeError('cannot build repr')\n"
             ),
         )
         result = check_query_leakage(
@@ -1222,9 +1183,7 @@ class TestCheckQueryProvenance:
         assert result.passed is False
 
     def test_empty_docstring_passes(self) -> None:
-        result = check_query_provenance(
-            "find a retry function", ""
-        )
+        result = check_query_provenance("find a retry function", "")
         assert result.passed is True
 
     def test_no_false_positive_on_legitimate_similarity(self) -> None:
@@ -1271,9 +1230,9 @@ class TestCheckMetaQuery:
         assert check_meta_query("As an AI, I cannot ...") is True
 
     def test_legitimate_query_not_flagged(self) -> None:
-        assert check_meta_query(
-            "find code that handles retry logic with backoff"
-        ) is False
+        assert (
+            check_meta_query("find code that handles retry logic with backoff") is False
+        )
 
 
 # ===========================================================================
@@ -1299,7 +1258,7 @@ class TestDocstringProvenanceLeakage:
         prompt = build_query_generation_prompt_v2(
             facts,
             source_code=(
-                'def process_retry(self, tid):\n'
+                "def process_retry(self, tid):\n"
                 '    """THIS_UNIQUE_SENTENCE_DO_NOT_PARAPHRASE."""\n'
                 "    pass\n"
             ),

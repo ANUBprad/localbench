@@ -15,8 +15,7 @@ class OllamaUnavailableError(OllamaError):
     def __init__(self, message: str | None = None) -> None:
         super().__init__(
             message
-            or "Ollama is not running or not reachable. "
-            "Start Ollama with: ollama serve"
+            or "Ollama is not running or not reachable. Start Ollama with: ollama serve"
         )
 
 
@@ -25,8 +24,7 @@ class ModelNotFoundError(OllamaError):
 
     def __init__(self, model: str) -> None:
         super().__init__(
-            f"Model '{model}' is not installed. "
-            f"Pull it with: ollama pull {model}"
+            f"Model '{model}' is not installed. Pull it with: ollama pull {model}"
         )
         self.model = model
 

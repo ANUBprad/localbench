@@ -145,6 +145,7 @@ def compute_manifest_hash() -> str:
     canonical = json.dumps(REPOSITORIES, sort_keys=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
+
 # Generation config (frozen)
 MODEL_NAME = "qwen2.5-coder:7b"
 MODEL_VERSION = "7b"
@@ -392,9 +393,7 @@ def generate_candidates(
     """
     adapter = OllamaAdapter(model_name=MODEL_NAME)
     policy = RetryPolicy(max_attempts=3)
-    generator = QueryGenerator(
-        model=adapter, policy=policy, top_p=TOP_P, seed=SEED
-    )
+    generator = QueryGenerator(model=adapter, policy=policy, top_p=TOP_P, seed=SEED)
 
     successful: list[CandidateRecord] = []
     failed: list[CandidateRecord] = []
@@ -626,9 +625,7 @@ def main() -> None:
         "total_code_units": len(test_units),
         "successful_candidates": len(successful),
         "failed_candidates": len(failed),
-        "leakage_failures": sum(
-            1 for r in successful if not r.leakage_passed
-        ),
+        "leakage_failures": sum(1 for r in successful if not r.leakage_passed),
     }
     with open(queries_dir / "generation_metadata.json", "w", encoding="utf-8") as f:
         json.dump(gen_metadata, f, indent=2)

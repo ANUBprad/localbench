@@ -40,7 +40,7 @@ def render_report(zephyr_payload):
     return "\\n".join(kept)
 '''
 
-PYTHON_CACHE = '''\
+PYTHON_CACHE = """\
 def zephyr_lookup(quartz_key, quartz_source):
     if quartz_source.get(quartz_key) is not None:
         return quartz_source[quartz_key]
@@ -50,9 +50,9 @@ def zephyr_lookup(quartz_key, quartz_source):
     computed = zephyr_transform(quartz_key)
     quartz_source[quartz_key] = computed
     return computed
-'''
+"""
 
-JAVA_CACHE = '''\
+JAVA_CACHE = """\
 public class Vault {
     private final Map<String, String> reservoir = new HashMap<>();
 
@@ -65,9 +65,9 @@ public class Vault {
         return emberValue;
     }
 }
-'''
+"""
 
-GO_MANIFEST = '''\
+GO_MANIFEST = """\
 package ledger
 
 func ingest(beaconPath string) ([]Beacon, error) {
@@ -84,9 +84,9 @@ func ingest(beaconPath string) ([]Beacon, error) {
     }
     return gathered, nil
 }
-'''
+"""
 
-RUST_TOTAL = '''\
+RUST_TOTAL = """\
 fn tally(cobalt_items: &[i32], cobalt_done: i32) -> Result<i32, String> {
     let cobalt_sum: i32 = cobalt_items.iter().sum();
     if cobalt_sum < 0 {
@@ -94,9 +94,9 @@ fn tally(cobalt_items: &[i32], cobalt_done: i32) -> Result<i32, String> {
     }
     Ok(cobalt_sum - cobalt_done)
 }
-'''
+"""
 
-JAVASCRIPT_PULL = '''\
+JAVASCRIPT_PULL = """\
 async function hydrate(nimbusUrl) {
     const nimbusReply = await fetch(nimbusUrl);
     if (!nimbusReply.ok) {
@@ -105,13 +105,13 @@ async function hydrate(nimbusUrl) {
     const nimbusBody = await nimbusReply.json();
     return nimbusBody.items.map(nimbusRow => nimbusRow.name.trim());
 }
-'''
+"""
 
-TRIVIAL_PYTHON = '''\
+TRIVIAL_PYTHON = """\
 def ordinality(nimbus_counter):
     nimbus_counter = nimbus_counter + 1
     return nimbus_counter
-'''
+"""
 
 #: Author-chosen names that collide with the vocabulary the classifiers used
 #: to read out of source text.  Each one produced a real leak: a local named
@@ -119,7 +119,7 @@ def ordinality(nimbus_counter):
 #: the builtin, and a parameter named ``url`` was matched against the ``url``
 #: in ``self.url``.  Renaming any of them used to change the IR.
 ADVERSARIAL: dict[str, str] = {
-    "python": '''\
+    "python": """\
 def gather(zephyr_items):
     match = zephyr_items
     if match is None:
@@ -132,8 +132,8 @@ def gather(zephyr_items):
     if not kept:
         error = "empty"
     return kept
-''',
-    "java": '''\
+""",
+    "java": """\
 public class Ledger {
     public List<String> gather(List<String> items) {
         int length = items.size();
@@ -143,8 +143,8 @@ public class Ledger {
         return items;
     }
 }
-''',
-    "go": '''\
+""",
+    "go": """\
 package ledger
 
 func gather(items []string) ([]string, error) {
@@ -154,8 +154,8 @@ func gather(items []string) ([]string, error) {
 \t}
 \treturn items, nil
 }
-''',
-    "rust": '''\
+""",
+    "rust": """\
 fn gather(items: &[String]) -> usize {
     let length = items.len();
     if length == 0 {
@@ -163,8 +163,8 @@ fn gather(items: &[String]) -> usize {
     }
     items.len()
 }
-''',
-    "javascript": '''\
+""",
+    "javascript": """\
 function gather(items) {
     const length = items.length;
     if (length === 0) {
@@ -173,7 +173,7 @@ function gather(items) {
     const error = null;
     return items.filter((item) => item.length > 0);
 }
-''',
+""",
 }
 
 
@@ -201,7 +201,11 @@ _all_phrases = semantic_ir_experiment._all_phrases
 class TestCrossLanguageParsing:
     def test_pilot_covers_exactly_five_languages(self) -> None:
         assert set(SUPPORTED_LANGUAGES) == {
-            "python", "java", "go", "rust", "javascript",
+            "python",
+            "java",
+            "go",
+            "rust",
+            "javascript",
         }
 
     @pytest.mark.parametrize("language", sorted(FIXTURES))
@@ -270,10 +274,7 @@ class TestIdentifierSanitization:
         assert "splitlines" not in _all_phrases(ir)
 
     def test_json_api_becomes_a_parse_semantic(self) -> None:
-        source = (
-            "def nimbus_load(nimbus_blob):\n"
-            "    return json.loads(nimbus_blob)\n"
-        )
+        source = "def nimbus_load(nimbus_blob):\n    return json.loads(nimbus_blob)\n"
         ir = _ir(source, "python")
         assert "JSON parsing" in ir.domain_signals
         assert "parses JSON data" in ir.transformations
@@ -311,9 +312,9 @@ class TestIdentifierSanitization:
         )
         assert semantic_ir_experiment._phrase_leak(leaked, source) is not None
         # The real extractor never produces that phrase for this source.
-        assert semantic_ir_experiment._phrase_leak(
-            _ir(source, "python"), source
-        ) is None
+        assert (
+            semantic_ir_experiment._phrase_leak(_ir(source, "python"), source) is None
+        )
 
 
 class TestAdversarialAuthorNames:
@@ -340,24 +341,26 @@ class TestAdversarialAuthorNames:
         assert "branches on a type or kind of value" not in ir.conditions
 
     def test_locally_defined_filter_is_not_the_builtin(self) -> None:
-        source = '''\
+        source = """\
 def screen(zephyr_items):
     def filter(rows):
         return [row for row in rows if row]
 
     return filter(zephyr_items)
-'''
+"""
         ir = _ir(source, "python")
-        assert "keeps only the items of a collection that match a predicate" \
+        assert (
+            "keeps only the items of a collection that match a predicate"
             not in ir.transformations
+        )
         assert_identifier_free(ir, source, "python")
 
     def test_member_named_url_does_not_credit_a_url_parameter(self) -> None:
-        source = '''\
+        source = """\
 class Session:
     def hydrate(self, url):
         return load(self.url)
-'''
+"""
         ir = _ir(source, "python", unit_kind="method")
         assert "collection input" not in ir.input_roles
         assert_identifier_free(ir, source, "python")
@@ -365,8 +368,7 @@ class Session:
     def test_guard_reports_the_language_and_the_differing_field(self) -> None:
         source = "def nimbus(zephyr_blob):\n    return zephyr_blob.strip()\n"
         ir = _ir(source, "python")
-        tampered = SemanticIR(**{**ir.to_dict(),
-                                  "output_behavior": "a leaked value"})
+        tampered = SemanticIR(**{**ir.to_dict(), "output_behavior": "a leaked value"})
         with pytest.raises(AssertionError) as caught:
             assert_identifier_free(tampered, source, "python")
         message = str(caught.value)
@@ -407,14 +409,11 @@ class TestSemanticAnchors:
     def test_java_cache_lookup_is_detected(self) -> None:
         ir = _ir(JAVA_CACHE, "java")
         assert "caching" in ir.domain_signals
-        assert "checks whether a stored mapping holds a key" in (
-            ir.transformations
-        )
+        assert "checks whether a stored mapping holds a key" in (ir.transformations)
         assert "stores a value under a key in a mapping" in ir.transformations
         assert "previously stored value" in ir.output_behavior
         assert any(
-            "branches on whether a stored entry is present" in c
-            for c in ir.conditions
+            "branches on whether a stored entry is present" in c for c in ir.conditions
         )
 
     def test_go_json_and_iteration_signals(self) -> None:
@@ -451,15 +450,23 @@ class TestSemanticAnchors:
 
 class TestRelations:
     @pytest.mark.parametrize("language", sorted(FIXTURES))
-    def test_every_fixture_yields_at_least_one_linked_relation(
-        self, language
-    ) -> None:
+    def test_every_fixture_yields_at_least_one_linked_relation(self, language) -> None:
         ir = _ir(FIXTURES[language], language)
         assert ir.relations, "no input->transformation->output link found"
         for relation in ir.relations:
-            assert relation.startswith(("textual", "numeric", "collection",
-                                        "mapping", "flag", "opaque", "remote",
-                                        "effectful", "file"))
+            assert relation.startswith(
+                (
+                    "textual",
+                    "numeric",
+                    "collection",
+                    "mapping",
+                    "flag",
+                    "opaque",
+                    "remote",
+                    "effectful",
+                    "file",
+                )
+            )
             assert " -> returns " in relation
 
     def test_chain_preserves_input_transformation_output_order(self) -> None:
@@ -540,10 +547,7 @@ class TestEffectsAndErrors:
         )
 
     def test_logging_is_a_separate_domain_from_console(self) -> None:
-        source = (
-            "def nimbus_note(nimbus_text):\n"
-            "    logging.warning(nimbus_text)\n"
-        )
+        source = "def nimbus_note(nimbus_text):\n    logging.warning(nimbus_text)\n"
         ir = _ir(source, "python")
         assert "logging" in ir.domain_signals
         assert "leaves a diagnostic record in a log" in ir.observable_effects
@@ -610,12 +614,15 @@ class TestInformativeness:
 
 
 class TestRobustness:
-    @pytest.mark.parametrize("broken", [
-        "def nimbus(:\n  return ???\n",
-        "class {{{",
-        "}}}\n)))\n",
-        "",
-    ])
+    @pytest.mark.parametrize(
+        "broken",
+        [
+            "def nimbus(:\n  return ???\n",
+            "class {{{",
+            "}}}\n)))\n",
+            "",
+        ],
+    )
     def test_malformed_source_fails_safely(self, broken) -> None:
         ir = _ir(broken, "python")
         assert isinstance(ir, SemanticIR)

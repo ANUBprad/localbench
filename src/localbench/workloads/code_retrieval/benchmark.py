@@ -44,8 +44,10 @@ def run_comparison(
         raise ValueError("k must be >= 10 for Hit@10 evaluation")
     if set(queries) != set(relevant):
         raise ValueError("Query IDs and relevance IDs must match exactly")
-    if any(not query_id or not isinstance(query, str) or not query.strip()
-           for query_id, query in queries.items()):
+    if any(
+        not query_id or not isinstance(query, str) or not query.strip()
+        for query_id, query in queries.items()
+    ):
         raise ValueError("Queries require nonempty IDs and text")
     if any(not set(gold) <= set(documents) for gold in relevant.values()):
         raise ValueError("Relevance contains CodeUnit IDs outside the corpus")

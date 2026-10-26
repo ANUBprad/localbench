@@ -4,6 +4,7 @@ Usage:
   python -m scripts.run_retrieval_comparison --units corpus.jsonl \\
       --queries labeled_queries.jsonl --output results.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,8 +45,7 @@ def main() -> None:
         relevant[qid] = case["relevant_code_units"]
 
     encoder = (
-        OllamaEmbeddings(args.model, base_url=args.ollama_url)
-        if args.model else None
+        OllamaEmbeddings(args.model, base_url=args.ollama_url) if args.model else None
     )
     results = run_comparison(documents, queries, relevant, encoder=encoder)
     results["provenance"] = {

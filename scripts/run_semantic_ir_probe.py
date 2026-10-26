@@ -60,9 +60,15 @@ def load_sample(split: str, limit: int) -> list[dict]:
 def facts_signal(facts) -> int:
     """How many of the old facts carry something other than a placeholder."""
     values = [
-        facts.primary_purpose, facts.input_summary, facts.output_summary,
-        facts.domain_concepts, facts.observable_effects, facts.side_effects,
-        facts.error_handling, facts.control_flow, facts.key_operations,
+        facts.primary_purpose,
+        facts.input_summary,
+        facts.output_summary,
+        facts.domain_concepts,
+        facts.observable_effects,
+        facts.side_effects,
+        facts.error_handling,
+        facts.control_flow,
+        facts.key_operations,
         facts.raises,
     ]
     count = 0
@@ -134,8 +140,8 @@ def report(records: list[dict], label: str) -> dict:
     for record in records:
         old = record["old"]
         linked = any(
-            old.input_summary not in ("unknown", "") and old.output_summary
-            not in ("unknown", "")
+            old.input_summary not in ("unknown", "")
+            and old.output_summary not in ("unknown", "")
             for _ in (0,)
         )
         totals["old_with_relations"] += int(linked)
@@ -143,14 +149,16 @@ def report(records: list[dict], label: str) -> dict:
     print(f"\n=== {label} " + "=" * (60 - len(label)))
     print(f"  units sampled                {totals['units']}")
     print(f"  Semantic IR parsed cleanly   {totals['parsed']}")
-    print(f"  units with an input->output  {totals['with_relations']}  "
-          f"({_pct(totals['with_relations'], totals['units'])})")
-    print(f"  old facts with both summaries {totals['old_with_relations']}  "
-          f"({_pct(totals['old_with_relations'], totals['units'])})")
-    print(f"  mean old non-placeholder fact count  "
-          f"{totals['old_mean_signal']:.2f}")
-    print(f"  mean Semantic IR anchor count        "
-          f"{totals['anchor_mean']:.2f}")
+    print(
+        f"  units with an input->output  {totals['with_relations']}  "
+        f"({_pct(totals['with_relations'], totals['units'])})"
+    )
+    print(
+        f"  old facts with both summaries {totals['old_with_relations']}  "
+        f"({_pct(totals['old_with_relations'], totals['units'])})"
+    )
+    print(f"  mean old non-placeholder fact count  {totals['old_mean_signal']:.2f}")
+    print(f"  mean Semantic IR anchor count        {totals['anchor_mean']:.2f}")
 
     breakdown_totals: dict[str, int] = {}
     for record in records:
@@ -171,17 +179,20 @@ def show_examples(records: list[dict], count: int) -> None:
     for record in ranked[:count]:
         unit = record["unit"]
         print("\n" + "-" * 72)
-        print(f"  {unit['repository']}  {unit['file_path']}  "
-              f"({unit['symbol_type']})")
+        print(f"  {unit['repository']}  {unit['file_path']}  ({unit['symbol_type']})")
         print(f"  id: {unit['id']}")
-        print(f"  source is {len(unit['source_code'])} chars; "
-              f"the symbol's own name never reaches either representation")
+        print(
+            f"  source is {len(unit['source_code'])} chars; "
+            f"the symbol's own name never reaches either representation"
+        )
         print("\n  StructuredBehaviorFacts (production today):")
         print(render_facts(record["old"]))
         print("\n  Semantic IR (pilot):")
         print(render_ir(record["new"]))
-        print(f"\n  anchors: {record['anchors'].anchor_count}  "
-              f"old non-placeholder facts: {record['old_signal']}")
+        print(
+            f"\n  anchors: {record['anchors'].anchor_count}  "
+            f"old non-placeholder facts: {record['old_signal']}"
+        )
 
 
 def describe_difference(record: dict) -> str:
@@ -195,7 +206,8 @@ def describe_difference(record: dict) -> str:
     language = unit.get("language", "python")
     original = record["new"]
     renamed = build_semantic_ir(
-        rename_identifiers(unit["source_code"], language), language,
+        rename_identifiers(unit["source_code"], language),
+        language,
         original.unit_kind,
     )
     before, after = original.to_dict(), renamed.to_dict()
@@ -233,11 +245,15 @@ def verify_identifiers(records: list[dict]) -> tuple[int, list[str]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--sample", type=int, default=60,
+        "--sample",
+        type=int,
+        default=60,
         help="units per split to examine (default: 60)",
     )
     parser.add_argument(
-        "--show", type=int, default=_SHOW,
+        "--show",
+        type=int,
+        default=_SHOW,
         help="full side-by-side examples to print (default: 3)",
     )
     args = parser.parse_args()
@@ -252,19 +268,24 @@ def main() -> int:
 
     checked, failures = verify_identifiers(all_records)
     print("\n=== provenance guard " + "=" * 45)
-    print(f"  units where the IR is byte-identical under a full rename: "
-          f"{checked}/{len(all_records)}")
+    print(
+        f"  units where the IR is byte-identical under a full rename: "
+        f"{checked}/{len(all_records)}"
+    )
     if failures:
         # Reported, not fatal: ~1% residual is the documented steady state, and
         # a probe that always exits non-zero teaches people to ignore it.
-        print(f"  {len(failures)} unit(s) still change under rename. Each is a "
-              "classifier heuristic reading source text instead of tree")
-        print("  structure; see the ponytail: note on "
-              "semantic_ir_experiment.assert_identifier_free.")
+        print(
+            f"  {len(failures)} unit(s) still change under rename. Each is a "
+            "classifier heuristic reading source text instead of tree"
+        )
+        print(
+            "  structure; see the ponytail: note on "
+            "semantic_ir_experiment.assert_identifier_free."
+        )
         for failure in failures:
             print("\n  " + failure.replace("\n", "\n  "))
-    print("\n  no dataset files, review artifacts, or production modules were "
-          "written.")
+    print("\n  no dataset files, review artifacts, or production modules were written.")
     return 0
 
 

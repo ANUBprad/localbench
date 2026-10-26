@@ -13,7 +13,6 @@ from localbench.workloads.code_retrieval.behavior_extraction import (
 )
 from localbench.workloads.code_retrieval.schemas import StructuredBehaviorFacts
 
-
 # ===========================================================================
 # extract_behavior_facts
 # ===========================================================================
@@ -39,10 +38,7 @@ class TestExtractBehaviorFacts:
         assert facts.output_summary
 
     def test_extracts_parameters(self) -> None:
-        src = (
-            "def fetch(url, timeout=30, retries=3):\n"
-            "    pass\n"
-        )
+        src = "def fetch(url, timeout=30, retries=3):\n    pass\n"
         facts = extract_behavior_facts(src)
         assert "3 parameters" in facts.input_summary
 
@@ -56,11 +52,7 @@ class TestExtractBehaviorFacts:
         assert any("instance" in se for se in facts.side_effects)
 
     def test_extracts_raises(self) -> None:
-        src = (
-            "def validate(x):\n"
-            "    if x < 0:\n"
-            '        raise ValueError("negative")\n'
-        )
+        src = 'def validate(x):\n    if x < 0:\n        raise ValueError("negative")\n'
         facts = extract_behavior_facts(src)
         assert "ValueError" in facts.raises
 
@@ -70,7 +62,7 @@ class TestExtractBehaviorFacts:
             "    try:\n"
             "        return a / b\n"
             "    except ZeroDivisionError:\n"
-            '        return 0\n'
+            "        return 0\n"
         )
         facts = extract_behavior_facts(src)
         assert "ZeroDivisionError" in facts.error_handling
@@ -87,11 +79,7 @@ class TestExtractBehaviorFacts:
         assert "for loop" in facts.control_flow
 
     def test_extracts_key_operations(self) -> None:
-        src = (
-            "def process(data):\n"
-            "    result = transform(data)\n"
-            "    return result\n"
-        )
+        src = "def process(data):\n    result = transform(data)\n    return result\n"
         facts = extract_behavior_facts(src)
         assert any("function call" in op for op in facts.key_operations)
 
@@ -101,18 +89,12 @@ class TestExtractBehaviorFacts:
         assert facts.input_summary == "unknown"
 
     def test_no_side_effects(self) -> None:
-        src = (
-            "def pure_func(x):\n"
-            "    return x * 2\n"
-        )
+        src = "def pure_func(x):\n    return x * 2\n"
         facts = extract_behavior_facts(src)
         assert facts.side_effects == []
 
     def test_no_raises(self) -> None:
-        src = (
-            "def safe_func(x):\n"
-            "    return x + 1\n"
-        )
+        src = "def safe_func(x):\n    return x + 1\n"
         facts = extract_behavior_facts(src)
         assert facts.raises == []
 
@@ -193,10 +175,7 @@ class TestNoIdentifiersInExtractedFacts:
         assert "process_retry" not in facts.primary_purpose
 
     def test_input_summary_no_param_names(self) -> None:
-        src = (
-            "def fetch(url, timeout=30, retries=3):\n"
-            "    pass\n"
-        )
+        src = "def fetch(url, timeout=30, retries=3):\n    pass\n"
         facts = extract_behavior_facts(src)
         assert "url" not in facts.input_summary
         assert "timeout" not in facts.input_summary
@@ -214,22 +193,14 @@ class TestNoIdentifiersInExtractedFacts:
             assert "self.log" not in se
 
     def test_key_operations_no_call_names(self) -> None:
-        src = (
-            "def process(data):\n"
-            "    result = transform(data)\n"
-            "    return result\n"
-        )
+        src = "def process(data):\n    result = transform(data)\n    return result\n"
         facts = extract_behavior_facts(src)
         for op in facts.key_operations:
             assert "transform" not in op
 
     def test_raises_still_contains_exception_names(self) -> None:
         """Exception class names are domain identifiers, not implementation identifiers."""
-        src = (
-            "def validate(x):\n"
-            "    if x < 0:\n"
-            '        raise ValueError("negative")\n'
-        )
+        src = 'def validate(x):\n    if x < 0:\n        raise ValueError("negative")\n'
         facts = extract_behavior_facts(src)
         assert "ValueError" in facts.raises
 
@@ -240,7 +211,7 @@ class TestNoIdentifiersInExtractedFacts:
             "    try:\n"
             "        return a / b\n"
             "    except ZeroDivisionError:\n"
-            '        return 0\n'
+            "        return 0\n"
         )
         facts = extract_behavior_facts(src)
         assert "ZeroDivisionError" in facts.error_handling
@@ -258,11 +229,7 @@ class TestNoIdentifiersInExtractedFacts:
 
 class TestIndentedSourceParsesAsValid:
     def test_leading_indented_property(self) -> None:
-        src = (
-            "    @property\n"
-            "    def example(self):\n"
-            "        return self.value\n"
-        )
+        src = "    @property\n    def example(self):\n        return self.value\n"
         facts = extract_behavior_facts(src)
         assert facts.primary_purpose != "parses as invalid code"
         assert facts.input_summary != "unknown"
@@ -311,18 +278,9 @@ class TestInvalidSyntaxStillSafe:
 
 class TestEnrichedPurposeExtraction:
     def test_purpose_distinguishes_behaviors(self) -> None:
-        string_src = (
-            "def parse_line(text):\n"
-            "    return text.split(',')\n"
-        )
-        container_src = (
-            "def config():\n"
-            '    return {"retries": 3, "timeout": 30}\n'
-        )
-        member_src = (
-            "def is_member(x, items):\n"
-            "    return x in items\n"
-        )
+        string_src = "def parse_line(text):\n    return text.split(',')\n"
+        container_src = 'def config():\n    return {"retries": 3, "timeout": 30}\n'
+        member_src = "def is_member(x, items):\n    return x in items\n"
         p_string = extract_behavior_facts(string_src).primary_purpose
         p_container = extract_behavior_facts(container_src).primary_purpose
         p_member = extract_behavior_facts(member_src).primary_purpose
@@ -332,24 +290,15 @@ class TestEnrichedPurposeExtraction:
         assert p_member != "performs an operation"
 
     def test_container_construction_informative(self) -> None:
-        src = (
-            'def config():\n'
-            '    return {"retries": 3, "timeout": 30}\n'
-        )
+        src = 'def config():\n    return {"retries": 3, "timeout": 30}\n'
         assert "mapping" in extract_behavior_facts(src).primary_purpose
 
     def test_dict_comprehension_construction_informative(self) -> None:
-        src = (
-            "def index(items):\n"
-            "    return {item: item for item in items}\n"
-        )
+        src = "def index(items):\n    return {item: item for item in items}\n"
         assert "mapping" in extract_behavior_facts(src).primary_purpose
 
     def test_comparison_informative(self) -> None:
-        src = (
-            "def threshold(x):\n"
-            "    return x >= 10\n"
-        )
+        src = "def threshold(x):\n    return x >= 10\n"
         assert "comparison" in extract_behavior_facts(src).primary_purpose
 
     def test_validation_raises_informative(self) -> None:
@@ -362,17 +311,11 @@ class TestEnrichedPurposeExtraction:
         assert "raises on error" in extract_behavior_facts(src).primary_purpose
 
     def test_string_operation_informative(self) -> None:
-        src = (
-            "def parse_line(text):\n"
-            "    return text.split(',')\n"
-        )
+        src = "def parse_line(text):\n    return text.split(',')\n"
         assert "string" in extract_behavior_facts(src).primary_purpose
 
     def test_membership_check_informative(self) -> None:
-        src = (
-            "def is_member(x, items):\n"
-            "    return x in items\n"
-        )
+        src = "def is_member(x, items):\n    return x in items\n"
         purpose = extract_behavior_facts(src).primary_purpose
         assert "contained in a collection" in purpose
 
@@ -439,10 +382,7 @@ class TestNoIdentifiersLeakedByEnrichedPurpose:
         assert not _contains_identifier(text)
 
     def test_dict_comprehension_variables_not_leaked(self) -> None:
-        src = (
-            "def index(items):\n"
-            "    return {item: item for item in items}\n"
-        )
+        src = "def index(items):\n    return {item: item for item in items}\n"
         facts = extract_behavior_facts(src)
         text = self._all_fact_text(facts)
         assert "item" not in text
@@ -501,14 +441,15 @@ class TestConsumerCompatibility:
             check_query_provenance,
         )
 
-        assert check_meta_query(
-            "Can you generate a retrieval query for this code?"
-        )
+        assert check_meta_query("Can you generate a retrieval query for this code?")
         assert not check_meta_query("Where does this function get its config?")
-        assert check_query_provenance(
-            "quality the exact docstring sentence appears verbatim here",
-            "the exact docstring sentence appears verbatim here",
-        ).passed is False
+        assert (
+            check_query_provenance(
+                "quality the exact docstring sentence appears verbatim here",
+                "the exact docstring sentence appears verbatim here",
+            ).passed
+            is False
+        )
         assert check_query_provenance(
             "a totally independent query about configuration", "unrelated docstring"
         ).passed
@@ -577,10 +518,7 @@ class TestDomainConceptsExtraction:
         assert "native OS/terminal API calls" in facts.domain_concepts
 
     def test_dup2_call_concept(self) -> None:
-        src = (
-            "def capture():\n"
-            "    os.dup2(fd, 1)\n"
-        )
+        src = "def capture():\n    os.dup2(fd, 1)\n"
         facts = extract_behavior_facts(src, imports=["os", "sys"])
         assert "file-descriptor redirection" in facts.domain_concepts
 
@@ -600,10 +538,7 @@ class TestDomainConceptsExtraction:
         assert a.observable_effects == b.observable_effects
 
     def test_docstring_independent(self) -> None:
-        plain = (
-            "def render():\n"
-            "    console.print('hi')\n"
-        )
+        plain = "def render():\n    console.print('hi')\n"
         with_doc = (
             "def render():\n"
             '    """Render the company dashboard to the terminal."""\n'
@@ -631,10 +566,7 @@ class TestObservableEffectsExtraction:
         assert "prints to the console" in facts.observable_effects
 
     def test_dup2_capture_effect(self) -> None:
-        src = (
-            "def capture(self):\n"
-            "    os.dup2(self.fd, 1)\n"
-        )
+        src = "def capture(self):\n    os.dup2(self.fd, 1)\n"
         facts = extract_behavior_facts(src, imports=["os"])
         assert "captures standard output/error" in facts.observable_effects
 
@@ -652,27 +584,17 @@ class TestObservableEffectsExtraction:
         assert "moves the terminal cursor" in facts.observable_effects
 
     def test_http_download_effect(self) -> None:
-        src = (
-            "def copy(url):\n"
-            "    return urllib.request.urlretrieve(url)\n"
-        )
+        src = "def copy(url):\n    return urllib.request.urlretrieve(url)\n"
         facts = extract_behavior_facts(src, imports=["urllib.request"])
         assert "transfers data over HTTP to a local file" in facts.observable_effects
 
     def test_table_rendering_effect(self) -> None:
-        src = (
-            "def show():\n"
-            "    t = table.Table()\n"
-            "    t.add_column('title')\n"
-        )
+        src = "def show():\n    t = table.Table()\n    t.add_column('title')\n"
         facts = extract_behavior_facts(src, imports=["rich.table"])
         assert "renders a table of items to the console" in facts.observable_effects
 
     def test_no_fabricated_effects(self) -> None:
-        src = (
-            "def total(items):\n"
-            "    return sum(items)\n"
-        )
+        src = "def total(items):\n    return sum(items)\n"
         facts = extract_behavior_facts(src)
         assert facts.observable_effects == []
         assert facts.domain_concepts == []
@@ -720,10 +642,7 @@ class TestDomainEffectsIdentifierFree:
         )
 
     def test_fd_capture_unit_identifier_free(self) -> None:
-        src = (
-            "def start(self, fd):\n"
-            "    self.old = os.dup2(fd, 1)\n"
-        )
+        src = "def start(self, fd):\n    self.old = os.dup2(fd, 1)\n"
         self._assert_new_fields_identifier_free(src, imports=["os", "sys"])
 
     def test_cursor_unit_identifier_free(self) -> None:
@@ -741,13 +660,8 @@ class TestDomainEffectsIdentifierFree:
         self._assert_new_fields_identifier_free(src, imports=["urllib.request"])
 
     def test_domain_class_name_not_emitted(self) -> None:
-        src = (
-            "def render():\n"
-            "    console.print('hi')\n"
-        )
-        facts = extract_behavior_facts(
-            src, imports=["rich.console", "rich.windows"]
-        )
+        src = "def render():\n    console.print('hi')\n"
+        facts = extract_behavior_facts(src, imports=["rich.console", "rich.windows"])
         for phrase in facts.domain_concepts:
             assert "Console" not in phrase
             assert "Windows" not in phrase
@@ -765,10 +679,7 @@ class TestCanaryDerivedDomainFacts:
     """Assertions grounded in the real 48-unit canary extraction results."""
 
     def test_fd_capture_start(self) -> None:
-        src = (
-            "def start(self):\n"
-            "    os.dup2(self.fd, 1)\n"
-        )
+        src = "def start(self):\n    os.dup2(self.fd, 1)\n"
         facts = extract_behavior_facts(src, imports=["os", "sys"])
         assert "file-descriptor redirection" in facts.domain_concepts
         assert "captures standard output/error" in facts.observable_effects
@@ -796,19 +707,14 @@ class TestCanaryDerivedDomainFacts:
 
     def test_copy_url(self) -> None:
         src = (
-            "def copy_url(src, dst):\n"
-            "    return urllib.request.urlretrieve(src, dst)\n"
+            "def copy_url(src, dst):\n    return urllib.request.urlretrieve(src, dst)\n"
         )
         facts = extract_behavior_facts(src, imports=["urllib.request", "rich.progress"])
         assert "HTTP transfer" in facts.domain_concepts
         assert "transfers data over HTTP to a local file" in facts.observable_effects
 
     def test_text_alignment(self) -> None:
-        src = (
-            "def align_center(text, width):\n"
-            "    return text.align('center', width)\n"
-        )
+        src = "def align_center(text, width):\n    return text.align('center', width)\n"
         facts = extract_behavior_facts(src, imports=["rich.text"])
         assert "text formatting" in facts.domain_concepts
         assert "formats text for display and alignment" in facts.observable_effects
-

@@ -15,9 +15,7 @@ class CloneFailedError(RepositoryError):
 
     def __init__(self, url: str, message: str | None = None) -> None:
         self.url = url
-        super().__init__(
-            message or f"Failed to clone repository: {url}"
-        )
+        super().__init__(message or f"Failed to clone repository: {url}")
 
 
 class RevisionNotFoundError(RepositoryError):
@@ -38,8 +36,7 @@ class CheckoutFailedError(RepositoryError):
         self.commit = commit
         self.repository = repository
         super().__init__(
-            f"Failed to checkout revision '{commit}' "
-            f"in repository '{repository}'"
+            f"Failed to checkout revision '{commit}' in repository '{repository}'"
         )
 
 

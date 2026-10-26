@@ -71,8 +71,7 @@ class OllamaAdapter:
             raise OllamaUnavailableError() from exc
         except httpx.TimeoutException as exc:
             raise OllamaUnavailableError(
-                "Ollama connection timed out. "
-                "The server may be overloaded."
+                "Ollama connection timed out. The server may be overloaded."
             ) from exc
 
     def _http_post(self, client: httpx.Client, path: str, json: dict) -> dict:
@@ -205,9 +204,7 @@ class OllamaAdapter:
                 duration_ms=round(total_ns / 1_000_000, 1),
                 total_duration_ms=round(total_ns / 1_000_000, 1),
                 eval_count=response.get("eval_count"),
-                eval_duration_ms=(
-                    round(eval_ns / 1_000_000, 1) if eval_ns else None
-                ),
+                eval_duration_ms=(round(eval_ns / 1_000_000, 1) if eval_ns else None),
                 done=response.get("done", True),
             )
 

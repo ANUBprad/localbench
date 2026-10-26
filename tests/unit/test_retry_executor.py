@@ -164,9 +164,7 @@ class TestRunWithRetryExhaustion:
         generate_fn = MagicMock(return_value=bad_json)
         policy = RetryPolicy(max_attempts=3)
 
-        result = run_with_retry(
-            "prompt", SimpleSchema, generate_fn, policy=policy
-        )
+        result = run_with_retry("prompt", SimpleSchema, generate_fn, policy=policy)
 
         assert result.success is False
         assert result.result is None
@@ -183,9 +181,7 @@ class TestRunWithRetryExhaustion:
         generate_fn = MagicMock(return_value=bad_json)
         policy = RetryPolicy(max_attempts=1)
 
-        result = run_with_retry(
-            "prompt", SimpleSchema, generate_fn, policy=policy
-        )
+        result = run_with_retry("prompt", SimpleSchema, generate_fn, policy=policy)
 
         assert result.success is False
         assert len(result.attempts) == 1
@@ -200,9 +196,7 @@ class TestRunWithRetryExhaustion:
         generate_fn = MagicMock(side_effect=responses)
         policy = RetryPolicy(max_attempts=2)
 
-        result = run_with_retry(
-            "my prompt", SimpleSchema, generate_fn, policy=policy
-        )
+        result = run_with_retry("my prompt", SimpleSchema, generate_fn, policy=policy)
 
         assert result.success is False
         assert len(result.attempts) == 2
@@ -215,14 +209,10 @@ class TestRunWithRetryExhaustion:
 class TestRunWithRetryTerminalErrors:
     def test_non_retryable_error_stops_immediately(self):
         """A non-retryable error should not trigger a retry."""
-        policy = RetryPolicy(
-            max_attempts=3, retryable_failures=()
-        )
+        policy = RetryPolicy(max_attempts=3, retryable_failures=())
         generate_fn = MagicMock(return_value="not important")
 
-        result = run_with_retry(
-            "prompt", SimpleSchema, generate_fn, policy=policy
-        )
+        result = run_with_retry("prompt", SimpleSchema, generate_fn, policy=policy)
 
         # Should still attempt once but not retry
         assert len(result.attempts) == 1
@@ -230,9 +220,7 @@ class TestRunWithRetryTerminalErrors:
 
     def test_generate_exception_stops_immediately(self):
         """An exception from generate_fn stops the loop."""
-        generate_fn = MagicMock(
-            side_effect=RuntimeError("provider crashed")
-        )
+        generate_fn = MagicMock(side_effect=RuntimeError("provider crashed"))
 
         result = run_with_retry("prompt", SimpleSchema, generate_fn)
 

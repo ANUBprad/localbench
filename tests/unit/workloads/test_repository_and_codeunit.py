@@ -176,17 +176,15 @@ class TestCodeUnitInvalid:
 
     def test_missing_repository(self):
         with pytest.raises(ValidationError):
-            CodeUnit(**{
-                k: v for k, v in _make_code_unit().items()
-                if k != "repository"
-            })
+            CodeUnit(
+                **{k: v for k, v in _make_code_unit().items() if k != "repository"}
+            )
 
     def test_missing_source_code(self):
         with pytest.raises(ValidationError):
-            CodeUnit(**{
-                k: v for k, v in _make_code_unit().items()
-                if k != "source_code"
-            })
+            CodeUnit(
+                **{k: v for k, v in _make_code_unit().items() if k != "source_code"}
+            )
 
     def test_invalid_language(self):
         with pytest.raises(ValidationError):
@@ -202,21 +200,22 @@ class TestCodeUnitInvalid:
 
     def test_missing_source_url(self):
         with pytest.raises(ValidationError):
-            CodeUnit(**{
-                k: v for k, v in _make_code_unit().items()
-                if k != "source_url"
-            })
+            CodeUnit(
+                **{k: v for k, v in _make_code_unit().items() if k != "source_url"}
+            )
 
     def test_missing_extracted_at(self):
         with pytest.raises(ValidationError):
-            CodeUnit(**{
-                k: v for k, v in _make_code_unit().items()
-                if k != "extracted_at"
-            })
+            CodeUnit(
+                **{k: v for k, v in _make_code_unit().items() if k != "extracted_at"}
+            )
 
     def test_missing_source_file_lines(self):
         with pytest.raises(ValidationError):
-            CodeUnit(**{
-                k: v for k, v in _make_code_unit().items()
-                if k != "source_file_lines"
-            })
+            CodeUnit(
+                **{
+                    k: v
+                    for k, v in _make_code_unit().items()
+                    if k != "source_file_lines"
+                }
+            )

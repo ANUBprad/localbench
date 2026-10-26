@@ -13,9 +13,7 @@ import re
 from localbench.runtime.generation.failures import MalformedJSONError
 
 # Matches ```json ... ``` or ``` ... ``` fenced blocks.
-_FENCE_RE = re.compile(
-    r"```(?:json)?\s*\n(.*?)```", re.DOTALL
-)
+_FENCE_RE = re.compile(r"```(?:json)?\s*\n(.*?)```", re.DOTALL)
 
 
 def extract_json(raw: str) -> dict | list:
@@ -51,9 +49,7 @@ def extract_json(raw: str) -> dict | list:
     if result is not None:
         return result
 
-    raise MalformedJSONError(
-        "Could not extract valid JSON from model output."
-    )
+    raise MalformedJSONError("Could not extract valid JSON from model output.")
 
 
 def _find_json_block(text: str) -> dict | list | None:

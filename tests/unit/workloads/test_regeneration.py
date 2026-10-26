@@ -62,28 +62,20 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_b", attempt_count=1),
         ]
         count_a = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_a"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_a"
         )
         count_b = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_b"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_b"
         )
         assert count_a == 2
         assert count_b == 1
 
     def test_count_prior_attempts_from_failures(self) -> None:
         failures = [
-            _make_candidate_record(
-                "unit_c", success=False, attempt_count=3
-            ),
+            _make_candidate_record("unit_c", success=False, attempt_count=3),
         ]
         count_c = sum(
-            r["attempt_count"]
-            for r in failures
-            if r["code_unit_id"] == "unit_c"
+            r["attempt_count"] for r in failures if r["code_unit_id"] == "unit_c"
         )
         assert count_c == 3
 
@@ -92,9 +84,7 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_d", attempt_count=1),
         ]
         failures = [
-            _make_candidate_record(
-                "unit_d", success=False, attempt_count=1
-            ),
+            _make_candidate_record("unit_d", success=False, attempt_count=1),
         ]
         count_d = sum(
             r["attempt_count"]
@@ -108,9 +98,7 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_e", attempt_count=3),
         ]
         prior = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_e"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_e"
         )
         remaining = 3 - prior
         assert remaining == 0
@@ -120,9 +108,7 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_f", attempt_count=2),
         ]
         prior = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_f"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_f"
         )
         remaining = 3 - prior
         assert remaining == 1
@@ -141,9 +127,7 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_g", attempt_count=2),
         ]
         prior = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_g"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_g"
         )
         remaining = 3 - prior
         assert remaining == 1
@@ -162,9 +146,7 @@ class TestBudgetAccounting:
             _make_candidate_record("unit_h", attempt_count=2),
         ]
         prior = sum(
-            r["attempt_count"]
-            for r in candidates
-            if r["code_unit_id"] == "unit_h"
+            r["attempt_count"] for r in candidates if r["code_unit_id"] == "unit_h"
         )
         remaining = 3 - prior
         assert remaining == 1
@@ -197,7 +179,8 @@ class TestBudgetAccounting:
             ),
         ]
         prior = sum(
-            r["attempt_count"] for r in original + v2 + v3
+            r["attempt_count"]
+            for r in original + v2 + v3
             if r["code_unit_id"] == "unit_orig"
         )
         assert prior == 3
@@ -219,13 +202,14 @@ class TestBudgetAccounting:
         ]
         v2 = [
             _make_candidate_record(
-                "unit_q", candidate_id="candidate_v2_unit_q", attempt_count=1,
+                "unit_q",
+                candidate_id="candidate_v2_unit_q",
+                attempt_count=1,
             ),
         ]
         # unit_q cumulative budget: 1 + 1 = 2 -> remaining 1
         prior = sum(
-            r["attempt_count"] for r in original + v2
-            if r["code_unit_id"] == "unit_q"
+            r["attempt_count"] for r in original + v2 if r["code_unit_id"] == "unit_q"
         )
         remaining = 3 - prior
         assert remaining == 1
@@ -384,9 +368,7 @@ class TestRejectionExtraction:
         regenerable = [
             uid for uid, info in budget_info.items() if info["remaining"] > 0
         ]
-        exhausted = [
-            uid for uid, info in budget_info.items() if info["remaining"] <= 0
-        ]
+        exhausted = [uid for uid, info in budget_info.items() if info["remaining"] <= 0]
         assert regenerable == ["unit_a", "unit_c"]
         assert exhausted == ["unit_b"]
 
@@ -480,9 +462,7 @@ class TestDatasetBudgetReality:
                 candidates_by_id[cid] = record
 
         assert set(selected_ids) <= set(candidates_by_id)
-        resolved_units = {
-            candidates_by_id[cid]["code_unit_id"] for cid in selected_ids
-        }
+        resolved_units = {candidates_by_id[cid]["code_unit_id"] for cid in selected_ids}
         assert resolved_units == set(selected_units)
 
 
@@ -519,9 +499,7 @@ class TestMergeRoundCandidates:
         original = [self._rec("unit_a")]
         v2 = [self._rec("unit_a", round_="v2")]
         v3_failures = [self._rec("unit_a", round_="v3", success=False)]
-        merged = merge_round_candidates(
-            original, v2, [], [], v3_failures
-        )
+        merged = merge_round_candidates(original, v2, [], [], v3_failures)
         assert merged == []
 
     def test_v3_failure_excluded_from_clean_pool(self) -> None:
@@ -645,11 +623,14 @@ class TestQuarantineOverbudget:
 
         candidates = [
             _make_candidate_record(
-                "unit_three", attempt_count=3, success=True,
+                "unit_three",
+                attempt_count=3,
+                success=True,
             ),
         ]
         pool = build_eligible_pool(
-            candidates, test_code_unit_ids={"unit_three"},
+            candidates,
+            test_code_unit_ids={"unit_three"},
         )
         assert len(pool) == 1
 
@@ -668,7 +649,10 @@ class TestQuarantineOverbudget:
             ),
         ]
         entries = detect_overbudget(
-            original_candidates, [], v2_candidates, [],
+            original_candidates,
+            [],
+            v2_candidates,
+            [],
         )
         assert len(entries) == 1
         assert entries[0]["code_unit_id"] == "unit_q"
@@ -699,7 +683,8 @@ class TestQuarantineOverbudget:
                 merged.append(rec)
 
         pool = build_eligible_pool(
-            merged, test_code_unit_ids={"unit_orig"},
+            merged,
+            test_code_unit_ids={"unit_orig"},
         )
         assert len(pool) == 1
         assert pool[0]["candidate_id"] == "candidate_unit_orig"
@@ -715,10 +700,14 @@ class TestQuarantineOverbudget:
         ]
         v2 = [
             _make_candidate_record(
-                "unit_a", candidate_id="candidate_v2_a", attempt_count=2,
+                "unit_a",
+                candidate_id="candidate_v2_a",
+                attempt_count=2,
             ),
             _make_candidate_record(
-                "unit_b", candidate_id="candidate_v2_b", attempt_count=1,
+                "unit_b",
+                candidate_id="candidate_v2_b",
+                attempt_count=1,
             ),
         ]
         entries = detect_overbudget(orig, [], v2, [])
@@ -735,12 +724,16 @@ class TestQuarantineOverbudget:
         ]
         v2 = [
             _make_candidate_record(
-                "unit_x", candidate_id="candidate_v2_x", attempt_count=1,
+                "unit_x",
+                candidate_id="candidate_v2_x",
+                attempt_count=1,
             ),
         ]
         v3 = [
             _make_candidate_record(
-                "unit_x", candidate_id="candidate_v3_x", attempt_count=1,
+                "unit_x",
+                candidate_id="candidate_v3_x",
+                attempt_count=1,
             ),
         ]
         entries = detect_overbudget(orig, [], v2, [], v3, [])
@@ -748,7 +741,9 @@ class TestQuarantineOverbudget:
         # 1 + 1 + 2 = 4 now exceeds the frozen maximum; the original remains
         v3_over = [
             _make_candidate_record(
-                "unit_x", candidate_id="candidate_v3_x", attempt_count=2,
+                "unit_x",
+                candidate_id="candidate_v3_x",
+                attempt_count=2,
             ),
         ]
         entries = detect_overbudget(orig, [], v2, [], v3_over, [])
@@ -775,9 +770,7 @@ class TestQuarantineOverbudget:
             select_final_queries,
         )
 
-        candidates = [
-            _make_candidate_record(f"unit_{i:03d}") for i in range(50)
-        ]
+        candidates = [_make_candidate_record(f"unit_{i:03d}") for i in range(50)]
         selected1 = select_final_queries(candidates, count=5, seed=42)
         selected2 = select_final_queries(candidates, count=5, seed=42)
         assert [c["code_unit_id"] for c in selected1] == [

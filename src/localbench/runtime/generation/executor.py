@@ -30,8 +30,7 @@ class RetryExhaustedError(Exception):
         self.attempts = attempts
         count = len(attempts)
         super().__init__(
-            f"All {count} attempt(s) failed. "
-            f"Last error: {attempts[-1].errors[0]}"
+            f"All {count} attempt(s) failed. Last error: {attempts[-1].errors[0]}"
             if attempts
             else "No attempts recorded."
         )
@@ -134,9 +133,7 @@ def run_with_retry(
             )
 
         # Validation failed — check if retryable
-        all_retryable = all(
-            policy.is_retryable(e) for e in result.errors
-        )
+        all_retryable = all(policy.is_retryable(e) for e in result.errors)
         will_retry = all_retryable and not is_last
 
         rec = AttemptRecord(

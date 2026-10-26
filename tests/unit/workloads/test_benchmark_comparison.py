@@ -1,4 +1,5 @@
 """Comparison runner regression tests without network or model downloads."""
+
 import pytest
 
 from localbench.workloads.code_retrieval.benchmark import run_comparison

@@ -18,9 +18,7 @@ from localbench.runtime.ollama.adapter import OllamaAdapter
 @pytest.fixture
 def adapter():
     """Create an Ollama adapter with a mock HTTP client."""
-    with patch(
-        "localbench.runtime.ollama.adapter.httpx.Client"
-    ) as mock_client_cls:
+    with patch("localbench.runtime.ollama.adapter.httpx.Client") as mock_client_cls:
         mock_client = MagicMock()
         # ``generate`` runs each request on its own short-lived client via
         # ``with httpx.Client(...)``; make ``__enter__`` return the same mock
@@ -48,9 +46,7 @@ def _mock_response(json_data, status_code=200):
 
 
 class TestHealthCheck:
-    def test_health_check_returns_true_when_ollama_running(
-        self, adapter
-    ):
+    def test_health_check_returns_true_when_ollama_running(self, adapter):
         """Health check returns True when Ollama responds."""
         a, mock_client = adapter
         mock_client.get.return_value = _mock_response({})
@@ -68,14 +64,10 @@ class TestHealthCheck:
         mock_client.get.return_value = response
         assert a.health_check() is True
 
-    def test_health_check_returns_false_when_ollama_unavailable(
-        self, adapter
-    ):
+    def test_health_check_returns_false_when_ollama_unavailable(self, adapter):
         """Health check returns False when Ollama is not reachable."""
         a, mock_client = adapter
-        mock_client.get.side_effect = httpx.ConnectError(
-            "Connection refused"
-        )
+        mock_client.get.side_effect = httpx.ConnectError("Connection refused")
         assert a.health_check() is False
 
 
@@ -106,11 +98,7 @@ class TestDiscoverModels:
         """The :latest tag is stripped from model names."""
         a, mock_client = adapter
         mock_client.get.return_value = _mock_response(
-            {
-                "models": [
-                    {"name": "llama2:latest", "size": 1000}
-                ]
-            }
+            {"models": [{"name": "llama2:latest", "size": 1000}]}
         )
         models = a.discover_models()
         assert models[0].name == "llama2"
@@ -118,20 +106,14 @@ class TestDiscoverModels:
     def test_discover_models_handles_empty_list(self, adapter):
         """Empty model list is handled gracefully."""
         a, mock_client = adapter
-        mock_client.get.return_value = _mock_response(
-            {"models": []}
-        )
+        mock_client.get.return_value = _mock_response({"models": []})
         models = a.discover_models()
         assert models == []
 
-    def test_discover_models_raises_on_connection_error(
-        self, adapter
-    ):
+    def test_discover_models_raises_on_connection_error(self, adapter):
         """Connection error raises OllamaUnavailableError."""
         a, mock_client = adapter
-        mock_client.get.side_effect = httpx.ConnectError(
-            "Connection refused"
-        )
+        mock_client.get.side_effect = httpx.ConnectError("Connection refused")
         with pytest.raises(OllamaUnavailableError):
             a.discover_models()
 
@@ -150,9 +132,7 @@ class TestGenerate:
                 "eval_duration": 300000000,
             }
         )
-        req = GenerationRequest(
-            prompt="Say hello", model="phi-3-mini"
-        )
+        req = GenerationRequest(prompt="Say hello", model="phi-3-mini")
         result = a.generate(req)
         assert result.text == "Hello, world!"
         assert result.model == "phi-3-mini"
@@ -166,33 +146,23 @@ class TestGenerate:
             {"error": "model 'nonexistent' not found"}
         )
         with pytest.raises(ModelNotFoundError):
-            req = GenerationRequest(
-                prompt="test", model="nonexistent"
-            )
+            req = GenerationRequest(prompt="test", model="nonexistent")
             a.generate(req)
 
     def test_generate_maps_404_to_model_not_found(self, adapter):
         """HTTP 404 from Ollama maps to ModelNotFoundError."""
         a, mock_client = adapter
-        mock_client.post.return_value = _mock_response(
-            {}, status_code=404
-        )
+        mock_client.post.return_value = _mock_response({}, status_code=404)
         with pytest.raises(ModelNotFoundError):
-            req = GenerationRequest(
-                prompt="test", model="missing-model"
-            )
+            req = GenerationRequest(prompt="test", model="missing-model")
             a.generate(req)
 
     def test_generate_raises_on_connection_error(self, adapter):
         """Connection error raises OllamaUnavailableError."""
         a, mock_client = adapter
-        mock_client.post.side_effect = httpx.ConnectError(
-            "Connection refused"
-        )
+        mock_client.post.side_effect = httpx.ConnectError("Connection refused")
         with pytest.raises(OllamaUnavailableError):
-            req = GenerationRequest(
-                prompt="test", model="phi-3-mini"
-            )
+            req = GenerationRequest(prompt="test", model="phi-3-mini")
             a.generate(req)
 
     def test_generate_raises_generation_error(self, adapter):
@@ -200,9 +170,7 @@ class TestGenerate:
         a, mock_client = adapter
         mock_client.post.side_effect = ValueError("Unexpected")
         with pytest.raises(GenerationError):
-            req = GenerationRequest(
-                prompt="test", model="phi-3-mini"
-            )
+            req = GenerationRequest(prompt="test", model="phi-3-mini")
             a.generate(req)
 
 
@@ -229,9 +197,7 @@ class TestHardRequestDeadline:
 
         request_timeout = 0.2
         sleep_seconds = 5.0
-        with patch(
-            "localbench.runtime.ollama.adapter.httpx.Client"
-        ) as mock_client_cls:
+        with patch("localbench.runtime.ollama.adapter.httpx.Client") as mock_client_cls:
             mock_client = MagicMock()
             mock_client.__enter__.return_value = mock_client
 
@@ -272,9 +238,7 @@ class TestHardRequestDeadline:
                 "eval_duration": 300000000,
             }
         )
-        req = GenerationRequest(
-            prompt="Say hello", model="phi-3-mini"
-        )
+        req = GenerationRequest(prompt="Say hello", model="phi-3-mini")
         result = a.generate(req)
         assert result.text == "Hello, world!"
         assert result.model == "phi-3-mini"

@@ -89,9 +89,13 @@ class TestSemanticLabelValid:
         assert label.created_by == "hybrid"
 
     def test_empty_optional_fields(self):
-        label = SemanticLabel(**_make_label(
-            input_types=[], output_type="", side_effects=[],
-        ))
+        label = SemanticLabel(
+            **_make_label(
+                input_types=[],
+                output_type="",
+                side_effects=[],
+            )
+        )
         assert label.input_types == []
 
     def test_many_concepts(self):
@@ -120,18 +124,21 @@ class TestSemanticLabelInvalid:
 
     def test_missing_code_unit_id(self):
         with pytest.raises(ValidationError):
-            SemanticLabel(**{k: v for k, v in _make_label().items()
-                           if k != "code_unit_id"})
+            SemanticLabel(
+                **{k: v for k, v in _make_label().items() if k != "code_unit_id"}
+            )
 
     def test_missing_description(self):
         with pytest.raises(ValidationError):
-            SemanticLabel(**{k: v for k, v in _make_label().items()
-                           if k != "description"})
+            SemanticLabel(
+                **{k: v for k, v in _make_label().items() if k != "description"}
+            )
 
     def test_missing_created_by(self):
         with pytest.raises(ValidationError):
-            SemanticLabel(**{k: v for k, v in _make_label().items()
-                           if k != "created_by"})
+            SemanticLabel(
+                **{k: v for k, v in _make_label().items() if k != "created_by"}
+            )
 
     def test_invalid_created_by(self):
         with pytest.raises(ValidationError):
@@ -139,8 +146,9 @@ class TestSemanticLabelInvalid:
 
     def test_missing_label_version(self):
         with pytest.raises(ValidationError):
-            SemanticLabel(**{k: v for k, v in _make_label().items()
-                           if k != "label_version"})
+            SemanticLabel(
+                **{k: v for k, v in _make_label().items() if k != "label_version"}
+            )
 
 
 # ===========================================================================
@@ -155,9 +163,11 @@ class TestQueryCaseValid:
         assert len(q.relevant_code_units) == 1
 
     def test_multiple_relevant_units(self):
-        q = QueryCase(**_make_query(
-            relevant_code_units=["unit_a", "unit_b", "unit_c"],
-        ))
+        q = QueryCase(
+            **_make_query(
+                relevant_code_units=["unit_a", "unit_b", "unit_c"],
+            )
+        )
         assert len(q.relevant_code_units) == 3
 
     def test_all_styles(self):
@@ -194,13 +204,11 @@ class TestQueryCaseInvalid:
 
     def test_missing_query(self):
         with pytest.raises(ValidationError):
-            QueryCase(**{k: v for k, v in _make_query().items()
-                        if k != "query"})
+            QueryCase(**{k: v for k, v in _make_query().items() if k != "query"})
 
     def test_missing_id(self):
         with pytest.raises(ValidationError):
-            QueryCase(**{k: v for k, v in _make_query().items()
-                        if k != "id"})
+            QueryCase(**{k: v for k, v in _make_query().items() if k != "id"})
 
 
 # ===========================================================================
@@ -215,24 +223,30 @@ class TestQueryRelevanceValid:
         assert r.relevance_label == "direct_match"
 
     def test_highly_relevant(self):
-        r = QueryRelevance(**_make_relevance(
-            relevance_score=0.8,
-            relevance_label="highly_relevant",
-        ))
+        r = QueryRelevance(
+            **_make_relevance(
+                relevance_score=0.8,
+                relevance_label="highly_relevant",
+            )
+        )
         assert r.relevance_score == 0.8
 
     def test_related(self):
-        r = QueryRelevance(**_make_relevance(
-            relevance_score=0.5,
-            relevance_label="related",
-        ))
+        r = QueryRelevance(
+            **_make_relevance(
+                relevance_score=0.5,
+                relevance_label="related",
+            )
+        )
         assert r.relevance_label == "related"
 
     def test_not_relevant(self):
-        r = QueryRelevance(**_make_relevance(
-            relevance_score=0.0,
-            relevance_label="not_relevant",
-        ))
+        r = QueryRelevance(
+            **_make_relevance(
+                relevance_score=0.0,
+                relevance_label="not_relevant",
+            )
+        )
         assert r.relevance_score == 0.0
 
     def test_boundary_scores(self):
@@ -256,15 +270,18 @@ class TestQueryRelevanceInvalid:
 
     def test_missing_query_id(self):
         with pytest.raises(ValidationError):
-            QueryRelevance(**{k: v for k, v in _make_relevance().items()
-                            if k != "query_id"})
+            QueryRelevance(
+                **{k: v for k, v in _make_relevance().items() if k != "query_id"}
+            )
 
     def test_missing_code_unit_id(self):
         with pytest.raises(ValidationError):
-            QueryRelevance(**{k: v for k, v in _make_relevance().items()
-                            if k != "code_unit_id"})
+            QueryRelevance(
+                **{k: v for k, v in _make_relevance().items() if k != "code_unit_id"}
+            )
 
     def test_missing_explanation(self):
         with pytest.raises(ValidationError):
-            QueryRelevance(**{k: v for k, v in _make_relevance().items()
-                            if k != "explanation"})
+            QueryRelevance(
+                **{k: v for k, v in _make_relevance().items() if k != "explanation"}
+            )

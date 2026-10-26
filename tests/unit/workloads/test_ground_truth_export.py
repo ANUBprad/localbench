@@ -22,16 +22,21 @@ def make_review():
                 "query_style": "natural",
                 "query_intent": "",
                 "target": {
-                    "repository": "r", "file_path": "f",
-                    "symbol": "s", "symbol_type": "function",
-                    "docstring": "", "source_code": "def f(): pass",
+                    "repository": "r",
+                    "file_path": "f",
+                    "symbol": "s",
+                    "symbol_type": "function",
+                    "docstring": "",
+                    "source_code": "def f(): pass",
                 },
                 "automated_validation": {
-                    "validation_passed": True, "leakage_passed": True
+                    "validation_passed": True,
+                    "leakage_passed": True,
                 },
                 "review": {
                     "state": "accepted" if i == 1 else "pending",
-                    "notes": "", "decided_utc": None,
+                    "notes": "",
+                    "decided_utc": None,
                 },
             }
             for i in range(1, 46)
@@ -55,16 +60,16 @@ def test_accepted_and_labeled_export():
         {f"u{i}" for i in range(1, 46)},
         audit=audited(make_review()),
     )
-    assert result == [{
-        "id": "c1", "query": "query 1", "relevant_code_units": ["u1"]
-    }]
+    assert result == [{"id": "c1", "query": "query 1", "relevant_code_units": ["u1"]}]
 
 
 def test_missing_labels_rejected():
     with pytest.raises(ValueError, match="missing labels"):
         export_adjudicated_cases(
-            make_review(), [], {f"u{i}" for i in range(1, 46)},
-            audit=audited(make_review())
+            make_review(),
+            [],
+            {f"u{i}" for i in range(1, 46)},
+            audit=audited(make_review()),
         )
 
 
@@ -93,6 +98,8 @@ def test_no_accepted_cases_rejected():
     review["items"][0]["review"]["state"] = "pending"
     with pytest.raises(ValueError, match="No accepted"):
         export_adjudicated_cases(
-            review, [], {f"u{i}" for i in range(1, 46)},
+            review,
+            [],
+            {f"u{i}" for i in range(1, 46)},
             audit=audit_template(review),
         )

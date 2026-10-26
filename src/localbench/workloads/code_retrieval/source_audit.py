@@ -39,15 +39,20 @@ def validated_audit_ids(audit: dict, review: dict) -> set[str]:
     if not isinstance(audit["items"], list):
         raise ValueError("Audit items must be a list")
     accepted = {
-        item["candidate_id"]: item for item in review["items"]
+        item["candidate_id"]: item
+        for item in review["items"]
         if item["review"]["state"] == "accepted"
     }
     seen = set()
     passed = set()
     for entry in audit["items"]:
         if not isinstance(entry, dict) or set(entry) != {
-            "candidate_id", "code_unit_id", "query",
-            "source_sha256", "status", "notes",
+            "candidate_id",
+            "code_unit_id",
+            "query",
+            "source_sha256",
+            "status",
+            "notes",
         }:
             raise ValueError("Invalid audit entry fields")
         cid = entry["candidate_id"]
@@ -58,8 +63,7 @@ def validated_audit_ids(audit: dict, review: dict) -> set[str]:
         if (
             entry["code_unit_id"] != item["code_unit_id"]
             or entry["query"] != item["query"]
-            or entry["source_sha256"]
-            != source_digest(item["target"]["source_code"])
+            or entry["source_sha256"] != source_digest(item["target"]["source_code"])
         ):
             raise ValueError(f"Stale or mismatched source audit: {cid}")
         if entry["status"] not in {"pending", "passed", "failed"}:

@@ -1,4 +1,5 @@
 """Offline retrieval baseline regression tests."""
+
 import pytest
 
 from localbench.workloads.code_retrieval.metrics import evaluate_rankings
@@ -7,15 +8,20 @@ from localbench.workloads.code_retrieval.retrieval import BM25Index, tokenize
 
 def test_identifier_tokenization():
     assert tokenize("retryPayment_retry_count") == [
-        "retry", "payment", "retry", "count"
+        "retry",
+        "payment",
+        "retry",
+        "count",
     ]
 
 
 def test_bm25_ranks_matching_code_first():
-    index = BM25Index({
-        "b": "def validate_email(): return email",
-        "a": "def retry_payment(): retry payment transaction",
-    })
+    index = BM25Index(
+        {
+            "b": "def validate_email(): return email",
+            "a": "def retry_payment(): retry payment transaction",
+        }
+    )
     hits = index.search("retry payment")
     assert hits[0].code_unit_id == "a"
     assert hits[0].score > 0

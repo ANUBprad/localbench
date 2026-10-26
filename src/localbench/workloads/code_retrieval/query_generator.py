@@ -125,23 +125,89 @@ def _extract_identifier_parts(code_unit: ExtractedCodeUnit) -> list[str]:
     return list(dict.fromkeys(parts))
 
 
-_PARAM_NAME_BLACKLIST = frozenset({
-    "self", "cls", "args", "kwargs",
-    # Common English words that appear as parameter/attribute names
-    # and cause unacceptable false-positive rates.
-    "padding", "link", "size", "name", "type", "value", "key",
-    "item", "data", "text", "path", "mode", "error", "result",
-    "status", "option", "config", "format", "table", "column",
-    "width", "height", "color", "level", "count", "index",
-    "first", "last", "next", "prev", "start", "end",
-    # Common English words found in docstrings that are not identifiers
-    "Refresh", "Overriding", "Return", "Check", "Create", "Find",
-    "Get", "Set", "Add", "Remove", "Update", "Delete", "Insert",
-    "Move", "Copy", "Split", "Join", "Merge", "Sort", "Filter",
-    "Test", "Run", "Execute", "Parse", "Build", "Generate", "Write",
-    "Read", "Load", "Save", "Import", "Export", "Convert", "Format",
-    "Display", "Print", "Show", "Hide", "Enable", "Disable",
-})
+_PARAM_NAME_BLACKLIST = frozenset(
+    {
+        "self",
+        "cls",
+        "args",
+        "kwargs",
+        # Common English words that appear as parameter/attribute names
+        # and cause unacceptable false-positive rates.
+        "padding",
+        "link",
+        "size",
+        "name",
+        "type",
+        "value",
+        "key",
+        "item",
+        "data",
+        "text",
+        "path",
+        "mode",
+        "error",
+        "result",
+        "status",
+        "option",
+        "config",
+        "format",
+        "table",
+        "column",
+        "width",
+        "height",
+        "color",
+        "level",
+        "count",
+        "index",
+        "first",
+        "last",
+        "next",
+        "prev",
+        "start",
+        "end",
+        # Common English words found in docstrings that are not identifiers
+        "Refresh",
+        "Overriding",
+        "Return",
+        "Check",
+        "Create",
+        "Find",
+        "Get",
+        "Set",
+        "Add",
+        "Remove",
+        "Update",
+        "Delete",
+        "Insert",
+        "Move",
+        "Copy",
+        "Split",
+        "Join",
+        "Merge",
+        "Sort",
+        "Filter",
+        "Test",
+        "Run",
+        "Execute",
+        "Parse",
+        "Build",
+        "Generate",
+        "Write",
+        "Read",
+        "Load",
+        "Save",
+        "Import",
+        "Export",
+        "Convert",
+        "Format",
+        "Display",
+        "Print",
+        "Show",
+        "Hide",
+        "Enable",
+        "Disable",
+    }
+)
 """Parameter names that are never flagged as leaked identifiers."""
 
 
@@ -326,9 +392,7 @@ def check_query_leakage(
 
     for pattern in _LEAKAGE_PATTERNS:
         if pattern.search(query):
-            violations.append(
-                f"Query matches leakage pattern: {pattern.pattern}"
-            )
+            violations.append(f"Query matches leakage pattern: {pattern.pattern}")
 
     if code_unit.repository and code_unit.repository in query:
         violations.append(
@@ -336,14 +400,10 @@ def check_query_leakage(
         )
 
     if code_unit.file_path and code_unit.file_path in query:
-        violations.append(
-            f"Query contains file path: {code_unit.file_path}"
-        )
+        violations.append(f"Query contains file path: {code_unit.file_path}")
 
     if code_unit.symbol and code_unit.symbol in query:
-        violations.append(
-            f"Query contains symbol path: {code_unit.symbol}"
-        )
+        violations.append(f"Query contains symbol path: {code_unit.symbol}")
 
     # Check individual identifier parts from symbol and context class name
     for part in _extract_identifier_parts(code_unit):
@@ -351,26 +411,20 @@ def check_query_leakage(
             continue
         pat = _make_identifier_pattern(part)
         if pat.search(query):
-            violations.append(
-                f"Query contains identifier part: {part}"
-            )
+            violations.append(f"Query contains identifier part: {part}")
 
     # Check for dunder references (e.g. __init__, __new__) in the query.
     # Dunders are implementation-specific identifiers regardless of whether
     # they match the exact code unit symbol.
     if _DUNDER_PATTERN.search(query):
-        violations.append(
-            "Query contains dunder method reference"
-        )
+        violations.append("Query contains dunder method reference")
 
     # Check parameter names extracted from source code signature
     if code_unit.source_code:
         for param in _extract_param_names(code_unit.source_code):
             pat = _make_identifier_pattern(param)
             if pat.search(query):
-                violations.append(
-                    f"Query contains parameter name: {param}"
-                )
+                violations.append(f"Query contains parameter name: {param}")
 
         # Check for method/function names from the source code body
         # that appear in the query (e.g. runpytest, fnmatch_lines, formatTime)
@@ -379,9 +433,7 @@ def check_query_leakage(
                 continue
             pat = _make_identifier_pattern(ident)
             if pat.search(query):
-                violations.append(
-                    f"Query contains source code identifier: {ident}"
-                )
+                violations.append(f"Query contains source code identifier: {ident}")
 
     # Check sibling method names from context.parent_methods.  These are
     # implementation identifiers the model may reproduce from the "Sibling
@@ -404,9 +456,7 @@ def check_query_leakage(
                 continue
             pat = _make_identifier_pattern(sibling)
             if pat.search(query):
-                violations.append(
-                    f"Query contains sibling method name: {sibling}"
-                )
+                violations.append(f"Query contains sibling method name: {sibling}")
                 break
 
     # Check all Sphinx cross-reference names (:class:, :attr:, :meth:, :func:)
@@ -425,17 +475,13 @@ def check_query_leakage(
             for directive in (":attr:", ":meth:", ":func:", ":class:"):
                 sphinx_ref = f"{directive}`{ref_name}`"
                 if sphinx_ref in query:
-                    violations.append(
-                        f"Query contains Sphinx directive: {sphinx_ref}"
-                    )
+                    violations.append(f"Query contains Sphinx directive: {sphinx_ref}")
                     break
 
     # Check for meta-task queries (model asking to generate a query)
     for pattern in _META_TASK_PATTERNS:
         if pattern.search(query):
-            violations.append(
-                f"Query is a meta-task query: {pattern.pattern}"
-            )
+            violations.append(f"Query is a meta-task query: {pattern.pattern}")
             break  # One meta-task violation is sufficient
 
     # Check for docstring reproduction: if the query contains a significant
@@ -447,9 +493,7 @@ def check_query_leakage(
         # Check if query reproduces docstring text (query contains docstring phrase)
         for phrase in _extract_docstring_content(code_unit.docstring):
             if phrase in query_lower:
-                violations.append(
-                    "Query reproduces docstring text"
-                )
+                violations.append("Query reproduces docstring text")
                 break
         # Check if docstring contains the query text (query is a subset of docstring)
         # This catches cases like "pytest.approx() should raise..." matching
@@ -457,9 +501,7 @@ def check_query_leakage(
         if not violations:
             query_stripped = query_lower.strip().rstrip(".")
             if len(query_stripped) > 20 and query_stripped in doc_lower:
-                violations.append(
-                    "Query reproduces docstring text"
-                )
+                violations.append("Query reproduces docstring text")
 
     # Check for function/method names mentioned in docstrings
     # (e.g. "getfuncargnames" in docstring "Check getfuncargnames for...")
@@ -473,30 +515,106 @@ def check_query_leakage(
             # - camelCase (contains lowercase followed by uppercase)
             # - PascalCase (starts with uppercase)
             # Skip common English words and Sphinx directive names
-            if word.lower() in {"this", "that", "with", "from", "then", "when",
-                                "class", "attr", "meth", "func", "param",
-                                "returns", "raise", "value", "type", "args",
-                                "true", "false", "none", "self", "cls",
-                                "return", "check", "create", "find", "get",
-                                "set", "add", "remove", "update", "delete",
-                                "insert", "move", "copy", "split", "join",
-                                "merge", "sort", "filter", "test", "run",
-                                "execute", "parse", "build", "generate",
-                                "write", "read", "load", "save", "import",
-                                "export", "convert", "format", "display",
-                                "print", "show", "hide", "enable", "disable",
-                                "refresh", "overriding", "failed", "passed",
-                                "error", "result", "item", "name", "type",
-                                "value", "path", "mode", "data", "text",
-                                "size", "status", "option", "config",
-                                "table", "column", "width", "height",
-                                "color", "level", "count", "index",
-                                "first", "last", "next", "prev", "start",
-                                "end", "padding", "link", "key"}:
+            if word.lower() in {
+                "this",
+                "that",
+                "with",
+                "from",
+                "then",
+                "when",
+                "class",
+                "attr",
+                "meth",
+                "func",
+                "param",
+                "returns",
+                "raise",
+                "value",
+                "type",
+                "args",
+                "true",
+                "false",
+                "none",
+                "self",
+                "cls",
+                "return",
+                "check",
+                "create",
+                "find",
+                "get",
+                "set",
+                "add",
+                "remove",
+                "update",
+                "delete",
+                "insert",
+                "move",
+                "copy",
+                "split",
+                "join",
+                "merge",
+                "sort",
+                "filter",
+                "test",
+                "run",
+                "execute",
+                "parse",
+                "build",
+                "generate",
+                "write",
+                "read",
+                "load",
+                "save",
+                "import",
+                "export",
+                "convert",
+                "format",
+                "display",
+                "print",
+                "show",
+                "hide",
+                "enable",
+                "disable",
+                "refresh",
+                "overriding",
+                "failed",
+                "passed",
+                "error",
+                "result",
+                "item",
+                "name",
+                "path",
+                "mode",
+                "data",
+                "text",
+                "size",
+                "status",
+                "option",
+                "config",
+                "table",
+                "column",
+                "width",
+                "height",
+                "color",
+                "level",
+                "count",
+                "index",
+                "first",
+                "last",
+                "next",
+                "prev",
+                "start",
+                "end",
+                "padding",
+                "link",
+                "key",
+            }:
                 continue
             # Must look like a code identifier (snake_case or camelCase)
             has_underscore = "_" in word
-            has_camel = any(c.isupper() for c in word[1:]) and any(c.islower() for c in word)
+            has_camel = any(c.isupper() for c in word[1:]) and any(
+                c.islower() for c in word
+            )
             if has_underscore or has_camel:
                 doc_identifiers.add(word)
         for word in doc_identifiers:
@@ -504,9 +622,7 @@ def check_query_leakage(
                 continue
             pat = _make_identifier_pattern(word)
             if pat.search(query):
-                violations.append(
-                    f"Query contains docstring function name: {word}"
-                )
+                violations.append(f"Query contains docstring function name: {word}")
                 break
 
     return LeakageCheckResult(
@@ -566,9 +682,7 @@ def _extract_distinctive_phrases(docstring: str) -> list[str]:
             continue
         if stripped.startswith(":"):
             continue
-        alpha_ratio = sum(c.isalpha() or c.isspace() for c in stripped) / len(
-            stripped
-        )
+        alpha_ratio = sum(c.isalpha() or c.isspace() for c in stripped) / len(stripped)
         if alpha_ratio < 0.7:
             continue
         phrases.append(stripped.lower())
@@ -614,8 +728,7 @@ def check_query_provenance(
     for phrase in _extract_distinctive_phrases(docstring):
         if phrase in query_lower:
             violations.append(
-                f"Query contains distinctive docstring phrase: "
-                f"'{phrase[:50]}...'"
+                f"Query contains distinctive docstring phrase: '{phrase[:50]}...'"
             )
             break
 
@@ -818,9 +931,7 @@ class QueryGenerator:
                 )
 
             # Provenance check (docstring-provenance leakage)
-            provenance = check_query_provenance(
-                candidate.query, code_unit.docstring
-            )
+            provenance = check_query_provenance(candidate.query, code_unit.docstring)
             if not provenance.passed:
                 logger.warning(
                     "Query failed provenance check: %s",

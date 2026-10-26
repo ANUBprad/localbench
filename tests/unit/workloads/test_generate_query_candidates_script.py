@@ -10,9 +10,7 @@ from localbench.workloads.code_retrieval.extraction import ExtractedCodeUnit
 from localbench.workloads.code_retrieval.schemas import CodeUnitContext
 
 _SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "generate_query_candidates.py"
+    Path(__file__).resolve().parents[3] / "scripts" / "generate_query_candidates.py"
 )
 _spec = importlib.util.spec_from_file_location(
     "generate_query_candidates", _SCRIPT_PATH
@@ -44,9 +42,7 @@ def _unit(repo: str, symbol: str) -> ExtractedCodeUnit:
 
 def _unit_ids(units):
     return {
-        _script._build_code_unit_id(
-            u.repository, u.file_path, u.symbol, u.content_hash
-        )
+        _script._build_code_unit_id(u.repository, u.file_path, u.symbol, u.content_hash)
         for u in units
     }
 

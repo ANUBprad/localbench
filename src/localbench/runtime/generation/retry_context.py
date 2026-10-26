@@ -20,9 +20,7 @@ def build_corrective_prompt(errors: list[StructuredError]) -> str:
     lines = ["Previous attempt failed validation:"]
     for err in errors:
         lines.append(f"- {err}")
-    lines.append(
-        "Please produce valid JSON matching the schema exactly."
-    )
+    lines.append("Please produce valid JSON matching the schema exactly.")
     return "\n".join(lines)
 
 

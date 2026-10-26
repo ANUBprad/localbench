@@ -204,9 +204,7 @@ class TestCrashSafety:
 
     def test_torn_only_record_leaves_empty_pool(self, paths):
         candidates_path, failures_path = paths
-        candidates_path.write_bytes(
-            b'{"code_unit_id": "unit_2", "succ'
-        )
+        candidates_path.write_bytes(b'{"code_unit_id": "unit_2", "succ')
 
         store = CandidateStore(candidates_path, failures_path)
         successful, failed = store.load()
@@ -280,9 +278,7 @@ class TestValidateRecord:
 class TestDurability:
     def test_fsync_called_per_append(self, paths, monkeypatch):
         calls = []
-        monkeypatch.setattr(
-            os, "fsync", lambda fd: calls.append(fd), raising=True
-        )
+        monkeypatch.setattr(os, "fsync", lambda fd: calls.append(fd), raising=True)
         store = CandidateStore(*paths)
         store.append_success(_record("unit_ok"))
         store.append_failure(_record("unit_bad", success=False))

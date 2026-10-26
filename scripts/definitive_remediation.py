@@ -7,6 +7,7 @@ candidate_failures_v2.jsonl.
 
 DO NOT modify: candidates.jsonl, candidate_failures.jsonl, test.jsonl
 """
+
 from __future__ import annotations
 
 import json
@@ -194,9 +195,7 @@ def remediate() -> int:
         prior = _count_prior_attempts(uid, all_candidates, all_failures)
         remaining = MAX_ATTEMPTS - prior
         budget_info[uid] = {"prior": prior, "remaining": remaining}
-        logger.info(
-            "  %s: prior=%d, remaining=%d", uid, prior, remaining
-        )
+        logger.info("  %s: prior=%d, remaining=%d", uid, prior, remaining)
 
     regenerable = [uid for uid, info in budget_info.items() if info["remaining"] > 0]
     exhausted = [uid for uid, info in budget_info.items() if info["remaining"] <= 0]
@@ -205,14 +204,17 @@ def remediate() -> int:
         for uid in exhausted:
             logger.warning(
                 "  EXHAUSTED (skipping): %s (prior=%d, remaining=0)",
-                uid, budget_info[uid]["prior"],
+                uid,
+                budget_info[uid]["prior"],
             )
 
     if not regenerable:
         logger.error("No regenerable items.")
         return 1
 
-    logger.info("Regenerable: %d items, Exhausted: %d items", len(regenerable), len(exhausted))
+    logger.info(
+        "Regenerable: %d items, Exhausted: %d items", len(regenerable), len(exhausted)
+    )
 
     adapter = OllamaAdapter(model_name=MODEL_NAME)
     if not adapter.health_check():
@@ -237,7 +239,10 @@ def remediate() -> int:
 
             policy = RetryPolicy(max_attempts=remaining)
             generator = QueryGenerator(
-                model=adapter, policy=policy, top_p=TOP_P, seed=SEED,
+                model=adapter,
+                policy=policy,
+                top_p=TOP_P,
+                seed=SEED,
             )
             result = generator.generate(eu)
             success = result.success and result.candidate is not None
@@ -275,7 +280,8 @@ def remediate() -> int:
                 new_success += 1
                 logger.info(
                     "  OK: %s (query=%s)",
-                    uid, result.candidate.query,
+                    uid,
+                    result.candidate.query,
                 )
             else:
                 category = "unknown"

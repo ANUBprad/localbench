@@ -21,17 +21,13 @@ from localbench.workloads.code_retrieval.extraction import ExtractedCodeUnit
 from localbench.workloads.code_retrieval.schemas import CodeUnitContext
 
 _SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "scripts"
-    / "generate_query_candidates.py"
+    Path(__file__).resolve().parents[3] / "scripts" / "generate_query_candidates.py"
 )
 _spec = importlib.util.spec_from_file_location(
     "generate_query_candidates_provider_hang", _SCRIPT_PATH
 )
 _script = importlib.util.module_from_spec(_spec)
-sys.modules.setdefault(
-    "generate_query_candidates_provider_hang", _script
-)
+sys.modules.setdefault("generate_query_candidates_provider_hang", _script)
 _spec.loader.exec_module(_script)
 
 
@@ -198,9 +194,7 @@ class TestProviderHangAbort:
         assert exit_code == 3
         assert elapsed < 2.0  # bounded: must not hang
 
-    def test_single_transient_failure_does_not_abort(
-        self, tmp_path, monkeypatch
-    ):
+    def test_single_transient_failure_does_not_abort(self, tmp_path, monkeypatch):
         """A lone provider failure is recorded, then generation continues."""
         run, state, outdir, units = _build_generate_all_harness(
             tmp_path, monkeypatch, ["a", "b", "c"]
@@ -219,9 +213,7 @@ class TestProviderHangAbort:
         assert len(failed) == 1
         assert failed[0]["failure_category"] == "timeout"
 
-    def test_abort_persists_completed_records_and_no_hang(
-        self, tmp_path, monkeypatch
-    ):
+    def test_abort_persists_completed_records_and_no_hang(self, tmp_path, monkeypatch):
         run, state, outdir, units = _build_generate_all_harness(
             tmp_path, monkeypatch, ["a", "b", "c", "d"]
         )
@@ -262,9 +254,7 @@ class TestProviderHangAbort:
 
 
 class TestResumeAfterAbort:
-    def test_resume_skips_completed_and_no_duplicates(
-        self, tmp_path, monkeypatch
-    ):
+    def test_resume_skips_completed_and_no_duplicates(self, tmp_path, monkeypatch):
         """After an abort, rerunning from the same checkpoint has no dupes."""
         run, state, outdir, units = _build_generate_all_harness(
             tmp_path, monkeypatch, ["a", "b", "c", "d", "e"]

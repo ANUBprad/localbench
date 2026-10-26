@@ -9,6 +9,7 @@ candidate_failures_v2.jsonl.
 
 DO NOT modify: candidates.jsonl, candidate_failures.jsonl, test.jsonl
 """
+
 from __future__ import annotations
 
 import json
@@ -75,6 +76,7 @@ REJECTED_IDS = [
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_jsonl(path: Path) -> list[dict]:
     records = []
@@ -149,6 +151,7 @@ def _serialize_attempt(attempt: AttemptRecord) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def remediate() -> int:
     logger.info("=" * 60)
     logger.info("Phase 4F-I-C8 Remediation: Two Rejected Queries")
@@ -168,9 +171,7 @@ def remediate() -> int:
         prior = _count_prior_attempts(uid, all_candidates, all_failures)
         remaining = MAX_ATTEMPTS - prior
         budget_info[uid] = {"prior": prior, "remaining": remaining}
-        logger.info(
-            "  %s: prior=%d, remaining=%d", uid, prior, remaining
-        )
+        logger.info("  %s: prior=%d, remaining=%d", uid, prior, remaining)
 
     regenerable = [uid for uid, info in budget_info.items() if info["remaining"] > 0]
     exhausted = [uid for uid, info in budget_info.items() if info["remaining"] <= 0]
@@ -179,7 +180,8 @@ def remediate() -> int:
         for uid in exhausted:
             logger.error(
                 "  EXHAUSTED: %s (prior=%d, remaining=0)",
-                uid, budget_info[uid]["prior"],
+                uid,
+                budget_info[uid]["prior"],
             )
         logger.error("Cannot proceed: some items exhausted.")
         return 1
@@ -209,7 +211,10 @@ def remediate() -> int:
 
             policy = RetryPolicy(max_attempts=remaining)
             generator = QueryGenerator(
-                model=adapter, policy=policy, top_p=TOP_P, seed=SEED,
+                model=adapter,
+                policy=policy,
+                top_p=TOP_P,
+                seed=SEED,
             )
             result = generator.generate(eu)
             success = result.success and result.candidate is not None
@@ -247,7 +252,8 @@ def remediate() -> int:
                 new_success += 1
                 logger.info(
                     "  OK: %s (query=%s)",
-                    uid, result.candidate.query,
+                    uid,
+                    result.candidate.query,
                 )
             else:
                 category = "unknown"

@@ -174,8 +174,7 @@ class CandidateStore:
                 unit_id = record["code_unit_id"]
                 if unit_id in seen:
                     raise CandidateArtifactError(
-                        f"Duplicate record for CodeUnit '{unit_id}' "
-                        f"in {path}."
+                        f"Duplicate record for CodeUnit '{unit_id}' in {path}."
                     )
                 if record["success"] is not expected_success:
                     raise CandidateArtifactError(

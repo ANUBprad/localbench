@@ -15,9 +15,7 @@ class MalformedJSONError(StructuredError):
     """Raw model output is not valid JSON."""
 
     def __init__(self, message: str | None = None) -> None:
-        super().__init__(
-            message or "Model output is not valid JSON."
-        )
+        super().__init__(message or "Model output is not valid JSON.")
 
 
 class MissingFieldError(StructuredError):
@@ -32,9 +30,7 @@ class TypeMismatchError(StructuredError):
     """A field has an unexpected type."""
 
     def __init__(self, field: str, expected: str, got: str) -> None:
-        super().__init__(
-            f"Field '{field}' expected {expected}, got {got}."
-        )
+        super().__init__(f"Field '{field}' expected {expected}, got {got}.")
         self.field = field
         self.expected = expected
         self.got = got
@@ -44,8 +40,6 @@ class ConstraintViolationError(StructuredError):
     """A field value violates a Pydantic constraint."""
 
     def __init__(self, field: str, detail: str) -> None:
-        super().__init__(
-            f"Constraint violation on '{field}': {detail}."
-        )
+        super().__init__(f"Constraint violation on '{field}': {detail}.")
         self.field = field
         self.detail = detail
