@@ -1,78 +1,88 @@
 # LocalBench
 
-Offline-first, privacy-first local LLM benchmarking and model-selection platform.
+Offline-first local LLM tooling, with an active **code-retrieval dataset and query-generation research workflow**.
 
-## Features
+> **Project status (October 2026):** Work in progress. Repository ingestion, CodeUnit extraction, query generation, selection, blind review tooling, and a Semantic IR A/B experiment are implemented. A complete retrieval index, ranking evaluation runner, and reproducible multi-model comparison are **not yet shipped**. Do not interpret experimental generation success as retrieval accuracy.
 
-- Run open-source LLMs through Ollama locally
-- Standardized benchmark workloads
-- Measure quality, performance, and resource usage
-- Get model recommendations based on your hardware and constraints
-- Study assistant with Q&A and quiz generation
+## Install
 
-## Installation
+Python 3.10+ is required. Ollama is optional for unit tests but required for local inference.
 
 ```bash
-# Install from source
-git clone https://github.com/localbench/localbench.git
+git clone https://github.com/ANUBprad/localbench.git
 cd localbench
-pip install -e .
-
-# Or install with development dependencies
-pip install -e ".[dev]"
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -e ".[dev,semantic-ir]"
+python -m pytest -q
 ```
 
-## Quick Start
+## Available CLI commands
 
 ```bash
-# Show help
 localbench --help
-
-# Show version
 localbench --version
-
-# List available models (requires Ollama running)
-localbench models
-
-# Ask a model a question
-localbench ask "What is paging in operating systems?"
+localbench system
+localbench models            # requires a running Ollama service
+localbench ask "Explain a hash table"  # requires Ollama and a suitable model
+localbench review --help
+localbench review status     # requires local review artifacts
 ```
+
+The `review` CLI concerns the selected 45-query benchmark. It is **separate** from the development-only Semantic IR A/B blind review.
+
+## Semantic IR A/B review (development only)
+
+The original experiment contains 60 blinded pairs (120 review items). Its frozen inputs and results live under `artifacts/experiments/query_representation_ab/v1/` and are local/ignored; a fresh clone will not contain them. Never fabricate missing artifacts or human judgments.
+
+Check the existing full review:
+
+```bash
+python scripts/analyze_query_representation_ab_review.py --validate-only
+```
+
+If the full review is incomplete, a deterministic 20-pair (40-item) subset can be reviewed without overwriting the original:
+
+```bash
+python scripts/run_blind_query_ab_review.py --review-pairs 20
+python scripts/analyze_query_representation_ab_review.py \
+  --input artifacts/experiments/query_representation_ab/v1/blind_review_input_20pairs.json \
+  --review-file artifacts/experiments/query_representation_ab/v1/blind_review_results_20pairs.json \
+  --analysis-dir artifacts/experiments/query_representation_ab/v1/analysis_20pairs
+```
+
+Complete the human review before analyzing. A 20-pair result is directional development evidence, not a definitive benchmark-quality claim. Preserve the frozen 45-query evaluation set and its ground truth.
 
 ## Development
 
 ```bash
-# Run tests
-pytest
-
-# Run tests with coverage
-pytest --cov=localbench
-
-# Format code
-ruff format src/ tests/
-
-# Lint code
-ruff check src/ tests/
+python -m pytest -q
+python -m pytest --cov=localbench --cov-report=term-missing
+ruff check src/ tests/ scripts/
+ruff format --check src/ tests/ scripts/
 ```
 
-## Architecture
+CI runs offline unit tests without a local Ollama server or ignored experiment artifacts. The standalone experiment scripts may require their own local data and dependencies.
 
-LocalBench follows a layered architecture:
+## Roadmap
 
-1. **CLI Layer** (Typer + Rich) - Command routing and output formatting
-2. **Application Layer** - Study assistant, benchmark runner
-3. **Generation Layer** - Structured validation, retry engine
-4. **Runtime Layer** - Model abstraction (LocalModel protocol)
-5. **Ollama Adapter** - HTTP client, model discovery
+1. Close the Semantic IR A/B decision using real blind judgments and a documented stopping rule.
+2. Verify and version the frozen dataset, query-to-CodeUnit relevance labels, and repository-disjoint splits.
+3. Implement BM25 and fixed local-embedding retrieval baselines with Hit@K and MRR.
+4. Benchmark local models with comparable configurations, full-denominator failure accounting, timing, and hardware metadata.
+5. Publish reproducible runs, documentation, and a v1 release.
 
-## Engineering Rules
+## Engineering principles
 
-- **Offline-first**: No cloud APIs, no fallback to cloud LLMs
-- **Measurement before claims**: Never claim one model is "best" without context
-- **Raw data first**: Immutable JSONL artifacts; summaries derived from raw data
-- **Reproducibility**: Every run records enough metadata to reproduce
-- **Model abstraction**: Only Ollama adapter knows about Ollama; everything else uses LocalModel protocol
-- **Typed contracts**: Pydantic v2 with strict validation at all boundaries
+- **Offline first:** no cloud inference fallback.
+- **Benchmark integrity:** no development tuning against frozen test labels.
+- **Evidence over claims:** preserve raw artifacts and report failed cases.
+- **Reproducibility:** record dataset hashes, seeds, model IDs, configuration, and hardware.
+- **Typed boundaries:** validate structured outputs and fail closed on malformed records.
+
+Detailed design documents in the repository describe planned architecture and should not be mistaken for proof that every module is implemented.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT; see [LICENSE](LICENSE).
