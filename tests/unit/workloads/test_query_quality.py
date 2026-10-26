@@ -44,3 +44,21 @@ def test_candidate_preserves_identifiers():
     assert row["candidate_id"] == "candidate-a"
     assert row["code_unit_id"] == "unit-a"
     assert "generic_template" in row["flags"]
+
+
+def test_generic_function_question_flagged():
+    assert "generic_template" in assess_query("How does this function work?")
+
+
+def test_implementation_count_question_flagged():
+    assert "exact_count_claim_review" in assess_query(
+        "Which function performs exactly three method calls?"
+    )
+
+
+def test_specific_behavior_question_not_generic():
+    flags = assess_query(
+        "How does this function handle invalid hexadecimal "
+        "color values when parsing user input?"
+    )
+    assert "generic_template" not in flags
