@@ -51,9 +51,9 @@ semantic-ir = [
 localbench = "localbench.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/localbench/localbench"
-Repository = "https://github.com/localbench/localbench"
-Issues = "https://github.com/localbench/localbench/issues"
+Homepage = "https://github.com/ANUBprad/localbench"
+Repository = "https://github.com/ANUBprad/localbench"
+Issues = "https://github.com/ANUBprad/localbench/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/localbench"]
