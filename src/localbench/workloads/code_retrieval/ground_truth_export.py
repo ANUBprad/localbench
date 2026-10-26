@@ -80,7 +80,12 @@ def export_adjudicated_cases(
 
 
 def export_from_files(
-    review_path: Path, labels_path: Path, units_path: Path, output_path: Path,\n    audit_path: Path | None = None,\n) -> int:
+    review_path: Path,
+    labels_path: Path,
+    units_path: Path,
+    output_path: Path,
+    audit_path: Path | None = None,
+) -> int:
     review = json.loads(review_path.read_text(encoding="utf-8"))
     units = read_jsonl(units_path)
     ids = [unit["id"] for unit in units]
