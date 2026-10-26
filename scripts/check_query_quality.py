@@ -10,7 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from localbench.workloads.code_retrieval.query_quality import assess_candidate
+from localbench.workloads.code_retrieval.query_quality import assess_batch
 
 
 def main() -> None:
@@ -26,7 +26,7 @@ def main() -> None:
     items = data.get("items")
     if not isinstance(items, list):
         raise ValueError("review artifact must contain an items list")
-    rows = [assess_candidate(item) for item in items]
+    rows = assess_batch(items)
     counts = Counter(flag for row in rows for flag in row["flags"])
     report = {
         "artifact": "query_quality_advisory",
