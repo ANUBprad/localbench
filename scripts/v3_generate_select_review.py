@@ -25,12 +25,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from localbench.workloads.code_retrieval.review import (
+from localbench.workloads.code_retrieval.review import (  # noqa: E402
     ReviewArtifactError,
     build_review_artifact,
     validate_review_artifact,
 )
-from localbench.workloads.code_retrieval.selection import (
+from localbench.workloads.code_retrieval.selection import (  # noqa: E402
     build_eligible_pool,
     build_selection_record,
     pool_hash,

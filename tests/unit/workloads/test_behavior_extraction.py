@@ -7,6 +7,7 @@ No LLM is involved.
 from __future__ import annotations
 
 import ast as _ast
+import re
 
 from localbench.workloads.code_retrieval.behavior_extraction import (
     extract_behavior_facts,
@@ -141,8 +142,6 @@ class TestStructuredBehaviorFactsSchema:
 # ===========================================================================
 
 
-import re
-
 # Pattern matching Python identifiers (snake_case, camelCase, PascalCase)
 _IDENTIFIER_PATTERN = re.compile(
     r"\b(self|cls|[A-Z][a-zA-Z0-9]+|"
@@ -199,7 +198,7 @@ class TestNoIdentifiersInExtractedFacts:
             assert "transform" not in op
 
     def test_raises_still_contains_exception_names(self) -> None:
-        """Exception class names are domain identifiers, not implementation identifiers."""
+        """Exception names are domain identifiers, not implementation names."""
         src = 'def validate(x):\n    if x < 0:\n        raise ValueError("negative")\n'
         facts = extract_behavior_facts(src)
         assert "ValueError" in facts.raises

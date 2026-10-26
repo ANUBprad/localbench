@@ -497,7 +497,8 @@ def check_query_leakage(
                 break
         # Check if docstring contains the query text (query is a subset of docstring)
         # This catches cases like "pytest.approx() should raise..." matching
-        # docstring "pytest.approx() should raise an error on unordered sequences (#9692)."
+        # docstring "pytest.approx() should raise an error on unordered
+        # sequences (#9692)."
         if not violations:
             query_stripped = query_lower.strip().rstrip(".")
             if len(query_stripped) > 20 and query_stripped in doc_lower:
