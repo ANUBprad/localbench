@@ -32,7 +32,7 @@ def test_dense_validates_query_and_k():
     with pytest.raises(ValueError):
         index.search("tie", k=0)
     with pytest.raises(ValueError):
-        index.search("find payment", k=1) if False else index.search(123)
+        index.search(123)
 
 
 @pytest.mark.parametrize("vectors", [
