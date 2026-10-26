@@ -10,7 +10,10 @@ from collections.abc import Mapping
 _GENERIC = (
     re.compile(r"\bpurpose,? inputs?,? and outputs?\b", re.I),
     re.compile(r"\bspecific domain concepts\b", re.I),
-    re.compile(r"\bwhat (?:does|is) (?:this|the) (?:code|function|method) do\??$", re.I),
+    re.compile(
+        r"\bwhat (?:does|is) (?:this|the) (?:code|function|method) do\??$",
+        re.I,
+    ),
 )
 _COUNT = re.compile(
     r"\b(?:exactly\s+)?(?:two|three|four|five|six|seven|eight|nine|ten|"
