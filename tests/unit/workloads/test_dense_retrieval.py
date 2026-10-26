@@ -15,7 +15,10 @@ def encode(texts):
 
 
 def test_dense_ranks_semantic_match():
-    index = DenseIndex({"email": "email validation", "pay": "payment implementation"}, encode)
+    index = DenseIndex(
+        {"email": "email validation", "pay": "payment implementation"},
+        encode,
+    )
     hits = index.search("find payment")
     assert [hit.code_unit_id for hit in hits] == ["pay", "email"]
     assert hits[0].score == pytest.approx(1.0)
