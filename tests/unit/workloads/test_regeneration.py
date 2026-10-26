@@ -432,55 +432,58 @@ def _load_jsonl(path: Path) -> list[dict]:
 
 
 class TestDatasetBudgetReality:
-    """Verify the audited cumulative budget of the 41 rejected CodeUnits.
-
-    The dataset artifacts are gitignored, so tests skip when the artifacts
-    are absent. When present, this guards the frozen 3-attempt budget: no
-    rejected CodeUnit may exceed 3 cumulative attempts, and the round store
-    is distinct from the v2 store.
+    """Validate current review and regeneration artifacts without assuming
+    an earlier review snapshot is still the active one.
     """
 
     REPO = Path(__file__).resolve().parent.parent.parent.parent
     Q = REPO / "dataset" / "queries"
 
-    def test_all_rejected_have_remaining_budget(self) -> None:
-        """The audit found 41 rejected, and none is over the frozen budget."""
+    def test_review_decisions_are_consistent(self) -> None:
+        """A review artifact must have unique targets and valid decision states."""
         artifact_path = self.Q / "review_artifact.json"
         if not artifact_path.exists():
             return
         artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-        rejected = [
-            item["code_unit_id"]
-            for item in artifact["items"]
-            if item["review"]["state"] == "rejected"
-        ]
-        assert len(rejected) == 41
+        items = artifact["items"]
+        unit_ids = [item["code_unit_id"] for item in items]
+        assert len(unit_ids) == len(set(unit_ids))
+        assert all(
+            item["review"]["state"] in {"accepted", "rejected", "pending"}
+            for item in items
+        )
+        assert len(items) == 45
 
-    def test_rejected_candidates_present_in_v2_not_v3(self) -> None:
-        """v3 regeneration targeted only rejected units (post-C3 invariant).
+    def test_selected_v3_candidates_resolve_to_current_selection(self) -> None:
+        """The frozen selection must resolve across all candidate generations.
 
-        After Phase 4F-I-C3, the 41 rejected units may carry a v3 round
-        record (39 succeeded, 2 failed), but accepted units must never have
-        been regenerated: the v3 store is a subset of the rejected set.
+        Historical rejected-unit lists cannot be reconstructed from the
+        mutable current review artifact; don't treat it as a C3 snapshot.
         """
-        artifact_path = self.Q / "review_artifact.json"
-        if not artifact_path.exists():
+        selection_path = self.Q / "final_45_selection.json"
+        if not selection_path.exists():
             return
-        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-        accepted = {
-            item["code_unit_id"]
-            for item in artifact["items"]
-            if item["review"]["state"] == "accepted"
+        selection = json.loads(selection_path.read_text(encoding="utf-8"))
+        selected_ids = selection["selected_candidate_ids"]
+        selected_units = selection["selected_code_unit_ids"]
+        assert len(selected_ids) == len(set(selected_ids)) == 45
+        assert len(selected_units) == len(set(selected_units)) == 45
+
+        candidates_by_id = {}
+        for name in ("candidates.jsonl", "candidates_v2.jsonl", "candidates_v3.jsonl"):
+            path = self.Q / name
+            if not path.exists():
+                continue
+            for record in _load_jsonl(path):
+                cid = record["candidate_id"]
+                assert cid not in candidates_by_id, f"duplicate candidate ID: {cid}"
+                candidates_by_id[cid] = record
+
+        assert set(selected_ids) <= set(candidates_by_id)
+        resolved_units = {
+            candidates_by_id[cid]["code_unit_id"] for cid in selected_ids
         }
-        rejected = {
-            item["code_unit_id"]
-            for item in artifact["items"]
-            if item["review"]["state"] == "rejected"
-        }
-        v3_cands = _load_jsonl(self.Q / "candidates_v3.jsonl")
-        v3_ids = {r["code_unit_id"] for r in v3_cands}
-        assert not (accepted & v3_ids)
-        assert v3_ids <= rejected
+        assert resolved_units == set(selected_units)
 
 
 # ---------------------------------------------------------------------------
