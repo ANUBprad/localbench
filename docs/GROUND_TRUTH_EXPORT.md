@@ -11,7 +11,16 @@ exporter requires accepted review decisions and separately adjudicated labels.
 2. Complete human review and record `review.state = "accepted"` or
    `"rejected"` for each reviewed item. Rejections require notes. Keep
    review decisions in the existing artifact; do not insert relevance fields.
-3. Create a separate local JSONL label file, e.g.
+3. Generate an independent source audit (only once; it refuses to overwrite):
+   `python -m scripts.create_source_audit`. Inspect
+   `dataset/queries/source_code_audit.json`, compare each query to its
+   source implementation, and set `status` to `passed` or `failed`
+   with a nonempty explanation. Leave uncertain items `pending`.
+   The template never auto-approves. Source hashes and query text are
+   checked against the current review artifact. The audit must contain
+   every human-accepted candidate; only audit-passed candidates are
+   eligible for export.
+4. Create a separate local JSONL label file, e.g.
    `dataset/queries/adjudicated_labels.jsonl`, with one line per **accepted**
    candidate, containing independently verified relevant corpus IDs:
 
@@ -19,12 +28,11 @@ exporter requires accepted review decisions and separately adjudicated labels.
 {"candidate_id":"<actual selected candidate ID>","relevant_code_units":["<verified CodeUnit ID>"]}
 ```
 
-These strings are placeholders, not verified labels. Include all accepted
-candidates and none that are pending/rejected. The export fails closed on
-missing labels, duplicates, unknown candidates, or corpus ID mismatches.
+These strings are placeholders, not verified labels. Include only audit-passed, human-accepted\ncandidates. Do not label pending/failed audits or human-rejected candidates. The export fails closed on
+missing labels, duplicates, unknown candidates, failed audits, or corpus ID mismatches.
 
 ```powershell
-python -m scripts.export_adjudicated_queries --labels dataset/queries/adjudicated_labels.jsonl --output reports/adjudicated_queries.jsonl
+python -m scripts.export_adjudicated_queries --labels dataset/queries/adjudicated_labels.jsonl --audit dataset/queries/source_code_audit.json --output reports/adjudicated_queries.jsonl
 python -m scripts.run_retrieval_comparison --units dataset/splits/test.jsonl --queries reports/adjudicated_queries.jsonl --model nomic-embed-text --output reports/comparison.json
 ```
 
