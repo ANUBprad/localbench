@@ -6,7 +6,8 @@ Flags are review hints, never evidence of correctness or relevance.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from difflib import SequenceMatcher
 
 _GENERIC = (
     re.compile(r"\bpurpose,? inputs?,? and outputs?\b", re.I),
@@ -62,3 +63,55 @@ def assess_candidate(candidate: Mapping[str, object]) -> dict[str, object]:
         "code_unit_id": candidate.get("code_unit_id"),
         "flags": assess_query(query),
     }
+
+def _normalize_for_comparison(query: str) -> str:
+    """Ignore case, punctuation, and whitespace in duplicate comparisons."""
+    return " ".join(re.findall(r"[a-z0-9_]+", query.casefold()))
+
+
+def assess_batch(
+    candidates: Sequence[Mapping[str, object]],
+    *,
+    similarity_threshold: float = 0.90,
+) -> list[dict[str, object]]:
+    """Assess candidates in order, with advisory duplicate flags.
+
+    Each duplicate points to the most similar earlier candidate. Equal scores
+    prefer the earliest candidate. This does not mutate or filter the input.
+    """
+    if not 0.0 < similarity_threshold <= 1.0:
+        raise ValueError("similarity_threshold must be in (0, 1]")
+
+    rows: list[dict[str, object]] = []
+    previous: list[tuple[object, str]] = []
+    for candidate in candidates:
+        row = assess_candidate(candidate)
+        query = candidate["query"]
+        assert isinstance(query, str)
+        normalized = _normalize_for_comparison(query)
+
+        best_index = -1
+        best_score = -1.0
+        if normalized:
+            for index, (_, earlier) in enumerate(previous):
+                if not earlier:
+                    continue
+                score = SequenceMatcher(
+                    None, normalized, earlier, autojunk=False
+                ).ratio()
+                if score > best_score:
+                    best_score = score
+                    best_index = index
+
+        if best_index >= 0 and best_score >= similarity_threshold:
+            row["flags"].append(
+                "duplicate_query"
+                if best_score == 1.0
+                else "near_duplicate_query"
+            )
+            row["similar_to_candidate_id"] = previous[best_index][0]
+            row["similarity_score"] = round(best_score, 4)
+
+        rows.append(row)
+        previous.append((candidate.get("candidate_id"), normalized))
+    return rows
