@@ -34,7 +34,7 @@ from localbench.workloads.code_retrieval.schemas import (
     StructuredBehaviorFacts,
 )
 
-QUERY_PROMPT_TEMPLATE_VERSION = "3.1.0"
+QUERY_PROMPT_TEMPLATE_VERSION = "3.2.0"
 """Version of the query prompt template.  Increment when wording changes.
 
 v3.1: Added identifier-free domain concepts and observable effects to the
@@ -62,6 +62,12 @@ _SYSTEM_PROMPT = (
     "- If you include any identifier from the source, the query is INVALID.\n"
     "\n"
     "Rules:\n"
+    "- Ground every claim in supplied behavioral facts. "
+    "Do not invent retries, guarantees, or errors.\n"
+    "- Prioritize observable effects and domain-specific behavior "
+    "over implementation details.\n"
+    "- Avoid generic questions about purpose, inputs, and outputs.\n"
+    "- Never ask for counts of calls, branches, loops, parameters, or statements.\n"
     "- The query must describe WHAT the code does, not its name or location.\n"
     "- Do NOT include: file paths, repository names, function names, "
     "class names, variable names, or any implementation-specific identifiers.\n"

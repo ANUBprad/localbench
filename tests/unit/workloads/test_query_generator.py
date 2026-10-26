@@ -952,7 +952,7 @@ class TestQueryGenerator:
         unit = _make_code_unit()
         result = gen.generate(unit)
 
-        assert result.prompt_template_version == "3.1.0"
+        assert result.prompt_template_version == "3.2.0"
 
     def test_timing_recorded(self) -> None:
         model = FakeModel()
@@ -1150,7 +1150,7 @@ class TestReproducibility:
             QUERY_PROMPT_TEMPLATE_VERSION,
         )
 
-        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.1.0"
+        assert QUERY_PROMPT_TEMPLATE_VERSION == "3.2.0"
 
 
 # ===========================================================================
