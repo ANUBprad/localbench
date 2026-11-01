@@ -158,3 +158,78 @@ def test_prepare_batch_audit_rows_fails_on_missing_source():
             {"c1": {"query": review["query"], "code_unit_id": "u1"}},
             {"u1": {"source_code": ""}},
         )
+
+def _revision_row(
+    review_id="R001", candidate_id="c1", source_verified="0"
+):
+    from localbench.workloads.code_retrieval.source_audit import source_digest
+
+    source = "def parse_color(value): return value"
+    return {
+        "review_id": review_id,
+        "candidate_id": candidate_id,
+        "code_unit_id": "u1",
+        "repository": "repo",
+        "file_path": "colors.py",
+        "symbol": "parse_color",
+        "query": "What does this function do?",
+        "source_sha256": source_digest(source),
+        "source_code": source,
+        "source_verified": source_verified,
+        "source_evidence": "lines 1-1" if source_verified == "1" else "",
+        "audit_notes": "Query overstates behavior" if source_verified == "0" else "",
+    }
+
+
+def test_prepare_query_revision_rows_includes_only_failed_audits():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_query_revision_rows,
+    )
+
+    failed = _revision_row()
+    passed = _revision_row("R002", "c2", "1")
+    rows = prepare_query_revision_rows([failed, passed])
+    assert len(rows) == 1
+    assert rows[0]["review_id"] == "R001"
+    assert rows[0]["original_query"] == failed["query"]
+    assert rows[0]["revised_query"] == ""
+    assert rows[0]["revision_status"] == "pending"
+
+
+def test_prepare_query_revision_rows_rejects_stale_source_hash():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_query_revision_rows,
+    )
+
+    row = _revision_row()
+    row["source_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="hash mismatch"):
+        prepare_query_revision_rows([row])
+
+
+def test_prepare_query_revision_rows_requires_decision_and_failure_notes():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_query_revision_rows,
+    )
+
+    row = _revision_row()
+    row["source_verified"] = ""
+    with pytest.raises(ValueError, match="decision must be 0 or 1"):
+        prepare_query_revision_rows([row])
+
+    row = _revision_row()
+    row["audit_notes"] = ""
+    with pytest.raises(ValueError, match="requires audit notes"):
+        prepare_query_revision_rows([row])
+
+
+def test_prepare_query_revision_rows_requires_evidence_for_passed_rows():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_query_revision_rows,
+    )
+
+    row = _revision_row(source_verified="1")
+    row["source_evidence"] = ""
+    with pytest.raises(ValueError, match="requires source evidence"):
+        prepare_query_revision_rows([row])
+
