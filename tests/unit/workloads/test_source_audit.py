@@ -50,3 +50,111 @@ def test_missing_entry_rejected():
     audit["items"].clear()
     with pytest.raises(ValueError, match="Missing"):
         validated_audit_ids(audit, review())
+
+
+def test_prepare_batch_audit_rows_maps_only_accepted_without_verifying():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_batch_audit_rows,
+    )
+
+    criteria = {
+        "understandable": "1",
+        "non_trivial": "1",
+        "self_contained": "1",
+        "specific": "1",
+        "non_identifying": "1",
+        "retrievable": "1",
+    }
+    reviews = [
+        {
+            "review_id": "R001",
+            "query": "Find color parser behavior",
+            **criteria,
+            "decision": "accept",
+        },
+        {
+            "review_id": "R002",
+            "query": "A vague query",
+            **{key: "0" for key in criteria},
+            "decision": "reject",
+        },
+    ]
+    rows = prepare_batch_audit_rows(
+        reviews,
+        {"R001": "c1", "R002": "c2"},
+        {
+            "c1": {
+                "candidate_id": "c1",
+                "code_unit_id": "u1",
+                "query": "Find color parser behavior",
+            },
+            "c2": {
+                "candidate_id": "c2",
+                "code_unit_id": "u2",
+                "query": "A vague query",
+            },
+        },
+        {
+            "u1": {
+                "repository": "repo",
+                "file_path": "colors.py",
+                "symbol": "parse",
+                "source_code": "def parse_color(value): return value",
+            }
+        },
+    )
+    assert len(rows) == 1
+    assert rows[0]["candidate_id"] == "c1"
+    assert rows[0]["source_sha256"]
+    assert rows[0]["source_verified"] == ""
+    assert rows[0]["source_evidence"] == ""
+
+
+def test_prepare_batch_audit_rows_rejects_query_mismatch():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_batch_audit_rows,
+    )
+
+    review = {
+        "review_id": "R001",
+        "query": "Altered query",
+        "understandable": "1",
+        "non_trivial": "1",
+        "self_contained": "1",
+        "specific": "1",
+        "non_identifying": "1",
+        "retrievable": "1",
+        "decision": "accept",
+    }
+    with pytest.raises(ValueError, match="Query mismatch"):
+        prepare_batch_audit_rows(
+            [review],
+            {"R001": "c1"},
+            {"c1": {"query": "Original query", "code_unit_id": "u1"}},
+            {"u1": {"source_code": "def f(): pass"}},
+        )
+
+
+def test_prepare_batch_audit_rows_fails_on_missing_source():
+    from localbench.workloads.code_retrieval.source_audit import (
+        prepare_batch_audit_rows,
+    )
+
+    review = {
+        "review_id": "R001",
+        "query": "Find color parser behavior",
+        "understandable": "1",
+        "non_trivial": "1",
+        "self_contained": "1",
+        "specific": "1",
+        "non_identifying": "1",
+        "retrievable": "1",
+        "decision": "accept",
+    }
+    with pytest.raises(ValueError, match="Missing source code"):
+        prepare_batch_audit_rows(
+            [review],
+            {"R001": "c1"},
+            {"c1": {"query": review["query"], "code_unit_id": "u1"}},
+            {"u1": {"source_code": ""}},
+        )
