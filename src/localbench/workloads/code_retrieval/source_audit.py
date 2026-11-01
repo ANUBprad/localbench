@@ -164,3 +164,81 @@ def prepare_batch_audit_rows(
             }
         )
     return rows
+
+QUERY_REVISION_FIELDS = (
+    "review_id",
+    "candidate_id",
+    "code_unit_id",
+    "repository",
+    "file_path",
+    "symbol",
+    "query",
+    "source_sha256",
+    "source_code",
+    "source_verified",
+    "source_evidence",
+    "audit_notes",
+)
+
+
+def prepare_query_revision_rows(audit_rows):
+    """Prepare a revision worksheet from completed, hash-checked source audits.
+
+    Only failed source-audit rows are returned. A human must write and assess
+    each revised query; this function never generates or approves query text.
+    """
+    seen_reviews = set()
+    seen_candidates = set()
+    revision_rows = []
+
+    for row in audit_rows:
+        missing = [field for field in QUERY_REVISION_FIELDS if field not in row]
+        if missing:
+            raise ValueError(f"Source audit row is missing fields: {missing}")
+
+        review_id = row["review_id"]
+        candidate_id = row["candidate_id"]
+        if not review_id or review_id in seen_reviews:
+            raise ValueError(f"Missing or duplicate review_id: {review_id}")
+        if not candidate_id or candidate_id in seen_candidates:
+            raise ValueError(f"Missing or duplicate candidate_id: {candidate_id}")
+        seen_reviews.add(review_id)
+        seen_candidates.add(candidate_id)
+
+        source = row["source_code"]
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError(f"Missing source code: {review_id}")
+        if row["source_sha256"] != source_digest(source):
+            raise ValueError(f"Source hash mismatch: {review_id}")
+        if row["source_verified"] not in {"0", "1"}:
+            raise ValueError(f"Source audit decision must be 0 or 1: {review_id}")
+
+        if row["source_verified"] == "1":
+            if not row["source_evidence"].strip():
+                raise ValueError(f"Verified audit requires source evidence: {review_id}")
+            continue
+
+        if not row["audit_notes"].strip():
+            raise ValueError(f"Failed audit requires audit notes: {review_id}")
+
+        revision_rows.append(
+            {
+                "review_id": review_id,
+                "candidate_id": candidate_id,
+                "code_unit_id": row["code_unit_id"],
+                "repository": row["repository"],
+                "file_path": row["file_path"],
+                "symbol": row["symbol"],
+                "original_query": row["query"],
+                "source_sha256": row["source_sha256"],
+                "source_code": source,
+                "source_evidence": row["source_evidence"],
+                "audit_notes": row["audit_notes"],
+                "revised_query": "",
+                "revision_rationale": "",
+                "revision_status": "pending",
+            }
+        )
+
+    return revision_rows
+
