@@ -90,3 +90,77 @@ def write_template(review: dict, path) -> None:
         json.dumps(audit_template(review), indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+REVIEW_CRITERIA = (
+    "understandable",
+    "non_trivial",
+    "self_contained",
+    "specific",
+    "non_identifying",
+    "retrievable",
+)
+
+
+def prepare_batch_audit_rows(
+    review_rows: list[dict[str, str]],
+    review_key: dict[str, str],
+    candidates: dict[str, dict],
+    units: dict[str, dict],
+) -> list[dict[str, str]]:
+    """Map a completed blind CSV to source-audit rows; never decide correctness."""
+    review_ids = [row.get("review_id", "") for row in review_rows]
+    if not all(review_ids) or len(set(review_ids)) != len(review_ids):
+        raise ValueError("Review IDs must be present and unique")
+    if set(review_ids) != set(review_key):
+        raise ValueError("Review IDs do not match blind-review key")
+
+    rows = []
+    seen_candidates = set()
+    for review in review_rows:
+        review_id = review["review_id"]
+        if any(review.get(field) not in {"0", "1"} for field in REVIEW_CRITERIA):
+            raise ValueError(f"Incomplete review criteria: {review_id}")
+        expected_decision = (
+            "accept"
+            if all(review[field] == "1" for field in REVIEW_CRITERIA)
+            else "reject"
+        )
+        if review.get("decision") != expected_decision:
+            raise ValueError(f"Inconsistent review decision: {review_id}")
+        candidate_id = review_key[review_id]
+        if candidate_id in seen_candidates:
+            raise ValueError(f"Duplicate candidate mapping: {candidate_id}")
+        seen_candidates.add(candidate_id)
+        candidate = candidates.get(candidate_id)
+        if candidate is None:
+            raise ValueError(f"Candidate not found: {candidate_id}")
+        if review.get("query") != candidate.get("query"):
+            raise ValueError(f"Query mismatch for {review_id}")
+        if expected_decision != "accept":
+            continue
+
+        code_unit_id = candidate.get("code_unit_id")
+        unit = units.get(code_unit_id)
+        if unit is None:
+            raise ValueError(f"CodeUnit not found for {review_id}: {code_unit_id}")
+        source = unit.get("source_code")
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError(f"Missing source code for {review_id}")
+        rows.append(
+            {
+                "review_id": review_id,
+                "candidate_id": candidate_id,
+                "code_unit_id": code_unit_id,
+                "query": review["query"],
+                "repository": str(unit.get("repository", "")),
+                "file_path": str(unit.get("file_path", "")),
+                "symbol": str(unit.get("symbol", "")),
+                "source_sha256": source_digest(source),
+                "source_code": source,
+                "source_verified": "",
+                "source_evidence": "",
+                "audit_notes": "",
+            }
+        )
+    return rows
