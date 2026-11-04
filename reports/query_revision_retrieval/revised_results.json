@@ -1,0 +1,249 @@
+{
+  "methods": {
+    "bm25": {
+      "metrics": {
+        "hit_at_1": 0.7777777777777778,
+        "hit_at_10": 0.8888888888888888,
+        "hit_at_5": 0.8888888888888888,
+        "mrr": 0.8
+      },
+      "rankings": {
+        "R002": [
+          "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_rich_progress_py__DownloadColumn_render_3d4e225651ab",
+          "repo003_py_rich_progress_py__Progress_get_default_columns_921eaadbdf40",
+          "repo003_py_rich_progress_py__Progress_wrap_file_2d909a229ee9",
+          "repo003_py_rich_progress_py__MofNCompleteColumn_render_e42d5dfafd15",
+          "repo003_py_rich_progress_py__open_610e8cda3d87",
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d"
+        ],
+        "R004": [
+          "repo003_py_rich_syntax_py__Syntax_from_path_5449c9d73992",
+          "repo003_py_rich_syntax_py__Syntax___rich_measure___62a72cf5ce55",
+          "repo003_py_rich_syntax_py__Syntax___init___ffcb6f9f85ea",
+          "repo003_py_rich_syntax_py__Syntax_stylize_range_c75b8dab1f26",
+          "repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5",
+          "repo003_py_rich_markdown_py__CodeBlock___rich_console___5728d6d16614",
+          "repo003_py_benchmarks_benchmarks_py__SyntaxWrappingSuite_setup_ca81e4aa4b8d",
+          "repo003_py_rich_syntax_py__Syntax_get_theme_f0ec9153b76c",
+          "repo006_py_src__pytest_config___init___py__create_terminal_writer_b91564e18d1e",
+          "repo006_py_testing_python_collect_py__test_unorderable_types_9e34c3ed65d1"
+        ],
+        "R008": [
+          "repo003_py_examples_columns_py__get_content_c74911b4d127",
+          "repo006_py_src__pytest_assertion_util_py__format_explanation_d3ec6b842dcc",
+          "repo006_py_src__pytest_scope_py__Scope_from_user_0cf56ea9be94",
+          "repo003_py_rich_console_py__Console_input_2cdc05992a49",
+          "repo006_py_testing_python_approx_py__TestApprox_test_expected_value_type_error_5f128e811807",
+          "repo003_py_rich_markup_py__escape_d447f3aa29b9",
+          "repo006_py_testing_python_raises_py__TestRaises_test_does_not_raise_does_raise_771924dc0241",
+          "repo006_py_testing_python_raises_py__TestRaises_test_does_not_raise_9f37614c6772",
+          "repo006_py_src__pytest_nodes_py__Item_add_report_section_c85b4ea77c2a",
+          "repo006_py_src__pytest_compat_py__get_user_id_ac2a92448577"
+        ],
+        "R010": [
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py__Progress_advance_2af3298bc16b",
+          "repo003_py_rich_progress_py___TrackThread_run_0d9bfad11ce4",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__Progress_update_c75ed1254da6",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_rich_progress_py__Progress_add_task_d2f1c3d8bbb3",
+          "repo003_py_rich_progress_py___TrackThread___init___f50346f985d0",
+          "repo003_py_rich_progress_py___Reader___next___fb6b750e9d26",
+          "repo003_py_rich_progress_py___Reader_read_f9214a62b16c"
+        ],
+        "R016": [
+          "repo003_py_rich_console_py__Console_render_str_cee4dfeb6f88",
+          "repo003_py_rich_console_py__Console_rule_8419d12bd8d0",
+          "repo003_py_rich_console_py__Console_out_e603d58e7aaa",
+          "repo003_py_rich_highlighter_py__Highlighter_highlight_fe5b1b013c7a",
+          "repo003_py_rich_palette_py__Palette___rich___6f8a1e694a1e",
+          "repo003_py_rich_highlighter_py__RegexHighlighter_highlight_9744c67f0faf",
+          "repo003_py_rich_text_py__Text_pad_7a6718a62cca",
+          "repo003_py_rich_progress_py__TextColumn_render_96de33b68eb6",
+          "repo006_py_src__pytest_config___init___py__create_terminal_writer_b91564e18d1e",
+          "repo003_py_rich_text_py__Text_highlight_regex_2fdaccd77112"
+        ],
+        "R017": [
+          "repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937",
+          "repo003_py_benchmarks_benchmarks_py__TextSuite_setup_8158b4c7aac1",
+          "repo003_py_rich_text_py__Text_align_29b6c822ce5a",
+          "repo003_py_rich_console_py__Console_rule_8419d12bd8d0",
+          "repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_time_wrapping_unicode_heavy_warm_cache_8bad3bd984a5",
+          "repo003_py_rich_rule_py__Rule___init___a7bb1f62fc68",
+          "repo003_py_rich_markdown_py__TableDataElement_create_972421c9ce67",
+          "repo003_py_rich_align_py__Align_center_b15501b89b6a",
+          "repo003_py_rich_rule_py__Rule___rich_console___0c3b447121af",
+          "repo003_py_rich_panel_py__Panel___init___b7af11799b7b"
+        ],
+        "R018": [
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo006_py_src__pytest_pastebin_py__create_new_paste_6db173cbe5da",
+          "repo003_py_rich_progress_py__Progress_wrap_file_2d909a229ee9",
+          "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__Progress_open_002f4561a4d3",
+          "repo003_py_rich_progress_py__Progress_update_c75ed1254da6",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py__Progress_advance_2af3298bc16b"
+        ],
+        "R023": [
+          "repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+          "repo003_py_rich_progress_py__Progress_get_default_columns_921eaadbdf40",
+          "repo003_py_rich_diagnose_py__report_4cde85ac046a",
+          "repo006_py_src__pytest__io_wcwidth_py__wcswidth_58240b1e8923",
+          "repo006_py_src__pytest__io_pprint_py__PrettyPrinter___init___877a6ff126bf",
+          "repo006_py_testing_python_raises_py__TestRaises_test_does_not_raise_9f37614c6772",
+          "repo006_py_testing_python_raises_py__TestRaises_test_does_not_raise_does_raise_771924dc0241",
+          "repo006_py_scripts_release_py__check_links_194d08343fbd",
+          "repo006_py_src__pytest_terminal_py__TerminalReporter_build_summary_stats_line_e740af0c3872",
+          "repo006_py_testing_python_raises_py__TestRaises_test_raises_repr_inflight_28a99456b93f"
+        ],
+        "R029": [
+          "repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560",
+          "repo003_py_rich_markdown_py__Heading___rich_console___baa08b2caef8",
+          "repo003_py_examples_fullscreen_py__Header___rich___2c91cd4092d0",
+          "repo003_py_rich__inspect_py__Inspect___rich___ef7453b45105",
+          "repo003_py_rich_panel_py__Panel_fit_777cdf7570c2",
+          "repo003_py_rich_console_py__Console_pager_5d65b4d8fd75",
+          "repo003_py_rich_text_py__Text_styled_63767af4607d",
+          "repo006_py_src__pytest_terminal_py__TerminalReporter_build_summary_stats_line_e740af0c3872",
+          "repo003_py_rich_layout_py___Placeholder___rich_console___2ef405f61adc",
+          "repo006_py_scripts_release_py__check_links_194d08343fbd"
+        ]
+      }
+    },
+    "dense": {
+      "metrics": {
+        "hit_at_1": 0.8888888888888888,
+        "hit_at_10": 1.0,
+        "hit_at_5": 0.8888888888888888,
+        "mrr": 0.9074074074074076
+      },
+      "rankings": {
+        "R002": [
+          "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo006_py_src__pytest__py_path_py__LocalPath_copy_ee2d2e92d88b",
+          "repo006_py_src__pytest__py_path_py__copymode_e5a31db6c7ae",
+          "repo006_py_src__pytest__py_path_py__copystat_8cbe6c4eb387",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__ProgressColumn___call___bc206e8a33db",
+          "repo003_py_rich_progress_py__Progress_tasks_8832643435b9",
+          "repo003_py_rich_progress_py__Progress_wrap_file_2d909a229ee9",
+          "repo003_py_rich_progress_py__Progress_add_task_d2f1c3d8bbb3"
+        ],
+        "R004": [
+          "repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5",
+          "repo003_py_rich_syntax_py__Syntax___init___ffcb6f9f85ea",
+          "repo003_py_rich_syntax_py__Syntax_stylize_range_c75b8dab1f26",
+          "repo006_py_src__pytest__code_code_py__TracebackEntry___str___9a2c7b270408",
+          "repo003_py_rich_syntax_py__Syntax_highlight_0ae2aea65164",
+          "repo003_py_rich_segment_py__Segment_line_9cdec4026a48",
+          "repo003_py_rich_markdown_py__CodeBlock___rich_console___5728d6d16614",
+          "repo003_py_rich_bar_py__Bar___rich_console___235399b5934f",
+          "repo006_py_src__pytest__code_code_py__ReprEntry___str___de3db51addef",
+          "repo003_py_rich_align_py__VerticalCenter___rich_console___9c5d61244436"
+        ],
+        "R008": [
+          "repo003_py_examples_columns_py__get_content_c74911b4d127",
+          "repo006_py_src__pytest_pathlib_py__extract_suffixes_c2cd0b606ccd",
+          "repo006_py_src__pytest_reports_py__BaseReport_capstdout_d7dd4c97bd68",
+          "repo003_py_rich_text_py__Text_markup_c7c8aa67360c",
+          "repo006_py_src__pytest__io_terminalwriter_py__TerminalWriter_markup_1eb912b0974d",
+          "repo006_py_src__pytest_pathlib_py__find_suffixes_292722d58892",
+          "repo006_py_src__pytest_reports_py__BaseReport_capstderr_01c378495893",
+          "repo006_py_src__pytest__code_code_py__ReprEntry___str___de3db51addef",
+          "repo003_py_rich_markup_py__Tag_markup_059da930b9ae",
+          "repo006_py_src__pytest_capture_py__FDCaptureBase___repr___e6130c030c61"
+        ],
+        "R010": [
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py___TrackThread_run_0d9bfad11ce4",
+          "repo003_py_rich_progress_py___TrackThread___init___f50346f985d0",
+          "repo003_py_rich_progress_py__Progress_advance_2af3298bc16b",
+          "repo003_py_rich_progress_bar_py__ProgressBar_update_83a8def12bd1",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__Progress_update_c75ed1254da6",
+          "repo003_py_rich_progress_py___Reader___next___fb6b750e9d26",
+          "repo003_py_rich_progress_py__track_a56d811473bd",
+          "repo003_py_rich_progress_py__Progress_add_task_d2f1c3d8bbb3"
+        ],
+        "R016": [
+          "repo003_py_rich_color_py__Color___rich___b6c12930b688",
+          "repo003_py_rich___main___py__ColorBox___rich_console___2dbb545a5b23",
+          "repo003_py_rich_color_py__parse_rgb_hex_f6779d88495f",
+          "repo003_py_rich_markdown_py__Heading___rich_console___baa08b2caef8",
+          "repo003_py_rich_style_py__Style___rich_repr___6fb5c8f639d4",
+          "repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d",
+          "repo003_py_rich_pretty_py__Pretty___rich_console___166d2deb2255",
+          "repo003_py_rich_palette_py__Palette___rich___6f8a1e694a1e",
+          "repo003_py_rich_emoji_py__Emoji___rich_console___beb451621f3e",
+          "repo003_py_rich_syntax_py__Syntax_highlight_0ae2aea65164"
+        ],
+        "R017": [
+          "repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937",
+          "repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_time_wrapping_unicode_heavy_warm_cache_8bad3bd984a5",
+          "repo003_py_rich_text_py__Text_align_29b6c822ce5a",
+          "repo003_py_rich_rule_py__Rule___init___a7bb1f62fc68",
+          "repo003_py_rich_bar_py__Bar___rich_console___235399b5934f",
+          "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_justify_center_90093ffb85ee",
+          "repo003_py_rich_align_py__Align_center_b15501b89b6a",
+          "repo003_py_rich_segment_py__Segment_align_middle_3fbaa07eae11",
+          "repo003_py_rich_segment_py__Segment_align_top_8eb63f5eee1f",
+          "repo003_py_rich__log_render_py__LogRender___init___3f8bc48e322b"
+        ],
+        "R018": [
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo006_py_src__pytest__py_path_py__LocalPath_copy_ee2d2e92d88b",
+          "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+          "repo006_py_src__pytest__py_path_py__copychunked_1500cc4eebd4",
+          "repo006_py_src__pytest__py_path_py__copystat_8cbe6c4eb387",
+          "repo006_py_src__pytest_pastebin_py__create_new_paste_6db173cbe5da",
+          "repo003_py_rich_text_py__Text_copy_94f79ab60fb8",
+          "repo006_py_src__pytest__py_path_py__copymode_e5a31db6c7ae",
+          "repo003_py_rich_text_py__Text_blank_copy_333390238923",
+          "repo006_py_scripts_update-plugin-list_py__project_response_with_refresh_0077a3391d94"
+        ],
+        "R023": [
+          "repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+          "repo003_py_examples_export_py__print_table_c8f7f3375b36",
+          "repo003_py_examples_fullscreen_py__Header___rich___2c91cd4092d0",
+          "repo003_py_rich_progress_py__Progress___init___de1fd28e2e43",
+          "repo003_py_rich_palette_py__Palette___rich___6f8a1e694a1e",
+          "repo003_py_rich_progress_py__ProgressColumn___init___bf87fdc39397",
+          "repo003_py_examples_top_lite_simulator_py__create_process_table_47439f4a231b",
+          "repo003_py_rich_progress_py__SpinnerColumn___init___c9b8cf612ff1",
+          "repo003_py_rich_spinner_py__Spinner___rich_console___9e09a54908d4",
+          "repo003_py_rich_progress_py__RenderableColumn___init___5fd548758730"
+        ],
+        "R029": [
+          "repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560",
+          "repo003_py_examples_fullscreen_py__Header___rich___2c91cd4092d0",
+          "repo003_py_rich__inspect_py__Inspect___rich___ef7453b45105",
+          "repo003_py_rich_markdown_py__Heading___rich_console___baa08b2caef8",
+          "repo003_py_rich_markdown_py__ImageItem___rich_console___bbe17f4777a8",
+          "repo003_py_rich_panel_py__Panel___init___b7af11799b7b",
+          "repo003_py_rich_bar_py__Bar___rich_console___235399b5934f",
+          "repo003_py_rich_console_py__ThemeContext___enter___6ad4adb42300",
+          "repo003_py_rich_layout_py___Placeholder___rich_console___2ef405f61adc",
+          "repo003_py_rich_syntax_py__Syntax___rich_console___7560033ad27f"
+        ]
+      }
+    }
+  },
+  "provenance": {
+    "embedding_model": "nomic-embed-text:latest",
+    "ollama_url": "http://127.0.0.1:11434",
+    "queries_sha256": "93828ec89cbdefce16f928456758861de1af3e03a1ae06617ba968c3cddc646b",
+    "representation": "source_code",
+    "top_k": 10,
+    "units_sha256": "37b27223c1701126a8f24559e33212f66a5e70ce85fcbcefd01aa116dbe6ff0e"
+  },
+  "query_count": 9
+}

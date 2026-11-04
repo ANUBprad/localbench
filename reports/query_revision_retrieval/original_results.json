@@ -1,0 +1,249 @@
+{
+  "methods": {
+    "bm25": {
+      "metrics": {
+        "hit_at_1": 0.1111111111111111,
+        "hit_at_10": 0.2222222222222222,
+        "hit_at_5": 0.2222222222222222,
+        "mrr": 0.14814814814814814
+      },
+      "rankings": {
+        "R002": [
+          "repo003_py_rich_progress_py__Progress_get_default_columns_921eaadbdf40",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_rich_progress_py__open_610e8cda3d87",
+          "repo003_py_rich_progress_py__track_a56d811473bd",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py__BarColumn_render_acab3d703b4e",
+          "repo003_py_rich_progress_py__TransferSpeedColumn_render_bc89949635bd",
+          "repo006_py_src__pytest_pytester_py__Pytester_makefile_ff19e555a773",
+          "repo003_py_rich_progress_py__Progress_update_c75ed1254da6"
+        ],
+        "R004": [
+          "repo003_py_rich_diagnose_py__report_4cde85ac046a",
+          "repo003_py_rich_console_py__Console_capture_cf219410ae9a",
+          "repo003_py_rich___init___py__print_83c299fb86ca",
+          "repo003_py_rich_console_py__Console_render_c4df32139c22",
+          "repo003_py_rich_console_py__Console_input_2cdc05992a49",
+          "repo003_py_rich_console_py__Console_save_svg_a4a2f3fde90f",
+          "repo003_py_rich_console_py__Console_out_e603d58e7aaa",
+          "repo006_py_src__pytest_nodes_py__Item_add_report_section_c85b4ea77c2a",
+          "repo003_py_rich_console_py__Console_render_lines_6ef4b0e5a04a",
+          "repo003_py_rich___init___py__get_console_d64e3af90750"
+        ],
+        "R008": [
+          "repo006_py_src__pytest_hookspec_py__pytest_report_to_serializable_8d6b65832127",
+          "repo006_py_doc_en_example_customdirectory_conftest_py__ManifestDirectory_collect_efc34861aa77",
+          "repo006_py_src__pytest__py_path_py__LocalPath___init___d87b99b3e5b4",
+          "repo006_py_src__pytest_pytester_py__Pytester_makefile_ff19e555a773",
+          "repo006_py_src__pytest_pathlib_py__resolve_pkg_root_and_module_name_d3d8ce291c3a",
+          "repo006_py_doc_en_example_customdirectory_conftest_py__pytest_collect_directory_27c71e0b1f24",
+          "repo006_py_src__pytest_compat_py__get_user_id_ac2a92448577",
+          "repo003_py_rich_json_py__JSON_from_data_5aeaf8c40623",
+          "repo006_py_src__pytest_compat_py__iscoroutinefunction_ffa156f11153",
+          "repo006_py_src__pytest_config___init___py__create_terminal_writer_b91564e18d1e"
+        ],
+        "R010": [
+          "repo003_py_rich_progress_py__track_a56d811473bd",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_rich_progress_py__Progress_get_default_columns_921eaadbdf40",
+          "repo003_py_rich_layout_py__Layout_render_2e50775362e5",
+          "repo003_py_rich_progress_py__open_610e8cda3d87",
+          "repo003_py_rich_progress_py__Progress_advance_2af3298bc16b",
+          "repo003_py_rich_progress_py__BarColumn_render_acab3d703b4e",
+          "repo003_py_rich_live_py__Live_process_renderables_b18c2035f30c"
+        ],
+        "R016": [
+          "repo006_py_src__pytest_pytester_py__Pytester_getmodulecol_684336535822",
+          "repo006_py_src__pytest_hookspec_py__pytest_collection_8be18ad257bf",
+          "repo006_py_src__pytest_hookspec_py__pytest_runtest_makereport_fb77e8092566",
+          "repo006_py_src__pytest_assertion_rewrite_py__AssertionRewriter_explanation_param_4d5e523a630a",
+          "repo006_py_src__pytest_pytester_py__Pytester_genitems_93ea8cd35419",
+          "repo006_py_src__pytest_pytester_py__Pytester_getitem_fdbdf80f8e36",
+          "repo006_py_src__pytest_legacypath_py__LegacyTmpdirPlugin_tmpdir_c26bd4b5874e",
+          "repo006_py_src__pytest_fixtures_py__FixtureRequest___init___838927916749",
+          "repo006_py_src__pytest_capture_py__CaptureManager_activate_fixture_a64fffc4ed97",
+          "repo006_py_src__pytest_hookspec_py__pytest_runtest_logreport_e23a2ebbaec3"
+        ],
+        "R017": [
+          "repo003_py_rich_console_py__Console_export_html_559778509e91",
+          "repo003_py_rich__log_render_py__LogRender___call___d6baae303123",
+          "repo003_py_rich_console_py__Console_pager_5d65b4d8fd75",
+          "repo006_py_src__pytest_assertion_rewrite_py__AssertionRewriter_explanation_param_4d5e523a630a",
+          "repo003_py_rich_console_py__Console_save_svg_a4a2f3fde90f",
+          "repo006_py_src__pytest_assertion_rewrite_py__AssertionRewriter_push_format_context_89424d697177",
+          "repo003_py_rich_live_py__Live_start_722d2c8beff1",
+          "repo003_py_rich_console_py__Console_save_html_c5873ede67cb",
+          "repo003_py_rich_logging_py__RichHandler_render_0a41cf9c7eb3",
+          "repo006_py_src__pytest_assertion_rewrite_py__AssertionRewriter_pop_format_context_0a29bf44d62c"
+        ],
+        "R018": [
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_rich_progress_py__Progress_get_default_columns_921eaadbdf40",
+          "repo006_py_src__pytest_pathlib_py__absolutepath_3f1e1d985c61",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo006_py_src__pytest_outcomes_py__skip_04385f36660a",
+          "repo006_py_src__pytest_pytester_py__Pytester_makefile_ff19e555a773",
+          "repo003_py_rich_progress_py__track_a56d811473bd",
+          "repo006_py_src__pytest_hookspec_py__pytest_warning_recorded_adac3e937d8d",
+          "repo003_py_rich_progress_py__Progress_track_18436c9d844c",
+          "repo003_py_rich_progress_py__TransferSpeedColumn_render_bc89949635bd"
+        ],
+        "R023": [
+          "repo003_py_rich_markdown_py__TableElement___rich_console___e70724d858e4",
+          "repo003_py_rich_console_py__RenderHook_process_renderables_6ac53fdfe914",
+          "repo003_py_rich_progress_py__Progress_make_tasks_table_6083e42740d9",
+          "repo003_py_rich_live_py__Live_process_renderables_b18c2035f30c",
+          "repo003_py_examples_top_lite_simulator_py__create_process_table_47439f4a231b",
+          "repo003_py_rich_console_py__Console_render_lines_6ef4b0e5a04a",
+          "repo003_py_rich_layout_py__Layout___rich_console___a93e4bc2b79d",
+          "repo003_py_examples_export_py__print_table_c8f7f3375b36",
+          "repo003_py_rich_table_py__Table_add_row_daec575cd756",
+          "repo006_py_src__pytest_pytester_py__Pytester_inline_genitems_8b864dfebe63"
+        ],
+        "R029": [
+          "repo003_py_rich_console_py__Console_render_c4df32139c22",
+          "repo003_py_rich_scope_py__render_scope_b9b53ab8be4a",
+          "repo003_py_rich_measure_py__Measurement_get_c3e358fc1180",
+          "repo003_py_rich_markdown_py__TableElement___rich_console___e70724d858e4",
+          "repo003_py_rich_markdown_py__ListElement___rich_console___cf7e0926d242",
+          "repo006_py_src__pytest_config___init___py__console_main_4c253dc2f9b8",
+          "repo003_py_rich_table_py__Table___rich_console___29b118184e7a",
+          "repo003_py_rich_layout_py__Layout_render_2e50775362e5",
+          "repo006_py_src__pytest_pytester_py__Pytester_getitem_fdbdf80f8e36",
+          "repo003_py_rich_console_py__Console_render_lines_6ef4b0e5a04a"
+        ]
+      }
+    },
+    "dense": {
+      "metrics": {
+        "hit_at_1": 0.1111111111111111,
+        "hit_at_10": 0.3333333333333333,
+        "hit_at_5": 0.3333333333333333,
+        "mrr": 0.18518518518518517
+      },
+      "rankings": {
+        "R002": [
+          "repo003_py_rich_progress_py__Progress___enter___6b6f6494e49c",
+          "repo003_py_rich_progress_py___TrackThread___init___f50346f985d0",
+          "repo003_py_rich_progress_py___Reader___next___fb6b750e9d26",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+          "repo003_py_rich_progress_py___ReadContext___enter___53a610be0f79",
+          "repo003_py_rich_progress_py___Reader___init___fc3a09d3e603",
+          "repo003_py_rich_progress_py___ReadContext___init___5f7ed968a29f",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_rich_progress_bar_py__ProgressBar_update_83a8def12bd1"
+        ],
+        "R004": [
+          "repo003_py_rich_spinner_py__Spinner___rich_console___9e09a54908d4",
+          "repo003_py_rich_markdown_py__CodeBlock___rich_console___5728d6d16614",
+          "repo003_py_rich_markdown_py__Heading___rich_console___baa08b2caef8",
+          "repo003_py_rich_markdown_py__Paragraph___rich_console___d4a75c643927",
+          "repo003_py_rich_containers_py__Lines___rich_console___c7105bf01fb4",
+          "repo003_py_rich_containers_py__Renderables___rich_console___e03d4baf29a1",
+          "repo003_py_rich_markdown_py__ImageItem___rich_console___bbe17f4777a8",
+          "repo003_py_rich_control_py__Control___rich_console___504be1fbf775",
+          "repo003_py_rich_segment_py__SegmentLines___rich_console___fdf48860da28",
+          "repo003_py_rich_progress_py__Progress___rich___ed5062b197ee"
+        ],
+        "R008": [
+          "repo006_py_src__pytest_hookspec_py__pytest_report_to_serializable_8d6b65832127",
+          "repo003_py_examples_log_py__test_locals_bdcdfe78d46d",
+          "repo006_py_src__pytest_reports_py__pytest_report_to_serializable_a2d1f6d19725",
+          "repo006_py_src__pytest_python_py__Function_function_618609405ec8",
+          "repo006_py_src__pytest_reports_py__pytest_report_from_serializable_ef4a21f91c7f",
+          "repo006_py_src__pytest_hookspec_py__pytest_report_from_serializable_e36b493861a1",
+          "repo003_py_rich_console_py__Console_print_json_afc82aedc7ad",
+          "repo003_py_rich_console_py__Console_file_9fbd74774fcc",
+          "repo006_py_src__pytest_python_py__PyobjMixin_instance_7de97a31f897",
+          "repo003_py_rich_json_py__JSON_from_data_5aeaf8c40623"
+        ],
+        "R010": [
+          "repo003_py_rich_console_py__Console_update_screen_131d58e5ec1c",
+          "repo003_py_rich_layout_py__Layout_refresh_screen_8534c5b870f4",
+          "repo003_py_rich_console_py__ScreenContext_update_43f7beb2c11b",
+          "repo003_py_rich_live_py__Live_update_064b2935cc3a",
+          "repo003_py_rich_console_py__Console_update_screen_lines_63fa58d16190",
+          "repo003_py_rich_screen_py__Screen___rich_console___1f128e81745c",
+          "repo003_py_rich_markdown_py__ListElement___rich_console___cf7e0926d242",
+          "repo003_py_rich_markdown_py__BlockQuote___rich_console___dcee16eb4cc8",
+          "repo003_py_rich_syntax_py__Syntax___rich_console___7560033ad27f",
+          "repo003_py_rich_constrain_py__Constrain___rich_console___04fab124f7b2"
+        ],
+        "R016": [
+          "repo003_py_rich_palette_py__Palette___rich___6f8a1e694a1e",
+          "repo003_py_rich___main___py__ColorBox___rich_console___2dbb545a5b23",
+          "repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d",
+          "repo003_py_rich_syntax_py__Syntax_highlight_0ae2aea65164",
+          "repo003_py_rich_syntax_py__Syntax___rich_console___7560033ad27f",
+          "repo003_py_rich_layout_py___Placeholder___rich_console___2ef405f61adc",
+          "repo003_py_rich_style_py__Style___rich_repr___6fb5c8f639d4",
+          "repo003_py_rich_color_py__Color___rich___b6c12930b688",
+          "repo003_py_rich_segment_py__Segment_remove_color_04d4c04f32cd",
+          "repo003_py_rich_markdown_py__ListElement___rich_console___cf7e0926d242"
+        ],
+        "R017": [
+          "repo003_py_rich_markdown_py__Heading___rich_console___baa08b2caef8",
+          "repo003_py_rich_bar_py__Bar___rich_console___235399b5934f",
+          "repo003_py_rich_panel_py__Panel___init___b7af11799b7b",
+          "repo003_py_rich_rule_py__Rule___rich_console___0c3b447121af",
+          "repo003_py_rich_columns_py__Columns___init___be5e9fc870dd",
+          "repo003_py_rich_markdown_py__CodeBlock___rich_console___5728d6d16614",
+          "repo003_py_rich_segment_py__Segment_align_bottom_9e4d858b3faa",
+          "repo003_py_rich_text_py__Text_align_29b6c822ce5a",
+          "repo003_py_rich_table_py__Table___rich_console___29b118184e7a",
+          "repo003_py_rich_text_py__Text_render_fffe66512f29"
+        ],
+        "R018": [
+          "repo003_py_rich_progress_py___Reader___next___fb6b750e9d26",
+          "repo003_py_rich_progress_py___Reader___init___fc3a09d3e603",
+          "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+          "repo003_py_rich_progress_py__wrap_file_b4d2341ac525",
+          "repo003_py_rich_live_py___RefreshThread___init___f19858ee0ba1",
+          "repo006_py_src__pytest_assertion_rewrite_py__AssertionRewritingHook_get_data_3b345de4d402",
+          "repo003_py_rich_progress_py__Progress___enter___6b6f6494e49c",
+          "repo006_py_src__pytest_debugging_py__wrap_pytest_function_for_tracing_c2924cfbdc07",
+          "repo003_py_rich_progress_py__Progress_wrap_file_2d909a229ee9",
+          "repo006_py_doc_en_example_multipython_py__python1_276e4beaf206"
+        ],
+        "R023": [
+          "repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+          "repo003_py_examples_export_py__print_table_c8f7f3375b36",
+          "repo003_py_rich__log_render_py__LogRender___call___d6baae303123",
+          "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_indent_guides_099311dd39b6",
+          "repo003_py_rich_scope_py__render_scope_b9b53ab8be4a",
+          "repo003_py_rich_progress_py__ProgressColumn___init___bf87fdc39397",
+          "repo003_py_rich_progress_py__Progress___init___de1fd28e2e43",
+          "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_justify_center_90093ffb85ee",
+          "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_8967065bfaa8",
+          "repo003_py_rich_console_py__RenderHook_process_renderables_6ac53fdfe914"
+        ],
+        "R029": [
+          "repo003_py_rich_markdown_py__ListElement___rich_console___cf7e0926d242",
+          "repo003_py_rich_markdown_py__TableElement___rich_console___e70724d858e4",
+          "repo003_py_rich_console_py__Group___rich_console___6026362170ca",
+          "repo003_py_rich_containers_py__Renderables___rich_console___e03d4baf29a1",
+          "repo003_py_rich_markdown_py__MarkdownElement___rich_console___2a567f8edd87",
+          "repo003_py_rich_markdown_py__CodeBlock___rich_console___5728d6d16614",
+          "repo003_py_rich_control_py__Control___rich_console___504be1fbf775",
+          "repo003_py_rich_containers_py__Lines___rich_console___c7105bf01fb4",
+          "repo003_py_rich_markdown_py__Paragraph___rich_console___d4a75c643927",
+          "repo003_py_rich_layout_py__Layout___rich_console___a93e4bc2b79d"
+        ]
+      }
+    }
+  },
+  "provenance": {
+    "embedding_model": "nomic-embed-text:latest",
+    "ollama_url": "http://127.0.0.1:11434",
+    "queries_sha256": "ef15b1a650779e33fc39a753e399651afcfa0d3381311599bed6e24e9d398a27",
+    "representation": "source_code",
+    "top_k": 10,
+    "units_sha256": "37b27223c1701126a8f24559e33212f66a5e70ce85fcbcefd01aa116dbe6ff0e"
+  },
+  "query_count": 9
+}

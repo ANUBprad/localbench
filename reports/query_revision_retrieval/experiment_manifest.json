@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "dataset\\splits\\test.jsonl": "37b27223c1701126a8f24559e33212f66a5e70ce85fcbcefd01aa116dbe6ff0e",
+    "reports\\query_generation_v2\\batch30\\revised_query_manual_review.csv": "3672a69083abbb22c85b81e00c1baa6863f23775586f27c1cb77437a5870c050",
+    "reports\\query_revision_retrieval\\original_queries.jsonl": "ef15b1a650779e33fc39a753e399651afcfa0d3381311599bed6e24e9d398a27",
+    "reports\\query_revision_retrieval\\original_results.json": "0d57dab7643b13812274bde722586f60ee7f65f161e200dc645c6f5e3a270e11",
+    "reports\\query_revision_retrieval\\revised_queries.jsonl": "93828ec89cbdefce16f928456758861de1af3e03a1ae06617ba968c3cddc646b",
+    "reports\\query_revision_retrieval\\revised_results.json": "a81ef71d0494d2483218a88cf74aac9579be0f3d98133cdacb265af40113a8ea"
+  },
+  "corpus_code_units": 2493,
+  "date": "2026-11-04",
+  "embedding_model": "nomic-embed-text:latest",
+  "experiment": "source_informed_query_revision_retrieval",
+  "methods": [
+    "bm25",
+    "dense"
+  ],
+  "metrics": [
+    "hit_at_1",
+    "hit_at_5",
+    "hit_at_10",
+    "mrr"
+  ],
+  "query_count": 9,
+  "representation": "source_code",
+  "review_provenance": "Assistant-assisted source-grounding assessment; not independent human adjudication.",
+  "top_k": 10
+}
