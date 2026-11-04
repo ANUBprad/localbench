@@ -1,0 +1,197 @@
+﻿review_id,candidate_id,code_unit_id,query,repository,file_path,symbol,source_sha256,source_code,source_verified,source_evidence,audit_notes
+R001,candidate_repo003_py_examples_export_py__print_table_c8f7f3375b36,repo003_py_examples_export_py__print_table_c8f7f3375b36,What Python function performs terminal/console rendering by tabulating items in a table format and outputs the table to the console?,repo003,examples\export.py,print_table,a421c700f90a455475dba00a138be4f0d8dc303c53b4dccba103433ec2ff1258,"def print_table():
+    table = Table(title=""Star Wars Movies"")
+
+    table.add_column(""Released"", style=""cyan"", no_wrap=True)
+    table.add_column(""Title"", style=""magenta"")
+    table.add_column(""Box Office"", justify=""right"", style=""green"")
+
+    table.add_row(""Dec 20, 2019"", ""Star Wars: The Rise of Skywalker"", ""$952,110,690"")
+    table.add_row(""May 25, 2018"", ""Solo: A Star Wars Story"", ""$393,151,347"")
+    table.add_row(""Dec 15, 2017"", ""Star Wars Ep. V111: The Last Jedi"", ""$1,332,539,889"")
+    table.add_row(""Dec 16, 2016"", ""Rogue One: A Star Wars Story"", ""$1,332,439,889"")
+
+    console.print(table)
+",,,
+R002,candidate_repo003_py_examples_downloader_py__download_1ed25415a5d8,repo003_py_examples_downloader_py__download_1ed25415a5d8,What Python function performs an HTTP transfer to a local file and updates a progress display using a progress bar?,repo003,examples\downloader.py,download,082c12ebc17d4c8b69cc78dc51dac589b431e7b99c2e3d7e06cfab8c1a253e1e,"def download(urls: Iterable[str], dest_dir: str):
+    """"""Download multiple files to the given directory.""""""
+
+    with progress:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for url in urls:
+                filename = url.split(""/"")[-1]
+                dest_path = os.path.join(dest_dir, filename)
+                task_id = progress.add_task(""download"", filename=filename, start=False)
+                pool.submit(copy_url, task_id, url, dest_path)
+",,,
+R004,candidate_repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5,repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5,"What function renders progress displays in a terminal/console using the rich library's panel and progress features, and returns the rendered output as a string?",repo003,examples\fullscreen.py,make_syntax,fa7bf5fa6dec95d282f1e9038d62b1b6a0452e9355246b1d7d6c1951ee4913d7,"def make_syntax() -> Syntax:
+    code = """"""\
+def ratio_resolve(total: int, edges: List[Edge]) -> List[int]:
+    sizes = [(edge.size or None) for edge in edges]
+
+    # While any edges haven't been calculated
+    while any(size is None for size in sizes):
+        # Get flexible edges and index to map these back on to sizes list
+        flexible_edges = [
+            (index, edge)
+            for index, (size, edge) in enumerate(zip(sizes, edges))
+            if size is None
+        ]
+        # Remaining space in total
+        remaining = total - sum(size or 0 for size in sizes)
+        if remaining <= 0:
+            # No room for flexible edges
+            sizes[:] = [(size or 0) for size in sizes]
+            break
+        # Calculate number of characters in a ratio portion
+        portion = remaining / sum((edge.ratio or 1) for _, edge in flexible_edges)
+
+        # If any edges will be less than their minimum, replace size with the minimum
+        for index, edge in flexible_edges:
+            if portion * edge.ratio <= edge.minimum_size:
+                sizes[index] = edge.minimum_size
+                break
+        else:
+            # Distribute flexible space and compensate for rounding error
+            # Since edge sizes can only be integers we need to add the remainder
+            # to the following line
+            _modf = modf
+            remainder = 0.0
+            for index, edge in flexible_edges:
+                remainder, size = _modf(portion * edge.ratio + remainder)
+                sizes[index] = int(size)
+            break
+    # Sizes now contains integers only
+    return cast(List[int], sizes)
+    """"""
+    syntax = Syntax(code, ""python"", line_numbers=True)
+    return syntax
+",,,
+R008,candidate_repo003_py_examples_columns_py__get_content_c74911b4d127,repo003_py_examples_columns_py__get_content_c74911b4d127,How does the Python function serialize a JSON object and transfer it over HTTP to a local file?,repo003,examples\columns.py,get_content,ed1d6b15eef93068dce1a0c4f5e9aa1cf34c146ca9cabed150188256e3692a31,"def get_content(user):
+    """"""Extract text from user dict.""""""
+    country = user[""location""][""country""]
+    name = f""{user['name']['first']} {user['name']['last']}""
+    return f""[b]{name}[/b]\n[yellow]{country}""
+",,,
+R010,candidate_repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d,repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d,How does the code update the console with a progress bar and render panels while iterating over items?,repo003,examples\dynamic_progress.py,run_steps,b681961ec134ac8a3bc37e35435deedd94f2b886f76b2578dedcc990157305d5,"def run_steps(name, step_times, app_steps_task_id):
+    """"""Run steps for a single app, and update corresponding progress bars.""""""
+
+    for idx, step_time in enumerate(step_times):
+        # add progress bar for this step (time elapsed + spinner)
+        action = step_actions[idx]
+        step_task_id = step_progress.add_task("""", action=action, name=name)
+
+        # run steps, update progress
+        for _ in range(step_time):
+            time.sleep(0.5)
+            step_progress.update(step_task_id, advance=1)
+
+        # stop and hide progress bar for this step when done
+        step_progress.stop_task(step_task_id)
+        step_progress.update(step_task_id, visible=False)
+
+        # also update progress bar for current app when step is done
+        app_steps_progress.update(app_steps_task_id, advance=1)
+",,,
+R016,candidate_repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d,repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d,"Iterates over a collection and applies formatting to each item using the Rich library, then randomly selects a color for highlighting.",repo003,examples\rainbow.py,RainbowHighlighter.highlight,a7dcbd3819ecd8fa93857f71e605e4ad7a60fc26d32b87122a03e94722e2635c,"    def highlight(self, text):
+        for index in range(len(text)):
+            text.stylize(f""color({randint(16, 255)})"", index, index + 1)
+",,,
+R017,candidate_repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937,repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937,How does the code format text for display and alignment in a tabulated console rendering context?,repo003,benchmarks\benchmarks.py,TextSuite.time_align_center_unicode_heavy,0b6db4618b95b0960e426fe52b8b7b5ce60a169778e8ad7ceb92d45560a2ca2f,"    def time_align_center_unicode_heavy(self):
+        Text(snippets.UNICODE_HEAVY_TEXT).align(
+            ""center"", width=self.len_lorem_ipsum * 3
+        )
+",,,
+R018,candidate_repo003_py_examples_downloader_py__copy_url_830ff7c85cc9,repo003_py_examples_downloader_py__copy_url_830ff7c85cc9,What Python function transfers data over HTTP to a local file using a progress display and concurrent execution?,repo003,examples\downloader.py,copy_url,970a9432d12172a3082dc87077d7be07c3b04544598ba5065160bcfb96e600ce,"def copy_url(task_id: TaskID, url: str, path: str) -> None:
+    """"""Copy data from a url to a local file.""""""
+    progress.console.log(f""Requesting {url}"")
+    response = urlopen(url)
+    # This will break if the response doesn't contain content length
+    progress.update(task_id, total=int(response.info()[""Content-length""]))
+    with open(path, ""wb"") as dest_file:
+        progress.start_task(task_id)
+        for data in iter(partial(response.read, 32768), b""""):
+            dest_file.write(data)
+            progress.update(task_id, advance=len(data))
+            if done_event.is_set():
+                return
+    progress.console.log(f""Downloaded {path}"")
+",,,
+R023,candidate_repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10,repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10,"How does the Python function process a list of dates to render a table in the console, ensuring each row is aligned and formatted correctly?",repo003,examples\print_calendar.py,print_calendar,1a000f92277f2285cdb0c237ad6928cbe72d8bda1b559e7b74e8049591b9058e,"def print_calendar(year):
+    """"""Print a calendar for a given year.""""""
+
+    today = datetime.today()
+    year = int(year)
+    cal = calendar.Calendar()
+    today_tuple = today.day, today.month, today.year
+
+    tables = []
+
+    for month in range(1, 13):
+        table = Table(
+            title=f""{calendar.month_name[month]} {year}"",
+            style=""green"",
+            box=box.SIMPLE_HEAVY,
+            padding=0,
+        )
+
+        for week_day in cal.iterweekdays():
+            table.add_column(
+                ""{:.3}"".format(calendar.day_name[week_day]), justify=""right""
+            )
+
+        month_days = cal.monthdayscalendar(year, month)
+        for weekdays in month_days:
+            days = []
+            for index, day in enumerate(weekdays):
+                day_label = Text(str(day or """"), style=""magenta"")
+                if index in (5, 6):
+                    day_label.stylize(""blue"")
+                if day and (day, month, year) == today_tuple:
+                    day_label.stylize(""white on dark_red"")
+                days.append(day_label)
+            table.add_row(*days)
+
+        tables.append(Align.center(table))
+
+    console = Console()
+    columns = Columns(tables, padding=1, expand=True)
+    console.rule(str(year))
+    console.print()
+    console.print(columns)
+    console.rule(str(year))
+",,,
+R029,candidate_repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560,repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560,What Python function is designed to render a table of items to the console using the Rich library?,repo003,examples\fullscreen.py,make_sponsor_message,52c54e4a15b5a20a739c28e9f54b1351f058c15fe0fda9256e0a56d070413ff2,"def make_sponsor_message() -> Panel:
+    """"""Some example content.""""""
+    sponsor_message = Table.grid(padding=1)
+    sponsor_message.add_column(style=""green"", justify=""right"")
+    sponsor_message.add_column(no_wrap=True)
+    sponsor_message.add_row(
+        ""Twitter"",
+        ""[u blue link=https://twitter.com/textualize]https://twitter.com/textualize"",
+    )
+    sponsor_message.add_row(
+        ""CEO"",
+        ""[u blue link=https://twitter.com/willmcgugan]https://twitter.com/willmcgugan"",
+    )
+    sponsor_message.add_row(
+        ""Textualize"", ""[u blue link=https://www.textualize.io]https://www.textualize.io""
+    )
+
+    message = Table.grid(padding=1)
+    message.add_column()
+    message.add_column(no_wrap=True)
+    message.add_row(sponsor_message)
+
+    message_panel = Panel(
+        Align.center(
+            Group(""\n"", Align.center(sponsor_message)),
+            vertical=""middle"",
+        ),
+        box=box.ROUNDED,
+        padding=(1, 2),
+        title=""[b red]Thanks for trying out Rich!"",
+        border_style=""bright_blue"",
+    )
+    return message_panel
+",,,

@@ -1,0 +1,183 @@
+review_id,candidate_id,code_unit_id,repository,file_path,symbol,original_query,source_sha256,source_code,source_evidence,audit_notes,revised_query,revision_rationale,revision_status
+R002,candidate_repo003_py_examples_downloader_py__download_1ed25415a5d8,repo003_py_examples_downloader_py__download_1ed25415a5d8,repo003,examples\downloader.py,download,What Python function performs an HTTP transfer to a local file and updates a progress display using a progress bar?,082c12ebc17d4c8b69cc78dc51dac589b431e7b99c2e3d7e06cfab8c1a253e1e,"def download(urls: Iterable[str], dest_dir: str):
+    """"""Download multiple files to the given directory.""""""
+
+    with progress:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for url in urls:
+                filename = url.split(""/"")[-1]
+                dest_path = os.path.join(dest_dir, filename)
+                task_id = progress.add_task(""download"", filename=filename, start=False)
+                pool.submit(copy_url, task_id, url, dest_path)
+","`download()` creates progress tasks and submits `copy_url` to a `ThreadPoolExecutor` using `pool.submit(copy_url, task_id, url, dest_path)`.","Not verified: this function schedules concurrent copy_url jobs and manages progress tasks, but the HTTP transfer and file writing occur in copy_url. The query attributes the transfer itself to download.",How does the download function create a progress task for each URL and submit the file-copy operation to a thread pool?,"The function iterates over the URLs, derives a destination path, creates a progress task, and submits copy_url to a ThreadPoolExecutor with up to four workers. The HTTP transfer itself is delegated to copy_url.",ready_for_review
+R004,candidate_repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5,repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5,repo003,examples\fullscreen.py,make_syntax,"What function renders progress displays in a terminal/console using the rich library's panel and progress features, and returns the rendered output as a string?",fa7bf5fa6dec95d282f1e9038d62b1b6a0452e9355246b1d7d6c1951ee4913d7,"def make_syntax() -> Syntax:
+    code = """"""\
+def ratio_resolve(total: int, edges: List[Edge]) -> List[int]:
+    sizes = [(edge.size or None) for edge in edges]
+
+    # While any edges haven't been calculated
+    while any(size is None for size in sizes):
+        # Get flexible edges and index to map these back on to sizes list
+        flexible_edges = [
+            (index, edge)
+            for index, (size, edge) in enumerate(zip(sizes, edges))
+            if size is None
+        ]
+        # Remaining space in total
+        remaining = total - sum(size or 0 for size in sizes)
+        if remaining <= 0:
+            # No room for flexible edges
+            sizes[:] = [(size or 0) for size in sizes]
+            break
+        # Calculate number of characters in a ratio portion
+        portion = remaining / sum((edge.ratio or 1) for _, edge in flexible_edges)
+
+        # If any edges will be less than their minimum, replace size with the minimum
+        for index, edge in flexible_edges:
+            if portion * edge.ratio <= edge.minimum_size:
+                sizes[index] = edge.minimum_size
+                break
+        else:
+            # Distribute flexible space and compensate for rounding error
+            # Since edge sizes can only be integers we need to add the remainder
+            # to the following line
+            _modf = modf
+            remainder = 0.0
+            for index, edge in flexible_edges:
+                remainder, size = _modf(portion * edge.ratio + remainder)
+                sizes[index] = int(size)
+            break
+    # Sizes now contains integers only
+    return cast(List[int], sizes)
+    """"""
+    syntax = Syntax(code, ""python"", line_numbers=True)
+    return syntax
+","`make_syntax()` creates `Syntax(code, ""python"", line_numbers=True)` and returns `syntax`.","Not verified: the function returns a Rich Syntax object. The excerpt does not show progress displays, panels, or a rendered string.",How does make_syntax create a Rich Syntax object containing Python code with line numbers enabled?,"The function stores a Python code sample in a string, passes it to Syntax with the language set to python and line_numbers=True, then returns the Syntax object. It does not render progress displays or return a string.",ready_for_review
+R008,candidate_repo003_py_examples_columns_py__get_content_c74911b4d127,repo003_py_examples_columns_py__get_content_c74911b4d127,repo003,examples\columns.py,get_content,How does the Python function serialize a JSON object and transfer it over HTTP to a local file?,ed1d6b15eef93068dce1a0c4f5e9aa1cf34c146ca9cabed150188256e3692a31,"def get_content(user):
+    """"""Extract text from user dict.""""""
+    country = user[""location""][""country""]
+    name = f""{user['name']['first']} {user['name']['last']}""
+    return f""[b]{name}[/b]\n[yellow]{country}""
+","`get_content(user)` reads `user[""location""][""country""]` and the first/last name, then returns a Rich-markup formatted string.","Not verified: the function extracts fields from a user dictionary and formats text. It does not serialize JSON, perform an HTTP transfer, or write a local file.",How does get_content extract a user's first and last name and country from a nested dictionary and format them as Rich markup?,"The function reads the country from user['location']['country'], combines the first and last name, and returns a string containing Rich bold and yellow markup. It does not serialize JSON or perform an HTTP transfer.",ready_for_review
+R010,candidate_repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d,repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d,repo003,examples\dynamic_progress.py,run_steps,How does the code update the console with a progress bar and render panels while iterating over items?,b681961ec134ac8a3bc37e35435deedd94f2b886f76b2578dedcc990157305d5,"def run_steps(name, step_times, app_steps_task_id):
+    """"""Run steps for a single app, and update corresponding progress bars.""""""
+
+    for idx, step_time in enumerate(step_times):
+        # add progress bar for this step (time elapsed + spinner)
+        action = step_actions[idx]
+        step_task_id = step_progress.add_task("""", action=action, name=name)
+
+        # run steps, update progress
+        for _ in range(step_time):
+            time.sleep(0.5)
+            step_progress.update(step_task_id, advance=1)
+
+        # stop and hide progress bar for this step when done
+        step_progress.stop_task(step_task_id)
+        step_progress.update(step_task_id, visible=False)
+
+        # also update progress bar for current app when step is done
+        app_steps_progress.update(app_steps_task_id, advance=1)
+","The function loops over step_times, calls `step_progress.add_task(...)`, updates progress with `step_progress.update(...)`, and stops/hides each task.","Not verified: the excerpt supports progress-task updates, but does not show the function rendering panels. The query combines an unsupported panel-rendering claim with the progress behavior.",How does run_steps update a step-level progress task during each timed step and advance the app-level progress task when that step finishes?,"The function creates a progress task for each step, advances it during the timed loop, stops and hides it, then advances the app-level task. The shown code does not create or render panels.",ready_for_review
+R016,candidate_repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d,repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d,repo003,examples\rainbow.py,RainbowHighlighter.highlight,"Iterates over a collection and applies formatting to each item using the Rich library, then randomly selects a color for highlighting.",a7dcbd3819ecd8fa93857f71e605e4ad7a60fc26d32b87122a03e94722e2635c,"    def highlight(self, text):
+        for index in range(len(text)):
+            text.stylize(f""color({randint(16, 255)})"", index, index + 1)
+","`for index in range(len(text)):` followed by `text.stylize(f""color({randint(16, 255)})"", index, index + 1)`.",Not verified as written: the function iterates over characters in a text object and assigns a random color to each character during the stylize call. The query's description of a generic collection/items and selecting a color after applying formatting is imprecise about the actual per-character behavior.,How does RainbowHighlighter.highlight iterate over a Rich Text object's characters and apply a randomly selected color style to each character?,"The method iterates over each character index and calls text.stylize with a color selected using randint(16, 255) for that character's one-character range.",ready_for_review
+R017,candidate_repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937,repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937,repo003,benchmarks\benchmarks.py,TextSuite.time_align_center_unicode_heavy,How does the code format text for display and alignment in a tabulated console rendering context?,0b6db4618b95b0960e426fe52b8b7b5ce60a169778e8ad7ceb92d45560a2ca2f,"    def time_align_center_unicode_heavy(self):
+        Text(snippets.UNICODE_HEAVY_TEXT).align(
+            ""center"", width=self.len_lorem_ipsum * 3
+        )
+","`Text(snippets.UNICODE_HEAVY_TEXT).align(""center"", width=self.len_lorem_ipsum * 3)`.",Not verified: the method creates and centers a Rich Text object at a specified width. The excerpt does not show tabular rendering or console output.,How does time_align_center_unicode_heavy create a Rich Text object from Unicode-heavy text and call its align method with center alignment and a width three times len_lorem_ipsum?,The method constructs a Rich Text object from snippets.UNICODE_HEAVY_TEXT and calls align with center alignment and width=self.len_lorem_ipsum * 3.,ready_for_review
+R018,candidate_repo003_py_examples_downloader_py__copy_url_830ff7c85cc9,repo003_py_examples_downloader_py__copy_url_830ff7c85cc9,repo003,examples\downloader.py,copy_url,What Python function transfers data over HTTP to a local file using a progress display and concurrent execution?,970a9432d12172a3082dc87077d7be07c3b04544598ba5065160bcfb96e600ce,"def copy_url(task_id: TaskID, url: str, path: str) -> None:
+    """"""Copy data from a url to a local file.""""""
+    progress.console.log(f""Requesting {url}"")
+    response = urlopen(url)
+    # This will break if the response doesn't contain content length
+    progress.update(task_id, total=int(response.info()[""Content-length""]))
+    with open(path, ""wb"") as dest_file:
+        progress.start_task(task_id)
+        for data in iter(partial(response.read, 32768), b""""):
+            dest_file.write(data)
+            progress.update(task_id, advance=len(data))
+            if done_event.is_set():
+                return
+    progress.console.log(f""Downloaded {path}"")
+","`copy_url()` calls `urlopen(url)`, sets the progress total from the response Content-length, opens the destination path in binary-write mode, writes response chunks, and advances the progress task.","Not verified as written: this function performs the HTTP transfer, writes the local file, and updates progress. Concurrent execution is orchestrated by download() through ThreadPoolExecutor, not by copy_url itself.","How does copy_url read an HTTP response in chunks, write the bytes to a local file, and update a progress task as data is received?","The function opens the URL, sets the progress total from the Content-length header, writes response data to the destination in 32,768-byte chunks, and advances the progress task by the number of bytes written. Concurrent submission is handled by download, not by this function.",ready_for_review
+R023,candidate_repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10,repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10,repo003,examples\print_calendar.py,print_calendar,"How does the Python function process a list of dates to render a table in the console, ensuring each row is aligned and formatted correctly?",1a000f92277f2285cdb0c237ad6928cbe72d8bda1b559e7b74e8049591b9058e,"def print_calendar(year):
+    """"""Print a calendar for a given year.""""""
+
+    today = datetime.today()
+    year = int(year)
+    cal = calendar.Calendar()
+    today_tuple = today.day, today.month, today.year
+
+    tables = []
+
+    for month in range(1, 13):
+        table = Table(
+            title=f""{calendar.month_name[month]} {year}"",
+            style=""green"",
+            box=box.SIMPLE_HEAVY,
+            padding=0,
+        )
+
+        for week_day in cal.iterweekdays():
+            table.add_column(
+                ""{:.3}"".format(calendar.day_name[week_day]), justify=""right""
+            )
+
+        month_days = cal.monthdayscalendar(year, month)
+        for weekdays in month_days:
+            days = []
+            for index, day in enumerate(weekdays):
+                day_label = Text(str(day or """"), style=""magenta"")
+                if index in (5, 6):
+                    day_label.stylize(""blue"")
+                if day and (day, month, year) == today_tuple:
+                    day_label.stylize(""white on dark_red"")
+                days.append(day_label)
+            table.add_row(*days)
+
+        tables.append(Align.center(table))
+
+    console = Console()
+    columns = Columns(tables, padding=1, expand=True)
+    console.rule(str(year))
+    console.print()
+    console.print(columns)
+    console.rule(str(year))
+","`print_calendar(year)` converts a year to an integer, loops through months 1–12, builds weekly calendar tables, centers them with `Align.center`, and prints the columns.","Not verified as written: the function does render aligned calendar tables, but it accepts a year and generates calendar dates; it does not process an input list of dates as the query claims.",How does print_calendar build and print a twelve-month calendar for a specified year using Rich tables and columns?,"The function converts the input to a year, creates a separate Rich table for each month, adds weekday columns and week rows, applies weekend and current-day styling, then prints the centered tables together in Columns. It accepts a year, not a list of dates.",ready_for_review
+R029,candidate_repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560,repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560,repo003,examples\fullscreen.py,make_sponsor_message,What Python function is designed to render a table of items to the console using the Rich library?,52c54e4a15b5a20a739c28e9f54b1351f058c15fe0fda9256e0a56d070413ff2,"def make_sponsor_message() -> Panel:
+    """"""Some example content.""""""
+    sponsor_message = Table.grid(padding=1)
+    sponsor_message.add_column(style=""green"", justify=""right"")
+    sponsor_message.add_column(no_wrap=True)
+    sponsor_message.add_row(
+        ""Twitter"",
+        ""[u blue link=https://twitter.com/textualize]https://twitter.com/textualize"",
+    )
+    sponsor_message.add_row(
+        ""CEO"",
+        ""[u blue link=https://twitter.com/willmcgugan]https://twitter.com/willmcgugan"",
+    )
+    sponsor_message.add_row(
+        ""Textualize"", ""[u blue link=https://www.textualize.io]https://www.textualize.io""
+    )
+
+    message = Table.grid(padding=1)
+    message.add_column()
+    message.add_column(no_wrap=True)
+    message.add_row(sponsor_message)
+
+    message_panel = Panel(
+        Align.center(
+            Group(""\n"", Align.center(sponsor_message)),
+            vertical=""middle"",
+        ),
+        box=box.ROUNDED,
+        padding=(1, 2),
+        title=""[b red]Thanks for trying out Rich!"",
+        border_style=""bright_blue"",
+    )
+    return message_panel
+","`make_sponsor_message()` builds Rich Table.grid objects, places sponsor information in a Panel, and returns `message_panel`.",Not verified: the function returns a Panel containing sponsor information. The excerpt does not show it printing a table of items to the console.,"How does make_sponsor_message build a Rich grid of sponsor links, center the content vertically and horizontally, and return it inside a rounded Panel with a styled border?","The function builds a grid containing Twitter, CEO, and Textualize links. It places centered content in a rounded Panel with a title and bright_blue border style, then returns the Panel. The intermediate message grid is not used in the returned Panel.",ready_for_review

@@ -1,0 +1,170 @@
+{
+  "experiment": "query_generation_v3.2_batch30",
+  "candidate_count": 29,
+  "flag_counts": {
+    "behavior_claim_review": 1,
+    "duplicate_query": 1,
+    "exact_count_claim_review": 4
+  },
+  "items": [
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__TextSuite_setup_8158b4c7aac1",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__TextSuite_setup_8158b4c7aac1",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_setup_48dfed47a36d",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_setup_48dfed47a36d",
+      "flags": [
+        "exact_count_claim_review"
+      ]
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_time_wrapping_unicode_heavy_warm_cache_8bad3bd984a5",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__TextHotCacheSuite_time_wrapping_unicode_heavy_warm_cache_8bad3bd984a5",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__SyntaxWrappingSuite_setup_ca81e4aa4b8d",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__SyntaxWrappingSuite_setup_ca81e4aa4b8d",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__PrettySuite_setup_1ef90308f043",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__PrettySuite_setup_1ef90308f043",
+      "flags": [
+        "exact_count_claim_review"
+      ]
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_8967065bfaa8",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_8967065bfaa8",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_indent_guides_099311dd39b6",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_indent_guides_099311dd39b6",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_justify_center_90093ffb85ee",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_justify_center_90093ffb85ee",
+      "flags": [
+        "duplicate_query"
+      ],
+      "similar_to_candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__PrettySuite_time_pretty_indent_guides_099311dd39b6",
+      "similarity_score": 1.0
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__StyleSuite_setup_1f429d7b99a9",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__StyleSuite_setup_1f429d7b99a9",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__ColorSuiteCached_setup_48a78c919579",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__ColorSuiteCached_setup_48a78c919579",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_benchmarks_benchmarks_py__SegmentSuite_setup_9c18c149e880",
+      "code_unit_id": "repo003_py_benchmarks_benchmarks_py__SegmentSuite_setup_9c18c149e880",
+      "flags": [
+        "exact_count_claim_review"
+      ]
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_columns_py__get_content_c74911b4d127",
+      "code_unit_id": "repo003_py_examples_columns_py__get_content_c74911b4d127",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+      "code_unit_id": "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_downloader_py__download_1ed25415a5d8",
+      "code_unit_id": "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+      "code_unit_id": "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_exception_py__divide_by_56ef0322000a",
+      "code_unit_id": "repo003_py_examples_exception_py__divide_by_56ef0322000a",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_exception_py__divide_all_f7913542c37b",
+      "code_unit_id": "repo003_py_examples_exception_py__divide_all_f7913542c37b",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_export_py__print_table_c8f7f3375b36",
+      "code_unit_id": "repo003_py_examples_export_py__print_table_c8f7f3375b36",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_fullscreen_py__make_layout_e8fbaf6ee7e5",
+      "code_unit_id": "repo003_py_examples_fullscreen_py__make_layout_e8fbaf6ee7e5",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560",
+      "code_unit_id": "repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_fullscreen_py__Header___rich___2c91cd4092d0",
+      "code_unit_id": "repo003_py_examples_fullscreen_py__Header___rich___2c91cd4092d0",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5",
+      "code_unit_id": "repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_group2_py__get_panels_c0ea66ffb0c8",
+      "code_unit_id": "repo003_py_examples_group2_py__get_panels_c0ea66ffb0c8",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_log_py__test_locals_bdcdfe78d46d",
+      "code_unit_id": "repo003_py_examples_log_py__test_locals_bdcdfe78d46d",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+      "code_unit_id": "repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d",
+      "code_unit_id": "repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d",
+      "flags": [
+        "behavior_claim_review"
+      ]
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_repr_py__Bird___init___77dd40573c2c",
+      "code_unit_id": "repo003_py_examples_repr_py__Bird___init___77dd40573c2c",
+      "flags": []
+    },
+    {
+      "candidate_id": "candidate_repo003_py_examples_suppress_py__hello_d101dfe129d6",
+      "code_unit_id": "repo003_py_examples_suppress_py__hello_d101dfe129d6",
+      "flags": [
+        "exact_count_claim_review"
+      ]
+    }
+  ]
+}

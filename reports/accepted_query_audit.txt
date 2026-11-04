@@ -1,0 +1,166 @@
+================================================================================
+Candidate: candidate_repo003_py_rich_progress_py__ProgressColumn___call___bc206e8a33db
+Query: How does the method check if a value satisfies a comparison condition and handle potential KeyError exceptions?
+CodeUnit: repo003_py_rich_progress_py__ProgressColumn___call___bc206e8a33db
+Symbol: ProgressColumn.__call__
+File: rich\progress.py
+
+SOURCE CODE:
+    def __call__(self, task: "Task") -> RenderableType:
+        """Called by the Progress object to return a renderable for the given task.
+
+        Args:
+            task (Task): An object containing information regarding the task.
+
+        Returns:
+            RenderableType: Anything renderable (including str).
+        """
+        current_time = task.get_time()
+        if self.max_refresh is not None and not task.completed:
+            try:
+                timestamp, renderable = self._renderable_cache[task.id]
+            except KeyError:
+                pass
+            else:
+                if timestamp + self.max_refresh > current_time:
+                    return renderable
+
+        renderable = self.render(task)
+        self._renderable_cache[task.id] = (current_time, renderable)
+        return renderable
+
+
+================================================================================
+Candidate: candidate_repo006_py_testing_example_scripts_customdirectory_conftest_py__pytest_collect_directory_1eec7f7d4c0e
+Query: This function takes two parameters and delegates to another routine, returning its result. It performs three method calls related to JSON serialization or parsing. The function does not return a value itself but instead returns a computed value from the delegated routine. The control flow is straightforward and linear.
+CodeUnit: repo006_py_testing_example_scripts_customdirectory_conftest_py__pytest_collect_directory_1eec7f7d4c0e
+Symbol: pytest_collect_directory
+File: testing\example_scripts\customdirectory\conftest.py
+
+SOURCE CODE:
+@pytest.hookimpl
+def pytest_collect_directory(path, parent):
+    if path.joinpath("manifest.json").is_file():
+        return ManifestDirectory.from_parent(parent=parent, path=path)
+    return None
+
+
+================================================================================
+Candidate: candidate_repo003_py_rich_color_py__Color_parse_19d16dd8d667
+Query: How does the code extract a color value from a string input, validate it, and handle potential errors?
+CodeUnit: repo003_py_rich_color_py__Color_parse_19d16dd8d667
+Symbol: Color.parse
+File: rich\color.py
+
+SOURCE CODE:
+    @classmethod
+    @lru_cache(maxsize=1024)
+    def parse(cls, color: str) -> "Color":
+        """Parse a color definition."""
+        original_color = color
+        color = color.lower().strip()
+
+        if color == "default":
+            return cls(color, type=ColorType.DEFAULT)
+
+        color_number = ANSI_COLOR_NAMES.get(color)
+        if color_number is not None:
+            return cls(
+                color,
+                type=(ColorType.STANDARD if color_number < 16 else ColorType.EIGHT_BIT),
+                number=color_number,
+            )
+
+        color_match = RE_COLOR.match(color)
+        if color_match is None:
+            raise ColorParseError(f"{original_color!r} is not a valid color")
+
+        color_24, color_8, color_rgb = color_match.groups()
+        if color_24:
+            triplet = ColorTriplet(
+                int(color_24[0:2], 16), int(color_24[2:4], 16), int(color_24[4:6], 16)
+            )
+            return cls(color, ColorType.TRUECOLOR, triplet=triplet)
+
+        elif color_8:
+            number = int(color_8)
+            if number > 255:
+                raise ColorParseError(f"color number must be <= 255 in {color!r}")
+            return cls(
+                color,
+                type=(ColorType.STANDARD if number < 16 else ColorType.EIGHT_BIT),
+                number=number,
+            )
+
+        else:  #  color_rgb:
+            components = color_rgb.split(",")
+            if len(components) != 3:
+                raise ColorParseError(
+                    f"expected three components in {original_color!r}"
+                )
+            red, green, blue = components
+            triplet = ColorTriplet(int(red), int(green), int(blue))
+            if not all(component <= 255 for component in triplet):
+                raise ColorParseError(
+                    f"color components must be <= 255 in {original_color!r}"
+                )
+            return cls(color, ColorType.TRUECOLOR, triplet=triplet)
+
+
+================================================================================
+Candidate: candidate_repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d
+Query: Iterates over a collection and applies formatting to each item using the Rich library, then randomly selects a color for highlighting.
+CodeUnit: repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d
+Symbol: RainbowHighlighter.highlight
+File: examples\rainbow.py
+
+SOURCE CODE:
+    def highlight(self, text):
+        for index in range(len(text)):
+            text.stylize(f"color({randint(16, 255)})", index, index + 1)
+
+
+================================================================================
+Candidate: candidate_repo006_py_src__pytest_recwarn_py__deprecated_call_748237d3f9a4
+Query: What is the function's purpose, inputs, and outputs, and how does it interact with specific domain concepts?
+CodeUnit: repo006_py_src__pytest_recwarn_py__deprecated_call_748237d3f9a4
+Symbol: deprecated_call
+File: src\_pytest\recwarn.py
+
+SOURCE CODE:
+@overload
+def deprecated_call(
+    *, match: Optional[Union[str, Pattern[str]]] = ...
+) -> "WarningsRecorder":
+    ...
+
+
+================================================================================
+Candidate: candidate_repo006_py_testing_python_collect_py__test_skip_duplicates_by_default_b181decdcb44
+Query: How does the function read a value from an associated object and perform 6 method calls and 2 function calls in a straight-line control flow?
+CodeUnit: repo006_py_testing_python_collect_py__test_skip_duplicates_by_default_b181decdcb44
+Symbol: test_skip_duplicates_by_default
+File: testing\python\collect.py
+
+SOURCE CODE:
+def test_skip_duplicates_by_default(pytester: Pytester) -> None:
+    """Test for issue https://github.com/pytest-dev/pytest/issues/1609 (#1609)
+
+    Ignore duplicate directories.
+    """
+    a = pytester.mkdir("a")
+    fh = a.joinpath("test_a.py")
+    fh.write_text(
+        textwrap.dedent(
+            """\
+            import pytest
+            def test_real():
+                pass
+            """
+        ),
+        encoding="utf-8",
+    )
+    result = pytester.runpytest(str(a), str(a))
+    result.stdout.fnmatch_lines(["*collected 1 item*"])
+
+

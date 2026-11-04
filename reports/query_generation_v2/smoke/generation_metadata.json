@@ -1,0 +1,49 @@
+{
+  "phase": "4F-I-B",
+  "purpose": "candidate_pool_not_final_evaluation_set",
+  "generated_at_utc": "2026-10-26T18:03:42.317143+00:00",
+  "wall_clock_seconds": 101.8,
+  "input": {
+    "source": "dataset/splits/test.jsonl",
+    "total_test_code_units": 5,
+    "attempted": 5,
+    "successful_candidates": 4,
+    "failed_candidates": 1,
+    "resumed_from_checkpoint": {
+      "successful": 0,
+      "failed": 0
+    }
+  },
+  "model": {
+    "name": "qwen2.5-coder:7b",
+    "version_label": "7b",
+    "runtime_metadata": {
+      "size_bytes": 4683087561,
+      "modified_at": "2026-06-30T13:43:08.9268092+05:30"
+    },
+    "is_benchmark_model": false
+  },
+  "prompt_template_version": "3.2.0",
+  "seed": 42,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "max_tokens": 128,
+  "max_attempts_per_unit": 3,
+  "stats": {
+    "success_rate": 0.8,
+    "total_attempts": 5,
+    "avg_attempts_per_code_unit": 1.0,
+    "leakage_failures": 0,
+    "validation_failures": 0,
+    "provider_failures": 1,
+    "retry_exhausted": 0,
+    "failure_breakdown": {
+      "timeout": 1
+    },
+    "query_style_distribution": {
+      "natural": 2,
+      "technical": 2
+    },
+    "avg_generation_ms_per_successful_unit": 9572.1
+  }
+}
