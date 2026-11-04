@@ -70,13 +70,9 @@ def assess_query_revision_rows(
         if revised.casefold() == row["original_query"].strip().casefold():
             raise ValueError(f"Revised query is unchanged: {review_id}")
         if row["revision_status"] != "ready_for_review":
-            raise ValueError(
-                f"Revision must be marked ready_for_review: {review_id}"
-            )
+            raise ValueError(f"Revision must be marked ready_for_review: {review_id}")
 
-        candidates.append(
-            {"candidate_id": candidate_id, "query": revised}
-        )
+        candidates.append({"candidate_id": candidate_id, "query": revised})
 
     quality = assess_batch(candidates)
     assessed: list[dict[str, object]] = []
@@ -93,9 +89,7 @@ def assess_query_revision_rows(
                 "source_evidence": row["source_evidence"],
                 "audit_notes": row["audit_notes"],
                 "quality_flags": quality_row["flags"],
-                "similar_to_candidate_id": quality_row.get(
-                    "similar_to_candidate_id"
-                ),
+                "similar_to_candidate_id": quality_row.get("similar_to_candidate_id"),
                 "similarity_score": quality_row.get("similarity_score"),
                 "review_status": "requires_manual_review",
             }

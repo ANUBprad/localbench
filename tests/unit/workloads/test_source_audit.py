@@ -159,9 +159,8 @@ def test_prepare_batch_audit_rows_fails_on_missing_source():
             {"u1": {"source_code": ""}},
         )
 
-def _revision_row(
-    review_id="R001", candidate_id="c1", source_verified="0"
-):
+
+def _revision_row(review_id="R001", candidate_id="c1", source_verified="0"):
     from localbench.workloads.code_retrieval.source_audit import source_digest
 
     source = "def parse_color(value): return value"
@@ -232,4 +231,3 @@ def test_prepare_query_revision_rows_requires_evidence_for_passed_rows():
     row["source_evidence"] = ""
     with pytest.raises(ValueError, match="requires source evidence"):
         prepare_query_revision_rows([row])
-

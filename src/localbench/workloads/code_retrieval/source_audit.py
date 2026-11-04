@@ -165,6 +165,7 @@ def prepare_batch_audit_rows(
         )
     return rows
 
+
 QUERY_REVISION_FIELDS = (
     "review_id",
     "candidate_id",
@@ -215,7 +216,9 @@ def prepare_query_revision_rows(audit_rows):
 
         if row["source_verified"] == "1":
             if not row["source_evidence"].strip():
-                raise ValueError(f"Verified audit requires source evidence: {review_id}")
+                raise ValueError(
+                    f"Verified audit requires source evidence: {review_id}"
+                )
             continue
 
         if not row["audit_notes"].strip():
@@ -241,4 +244,3 @@ def prepare_query_revision_rows(audit_rows):
         )
 
     return revision_rows
-
