@@ -87,3 +87,9 @@ Dense retrieval has not been run. The previous experiment used `nomic-embed-text
 - Query JSONL SHA-256: `de654c241d01e7d97d363c9544a12cad1e897445812c315ebdc675aee7e69f3e`
 
 The transformed representation is defined by the deterministic AST docstring-removal procedure recorded in `manifest.json`. The original dataset was not changed.
+
+## Human relevance review preparation
+
+A blinded top-10 review workflow is now documented in `HUMAN_REVIEW_PROTOCOL.md`. The committed helper `scripts/prepare_docstring_retrieval_review.py` regenerates a 300-row worksheet from the test split and frozen query set. It reproduces the LocalBench BM25 tokenizer and scoring parameters, strips AST docstrings before indexing, and leaves all relevance judgment fields blank. The helper's rankings were independently checked against the frozen BM25 rankings: all 30 query rankings matched exactly (300 candidate rows total).
+
+Human judgments have **not** yet been collected. The silver target labels remain separate from the blinded worksheet and must not be treated as human relevance judgments.
