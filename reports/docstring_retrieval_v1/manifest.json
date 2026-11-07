@@ -1,0 +1,103 @@
+{
+  "experiment": "docstring_derived_queries_docstring_stripped_source_retrieval_v1",
+  "date": "2026-11-07",
+  "status": "BM25 completed; dense pending local Ollama access",
+  "corpus": {
+    "path": "dataset/splits/test.jsonl",
+    "rows": 2493,
+    "original_sha256": "37b27223c1701126a8f24559e33212f66a5e70ce85fcbcefd01aa116dbe6ff0e",
+    "indexed_representation": "source_code with AST docstrings removed",
+    "indexed_representation_sha256": "87d6ea149454bb2c9bcb9bca1349b4b717a2073a8616ad0546e3b04e36dbc95f",
+    "ast_parse_success": 2493,
+    "ast_parse_failures": 0,
+    "docstring_blocks_removed": 1199,
+    "selected_targets_with_docstrings_removed": 30,
+    "selected_target_docstrings_embedded_in_original_source": 29
+  },
+  "queries": {
+    "path": "reports/docstring_retrieval_v1/queries.jsonl",
+    "count": 30,
+    "sha256": "de654c241d01e7d97d363c9544a12cad1e897445812c315ebdc675aee7e69f3e",
+    "authoring_source": "docstring field only",
+    "implementation_source_inspected_during_query_authoring": false,
+    "previous_source_informed_targets_excluded": 9
+  },
+  "sampling": {
+    "method": "stratified random sample without replacement",
+    "seed": 20261107,
+    "eligible": "non-empty docstring with at least 100 characters, excluding prior nine targets",
+    "strata": {
+      "repo003/function": 4,
+      "repo003/method": 11,
+      "repo006/function": 7,
+      "repo006/method": 8
+    }
+  },
+  "label_provenance": {
+    "type": "single-positive silver docstring association",
+    "definition": "target CodeUnit whose docstring supplied the query description",
+    "independent_human_adjudication": false,
+    "other_relevant_code_units_judged": false
+  },
+  "retrieval": {
+    "bm25": {
+      "status": "completed",
+      "k1": 1.5,
+      "b": 0.75,
+      "tokenizer": "LocalBench code tokenizer",
+      "top_k": 10,
+      "hit_at_1": 0.26666666666666666,
+      "hit_at_5": 0.36666666666666664,
+      "hit_at_10": 0.43333333333333335,
+      "mrr": 0.31513227513227515
+    },
+    "dense": {
+      "status": "not_run",
+      "model": "nomic-embed-text:latest",
+      "reason": "The pinned model is available through the user's local Ollama service, which this chat runtime cannot access. No substitute embedding model was used."
+    }
+  },
+  "previous_target_ids": [
+    "repo003_py_examples_downloader_py__download_1ed25415a5d8",
+    "repo003_py_examples_fullscreen_py__make_syntax_cd3922e3bad5",
+    "repo003_py_examples_columns_py__get_content_c74911b4d127",
+    "repo003_py_examples_dynamic_progress_py__run_steps_c321bf145d3d",
+    "repo003_py_examples_rainbow_py__RainbowHighlighter_highlight_5e87a4ea5e3d",
+    "repo003_py_benchmarks_benchmarks_py__TextSuite_time_align_center_unicode_heavy_4989c5ff2937",
+    "repo003_py_examples_downloader_py__copy_url_830ff7c85cc9",
+    "repo003_py_examples_print_calendar_py__print_calendar_9455f21eed10",
+    "repo003_py_examples_fullscreen_py__make_sponsor_message_629dc2a53560"
+  ],
+  "selected_target_ids": [
+    "repo003_py_rich__wrap_py__divide_line_f9569bb473d0",
+    "repo003_py_rich_ansi_py__AnsiDecoder_decode_line_d40c32cccd9a",
+    "repo003_py_rich_cells_py__chop_cells_74365ff1b3e5",
+    "repo003_py_rich_color_py__Color_from_triplet_926cbd5489db",
+    "repo003_py_rich_color_triplet_py__ColorTriplet_normalized_00f535d8b69f",
+    "repo003_py_rich_console_py__Console_save_text_1fc9c6976b23",
+    "repo003_py_rich_console_py__Console_screen_62d171529a84",
+    "repo003_py_rich_control_py__Control_move_to_661a1f872c16",
+    "repo003_py_rich_logging_py__RichHandler_get_level_text_2f0e791714ab",
+    "repo003_py_rich_pretty_py__pretty_repr_58db4315c72a",
+    "repo003_py_rich_scope_py__render_scope_b9b53ab8be4a",
+    "repo003_py_rich_style_py__Style_parse_48fd7e7163c2",
+    "repo003_py_rich_syntax_py__Syntax_stylize_range_c75b8dab1f26",
+    "repo003_py_rich_text_py__Text_render_fffe66512f29",
+    "repo003_py_rich_text_py__Text_split_95eadec29e4a",
+    "repo006_py_src__pytest_cacheprovider_py__Cache_get_65bf28125c96",
+    "repo006_py_src__pytest_capture_py__CaptureManager_activate_fixture_a64fffc4ed97",
+    "repo006_py_src__pytest_compat_py__getfuncargnames_9b3d7c0085e0",
+    "repo006_py_src__pytest_doctest_py__doctest_namespace_b9cb61a474d5",
+    "repo006_py_src__pytest_fixtures_py__FixtureRequest_addfinalizer_3a6d06d42997",
+    "repo006_py_src__pytest_hookspec_py__pytest_assertion_pass_a2b92562d7a1",
+    "repo006_py_src__pytest_hookspec_py__pytest_configure_f5e7116289c8",
+    "repo006_py_src__pytest_hookspec_py__pytest_ignore_collect_9848f88ef3d5",
+    "repo006_py_src__pytest_hookspec_py__pytest_runtest_call_e2252d89bdb2",
+    "repo006_py_src__pytest_legacypath_py__Config_invocation_dir_2a41b1d3417d",
+    "repo006_py_src__pytest_logging_py__LogCaptureFixture_messages_e99e0593cf26",
+    "repo006_py_src__pytest_nodes_py__Item_location_308301f6045f",
+    "repo006_py_src__pytest_pytester_py__LineComp_assert_contains_lines_cb23b78299d7",
+    "repo006_py_src__pytest_tmpdir_py__TempPathFactory_mktemp_c2676cf2d748",
+    "repo006_py_testing_python_fixtures_py__TestAutouseDiscovery_test_callables_nocode_4d26dbb1cb58"
+  ]
+}
