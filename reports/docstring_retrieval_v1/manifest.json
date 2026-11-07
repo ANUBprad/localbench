@@ -12,7 +12,8 @@
     "ast_parse_failures": 0,
     "docstring_blocks_removed": 1199,
     "selected_targets_with_docstrings_removed": 30,
-    "selected_target_docstrings_embedded_in_original_source": 29
+    "selected_target_docstrings_embedded_in_original_source": 29,
+    "transformed_hash_canonicalization": "SHA256 of UTF-8 concatenation of sorted CodeUnit IDs, each serialized as compact JSON object {id, source_code} with sorted keys, followed by newline"
   },
   "queries": {
     "path": "reports/docstring_retrieval_v1/queries.jsonl",
