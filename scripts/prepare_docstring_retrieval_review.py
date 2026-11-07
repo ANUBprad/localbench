@@ -14,6 +14,7 @@ import csv
 import json
 import math
 import re
+import textwrap
 from collections import Counter
 from pathlib import Path
 
@@ -27,6 +28,7 @@ def tokenize(text: str) -> list[str]:
 
 def strip_docstrings(source: str) -> str:
     """Remove leading module/class/function/async-function docstring spans."""
+    source = textwrap.dedent(source)
     try:
         tree = ast.parse(source)
     except SyntaxError:
