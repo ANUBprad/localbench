@@ -17,7 +17,7 @@
   "queries": {
     "path": "reports/docstring_retrieval_v1/queries.jsonl",
     "count": 30,
-    "sha256": "de654c241d01e7d97d363c9544a12cad1e897445812c315ebdc675aee7e69f3e",
+    "sha256": "a03ab022725441392fb00502a6e9074cb5db9a07437d7f9bba71e1c3e1d0b72a",
     "authoring_source": "docstring field only",
     "implementation_source_inspected_during_query_authoring": false,
     "previous_source_informed_targets_excluded": 9
