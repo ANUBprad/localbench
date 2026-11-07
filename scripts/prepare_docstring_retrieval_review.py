@@ -21,7 +21,7 @@ _TOKEN = re.compile(r"[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*")
 
 
 def tokenize(text: str) -> list[str]:
-    text = re.sub(r"([a-z0-9])([A-Z])", r"\\1 \\2", text)
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
     return [token.lower() for token in _TOKEN.findall(text.replace("_", " "))]
 
 
