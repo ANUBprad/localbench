@@ -1,7 +1,7 @@
 {
   "experiment": "docstring_derived_queries_docstring_stripped_source_retrieval_v1",
   "date": "2026-11-07",
-  "status": "BM25 completed; dense pending local Ollama access",
+  "status": "BM25 completed; blinded review worksheet published; human judgments pending; dense pending local Ollama access",
   "corpus": {
     "path": "dataset/splits/test.jsonl",
     "rows": 2493,
@@ -100,5 +100,15 @@
     "repo006_py_src__pytest_pytester_py__LineComp_assert_contains_lines_cb23b78299d7",
     "repo006_py_src__pytest_tmpdir_py__TempPathFactory_mktemp_c2676cf2d748",
     "repo006_py_testing_python_fixtures_py__TestAutouseDiscovery_test_callables_nocode_4d26dbb1cb58"
-  ]
+  ],
+  "human_relevance_review": {
+    "path": "reports/docstring_retrieval_v1/human_relevance_review.csv",
+    "rows": 300,
+    "query_count": 30,
+    "candidates_per_query": 10,
+    "unique_candidate_code_units": 208,
+    "judgments_prefilled": 0,
+    "sha256": "779ab5475010f882704878368529dc9b487fe8a19b0dbc7a6cc48075584ef081",
+    "ranking_reproduction": "All 30 query rankings exactly match the frozen BM25 results."
+  }
 }
