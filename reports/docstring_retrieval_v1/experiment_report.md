@@ -116,3 +116,10 @@ A reproducible local-only dense retrieval runner is now available at `scripts/ru
 A BM25 + dense fusion runner is available at `scripts/run_docstring_hybrid_retrieval.py`. It recomputes the frozen docstring-stripped BM25 rankings, reads the local dense top-100 rankings, and applies Reciprocal Rank Fusion with a default constant of 60. It writes fused top-k rankings and silver-label Hit@1/5/10 and MRR metrics. The RRF constant is fixed by default rather than tuned against the 30-query evaluation cohort.
 
 Hybrid execution is pending the local dense run. The exact commands and artifact paths are documented in `HUMAN_REVIEW_PROTOCOL.md`.
+
+
+## Cross-retriever pooled evaluation
+
+The initial 300-row worksheet covers BM25 top-10 candidates only and is not sufficient to fairly compare dense and hybrid retrieval, because those systems may surface previously unjudged CodeUnits. To address this, `scripts/prepare_pooled_relevance_review.py` builds the union of BM25, dense, and hybrid candidate pools and carries forward existing BM25 judgments and notes. Newly surfaced candidates remain blank until reviewed.
+
+The relevance evaluator accepts method-specific rank columns, so the same pooled judgments can be used for BM25, dense, and hybrid. It reports judged coverage and uses a condensed judged ranking for nDCG, avoiding silently treating unjudged candidates as negative labels. Pooled review and cross-retriever evaluation are pending actual local dense and hybrid result artifacts.
