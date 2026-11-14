@@ -66,7 +66,7 @@ def dcg(gains: list[int], k: int) -> float:
 
 def evaluate_query(rows: list[dict], k: int) -> dict:
     judged = [row for row in rows if row["relevance_label"] in LABELS]
-    judged_at_k = [row for row in judged if row["candidate_rank"] <= k]
+    judged_at_k = [row for row in judged if row["candidate_rank"] is not None and row["candidate_rank"] <= k]
     strict_relevant = [row for row in judged if row["relevance_label"] == "relevant"]
     ranked = [row for row in judged if row["candidate_rank"] is not None]
     gains_by_rank = {row["candidate_rank"]: LABELS[row["relevance_label"]] for row in ranked}
