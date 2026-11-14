@@ -95,3 +95,10 @@ A blinded top-10 review workflow is now documented in `HUMAN_REVIEW_PROTOCOL.md`
 The generated worksheet is published at `human_relevance_review.csv` and contains 300 query–candidate rows (30 queries × 10 candidates), covering 208 unique CodeUnits. All judgment and reviewer-note fields are blank. Its SHA-256 is `779ab5475010f882704878368529dc9b487fe8a19b0dbc7a6cc48075584ef081`.
 
 Human judgments have **not** yet been collected. The silver target labels remain separate from the blinded worksheet and must not be treated as human relevance judgments.
+
+
+## Human relevance evaluation tooling
+
+The review workflow now includes `scripts/evaluate_docstring_relevance.py`. Once human labels are entered, it validates the CSV and produces a machine-readable summary plus per-query metrics. It supports graded nDCG@10 (relevant=2, partially relevant=1, not relevant=0), strict Precision@10, Hit@10, MRR, and judged-pool coverage. Blank and uncertain rows are excluded from judgment denominators rather than treated as negatives. Because only the BM25 top-10 pool is labeled, corpus-wide recall remains unmeasurable from this worksheet.
+
+The evaluator was checked against a synthetic fixture covering positive, partial, negative, and uncertain judgments. No real human labels or retrieval scores were added by this implementation.
