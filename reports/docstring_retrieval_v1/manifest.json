@@ -55,7 +55,15 @@
     "dense": {
       "status": "not_run",
       "model": "nomic-embed-text:latest",
-      "reason": "The pinned model is available through the user's local Ollama service, which this chat runtime cannot access. No substitute embedding model was used."
+      "reason": "The pinned model is available through the user's local Ollama service, which this chat runtime cannot access. No substitute embedding model was used.",
+      "runner": "scripts/run_docstring_dense_retrieval.py",
+      "execution_status": "implemented; pending execution on machine hosting local Ollama",
+      "embedding_cache": "SQLite cache keyed by model, CodeUnit/query ID, and text SHA-256",
+      "outputs": [
+        "dense_results.json",
+        "dense_metrics.json"
+      ],
+      "cloud_fallback": false
     }
   },
   "previous_target_ids": [
