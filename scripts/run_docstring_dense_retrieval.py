@@ -30,6 +30,14 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def post_embeddings(base_url: str, model: str, texts: list[str], timeout: int) -> list[list[float]]:
     payload = json.dumps({"model": model, "input": texts}).encode("utf-8")
     request = urllib.request.Request(
@@ -119,16 +127,21 @@ def main() -> None:
 
     units = read_jsonl(args.units)
     queries = read_jsonl(args.queries)
-    by_id = {}
     documents = []
+    seen_ids = set()
+    skipped_empty_documents = 0
     for unit in units:
         unit_id = unit["id"]
-        if unit_id in by_id:
+        if unit_id in seen_ids:
             raise ValueError(f"Duplicate CodeUnit ID: {unit_id}")
-        by_id[unit_id] = unit
-        documents.append((unit_id, strip_docstrings(unit["source_code"])))
+        seen_ids.add(unit_id)
+        source = strip_docstrings(unit["source_code"])
+        if not source.strip():
+            skipped_empty_documents += 1
+            continue
+        documents.append((unit_id, source))
     if not documents:
-        raise ValueError("No CodeUnits found")
+        raise ValueError("No non-empty CodeUnits remain after docstring removal")
     query_texts = [(query["id"], query["query"]) for query in queries]
     if len({query_id for query_id, _ in query_texts}) != len(query_texts):
         raise ValueError("Duplicate query IDs")
@@ -174,6 +187,10 @@ def main() -> None:
         "ollama_url": args.ollama_url,
         "embedding_dimensions": len(next(iter(doc_vectors.values()))),
         "corpus_count": len(documents),
+        "source_rows": len(units),
+        "skipped_empty_documents_after_docstring_removal": skipped_empty_documents,
+        "source_file_sha256": sha256_file(args.units),
+        "query_file_sha256": sha256_file(args.queries),
         "query_count": n,
         "top_k": args.top_k,
         "metrics": {
