@@ -68,9 +68,12 @@ def evaluate_query(rows: list[dict], k: int) -> dict:
     judged = [row for row in rows if row["relevance_label"] in LABELS]
     judged_at_k = [row for row in judged if row["candidate_rank"] is not None and row["candidate_rank"] <= k]
     strict_relevant = [row for row in judged if row["relevance_label"] == "relevant"]
-    ranked = [row for row in judged if row["candidate_rank"] is not None]
-    gains_by_rank = {row["candidate_rank"]: LABELS[row["relevance_label"]] for row in ranked}
-    ranked_gains = [gains_by_rank.get(rank, 0) for rank in range(1, k + 1)]
+    ranked = sorted(
+        (row for row in judged if row["candidate_rank"] is not None),
+        key=lambda row: row["candidate_rank"],
+    )
+    # Condense the ranking to judged candidates so unjudged items are not treated as negatives.
+    ranked_gains = [LABELS[row["relevance_label"]] for row in ranked[:k]]
     ideal_dcg = dcg(sorted((LABELS[row["relevance_label"]] for row in judged), reverse=True), k)
     first_rank = min((row["candidate_rank"] for row in strict_relevant if row["candidate_rank"] is not None), default=None)
     return {
@@ -130,7 +133,7 @@ def main() -> None:
         "limitations": [
             "Only the frozen BM25 top-k pool is judged; corpus-wide recall cannot be estimated.",
             "Blank and uncertain labels are unjudged, not negative judgments.",
-            "nDCG uses graded gains: not_relevant=0, partially_relevant=1, relevant=2.",
+            "nDCG uses graded gains on the condensed judged ranking; unjudged candidates are skipped.",
             "Strict Hit@K and MRR count only relevant; partially_relevant is not a strict hit.",
         ],
     }
