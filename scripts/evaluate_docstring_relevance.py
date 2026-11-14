@@ -130,7 +130,7 @@ def main() -> None:
         ],
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    (args.output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\\n", encoding="utf-8")
+    (args.output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     fields = list(per_query[0]) if per_query else ["query_id"]
     with (args.output_dir / "per_query_metrics.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
