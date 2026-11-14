@@ -110,5 +110,30 @@
     "judgments_prefilled": 0,
     "sha256": "779ab5475010f882704878368529dc9b487fe8a19b0dbc7a6cc48075584ef081",
     "ranking_reproduction": "All 30 query rankings exactly match the frozen BM25 results."
+  },
+  "human_evaluation": {
+    "tool": "scripts/evaluate_docstring_relevance.py",
+    "status": "implemented; awaiting human judgments",
+    "outputs": [
+      "summary.json",
+      "per_query_metrics.csv"
+    ],
+    "metrics": [
+      "precision_at_k_judged",
+      "hit_at_k_strict",
+      "mrr_strict",
+      "ndcg_at_k_judged_pool",
+      "judged_coverage_at_k"
+    ],
+    "graded_label_mapping": {
+      "not_relevant": 0,
+      "partially_relevant": 1,
+      "relevant": 2
+    },
+    "uncertain_and_blank": "unjudged; excluded from judged denominators",
+    "limitations": [
+      "Only the BM25 top-k pool is judged; corpus-wide recall cannot be estimated.",
+      "Strict Hit@K and MRR count only relevant labels."
+    ]
   }
 }
