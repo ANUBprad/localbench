@@ -53,6 +53,23 @@ python scripts/run_docstring_hybrid_retrieval.py --units dataset/splits/test.jso
 
 The default RRF constant is 60. The script recomputes the frozen BM25 rankings, fuses ranks without tuning against the silver labels, and writes `hybrid_results.json` and `hybrid_metrics.json`.
 
+## Pooled human review and cross-retriever evaluation
+The first 300-row worksheet judges BM25 candidates only. To compare BM25, dense, and hybrid fairly, first build the union of their top-10 candidate pools after both local runs finish:
+
+```powershell
+python scripts/prepare_pooled_relevance_review.py --units dataset/splits/test.jsonl --queries reports/docstring_retrieval_v1/queries.jsonl --dense-results reports/docstring_retrieval_v1/dense/dense_results.json --hybrid-results reports/docstring_retrieval_v1/hybrid/hybrid_results.json --existing-review reports/docstring_retrieval_v1/human_relevance_review.csv --output reports/docstring_retrieval_v1/pooled_relevance_review.csv --top-k 10
+```
+
+The generator preserves existing labels and notes, and adds blank judgments for candidates newly surfaced by dense or hybrid retrieval. Review all newly added rows before comparing systems. Then run the evaluator once per rank column:
+
+```powershell
+python scripts/evaluate_docstring_relevance.py --input reports/docstring_retrieval_v1/pooled_relevance_review.csv --rank-column candidate_rank_bm25 --output-dir reports/docstring_retrieval_v1/evaluation/bm25
+python scripts/evaluate_docstring_relevance.py --input reports/docstring_retrieval_v1/pooled_relevance_review.csv --rank-column candidate_rank_dense --output-dir reports/docstring_retrieval_v1/evaluation/dense
+python scripts/evaluate_docstring_relevance.py --input reports/docstring_retrieval_v1/pooled_relevance_review.csv --rank-column candidate_rank_hybrid --output-dir reports/docstring_retrieval_v1/evaluation/hybrid
+```
+
+The evaluator supports method-specific rank columns. Blank ranks mean a candidate was not retrieved by that method. It reports judged coverage separately; unjudged labels are excluded, and nDCG uses a condensed judged ranking so unjudged candidates are not silently treated as negative labels.
+
 ## Limitations
 - Queries were authored from docstrings in the same corpus, not from external user requests.
 - The original intended target is a silver association, not necessarily the only relevant CodeUnit.
