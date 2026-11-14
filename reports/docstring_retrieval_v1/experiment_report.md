@@ -109,3 +109,10 @@ The evaluator was checked against a synthetic fixture covering positive, partial
 A reproducible local-only dense retrieval runner is now available at `scripts/run_docstring_dense_retrieval.py`. It uses the pinned `nomic-embed-text:latest` model through Ollama's local `/api/embed` endpoint, removes AST docstrings from indexed source, embeds queries and CodeUnits, ranks with cosine similarity, and records Hit@1/5/10 and MRR against the existing single-positive silver associations. SQLite caching allows interrupted embedding runs to resume. The runner writes raw top-k rankings and a metrics artifact; it does not silently fall back to a cloud model.
 
 **Execution remains pending:** this environment cannot reach the user's local Ollama service, so no dense scores are claimed. Run instructions are in `HUMAN_REVIEW_PROTOCOL.md`.
+
+
+## Hybrid retrieval implementation
+
+A BM25 + dense fusion runner is available at `scripts/run_docstring_hybrid_retrieval.py`. It recomputes the frozen docstring-stripped BM25 rankings, reads the local dense top-100 rankings, and applies Reciprocal Rank Fusion with a default constant of 60. It writes fused top-k rankings and silver-label Hit@1/5/10 and MRR metrics. The RRF constant is fixed by default rather than tuned against the 30-query evaluation cohort.
+
+Hybrid execution is pending the local dense run. The exact commands and artifact paths are documented in `HUMAN_REVIEW_PROTOCOL.md`.
