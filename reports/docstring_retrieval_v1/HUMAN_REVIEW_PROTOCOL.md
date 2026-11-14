@@ -25,6 +25,15 @@ The helper reproduces the LocalBench BM25 tokenizer and scoring parameters (k1=1
 4. Add a concise reason for relevant, partially relevant, or uncertain judgments.
 5. If possible, have a second reviewer independently label a subset and resolve disagreements.
 
+## Evaluate collected judgments
+After saving labels in the worksheet, run:
+
+```powershell
+python scripts/evaluate_docstring_relevance.py --input reports/docstring_retrieval_v1/human_relevance_review.csv --output-dir reports/docstring_retrieval_v1/human_evaluation
+```
+
+The evaluator writes `summary.json` and `per_query_metrics.csv`. It reports macro-averaged strict Precision@10, Hit@10, MRR, graded nDCG@10, and judgment coverage. `relevant=2`, `partially_relevant=1`, and `not_relevant=0` are used as graded gains for nDCG. Blank and `uncertain` labels remain unjudged; they are not silently counted as negatives. Strict Hit@10 and MRR count only `relevant` labels.
+
 ## Limitations
 - Queries were authored from docstrings in the same corpus, not from external user requests.
 - The original intended target is a silver association, not necessarily the only relevant CodeUnit.
