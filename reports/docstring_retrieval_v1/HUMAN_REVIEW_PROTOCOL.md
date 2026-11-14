@@ -34,6 +34,16 @@ python scripts/evaluate_docstring_relevance.py --input reports/docstring_retriev
 
 The evaluator writes `summary.json` and `per_query_metrics.csv`. It reports macro-averaged strict Precision@10, Hit@10, MRR, graded nDCG@10, and judgment coverage. `relevant=2`, `partially_relevant=1`, and `not_relevant=0` are used as graded gains for nDCG. Blank and `uncertain` labels remain unjudged; they are not silently counted as negatives. Strict Hit@10 and MRR count only `relevant` labels.
 
+## Local dense retrieval baseline
+The dense baseline is implemented as a resumable local-only runner. With the test split and frozen query file available in the repository, run it on a machine with Ollama and the pinned embedding model:
+
+```powershell
+ollama pull nomic-embed-text:latest
+python scripts/run_docstring_dense_retrieval.py --units dataset/splits/test.jsonl --queries reports/docstring_retrieval_v1/queries.jsonl --output-dir reports/docstring_retrieval_v1/dense --model nomic-embed-text:latest
+```
+
+The runner removes AST docstrings from indexed CodeUnit source, embeds documents and natural-language queries through Ollama's local `/api/embed` endpoint, and ranks by cosine similarity. It caches vectors in SQLite so interrupted runs can resume. It writes `dense_results.json` and `dense_metrics.json`. It has no cloud fallback. Run it on the machine hosting Ollama; this chat environment cannot reach that local service.
+
 ## Limitations
 - Queries were authored from docstrings in the same corpus, not from external user requests.
 - The original intended target is a silver association, not necessarily the only relevant CodeUnit.
