@@ -102,3 +102,10 @@ Human judgments have **not** yet been collected. The silver target labels remain
 The review workflow now includes `scripts/evaluate_docstring_relevance.py`. Once human labels are entered, it validates the CSV and produces a machine-readable summary plus per-query metrics. It supports graded nDCG@10 (relevant=2, partially relevant=1, not relevant=0), strict Precision@10, Hit@10, MRR, and judged-pool coverage. Blank and uncertain rows are excluded from judgment denominators rather than treated as negatives. Because only the BM25 top-10 pool is labeled, corpus-wide recall remains unmeasurable from this worksheet.
 
 The evaluator was checked against a synthetic fixture covering positive, partial, negative, and uncertain judgments. No real human labels or retrieval scores were added by this implementation.
+
+
+## Dense retrieval runner implementation
+
+A reproducible local-only dense retrieval runner is now available at `scripts/run_docstring_dense_retrieval.py`. It uses the pinned `nomic-embed-text:latest` model through Ollama's local `/api/embed` endpoint, removes AST docstrings from indexed source, embeds queries and CodeUnits, ranks with cosine similarity, and records Hit@1/5/10 and MRR against the existing single-positive silver associations. SQLite caching allows interrupted embedding runs to resume. The runner writes raw top-k rankings and a metrics artifact; it does not silently fall back to a cloud model.
+
+**Execution remains pending:** this environment cannot reach the user's local Ollama service, so no dense scores are claimed. Run instructions are in `HUMAN_REVIEW_PROTOCOL.md`.
