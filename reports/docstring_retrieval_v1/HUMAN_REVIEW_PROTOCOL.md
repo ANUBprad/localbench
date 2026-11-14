@@ -39,10 +39,19 @@ The dense baseline is implemented as a resumable local-only runner. With the tes
 
 ```powershell
 ollama pull nomic-embed-text:latest
-python scripts/run_docstring_dense_retrieval.py --units dataset/splits/test.jsonl --queries reports/docstring_retrieval_v1/queries.jsonl --output-dir reports/docstring_retrieval_v1/dense --model nomic-embed-text:latest
+python scripts/run_docstring_dense_retrieval.py --units dataset/splits/test.jsonl --queries reports/docstring_retrieval_v1/queries.jsonl --output-dir reports/docstring_retrieval_v1/dense --model nomic-embed-text:latest --top-k 100
 ```
 
-The runner removes AST docstrings from indexed CodeUnit source, embeds documents and natural-language queries through Ollama's local `/api/embed` endpoint, and ranks by cosine similarity. It caches vectors in SQLite so interrupted runs can resume. It writes `dense_results.json` and `dense_metrics.json`. It has no cloud fallback. Run it on the machine hosting Ollama; this chat environment cannot reach that local service.
+The runner removes AST docstrings from indexed CodeUnit source, embeds documents and natural-language queries through Ollama's local `/api/embed` endpoint, and ranks by cosine similarity. It caches vectors in SQLite so interrupted runs can resume. Use `--top-k 100` to retain a wider candidate pool for hybrid fusion; Hit@1/5/10 are still computed from the full ranking. It writes `dense_results.json` and `dense_metrics.json`. It has no cloud fallback. Run it on the machine hosting Ollama; this chat environment cannot reach that local service.
+
+## Hybrid retrieval (BM25 + dense)
+After the dense run completes, fuse the two top-100 rankings with Reciprocal Rank Fusion:
+
+```powershell
+python scripts/run_docstring_hybrid_retrieval.py --units dataset/splits/test.jsonl --queries reports/docstring_retrieval_v1/queries.jsonl --dense-results reports/docstring_retrieval_v1/dense/dense_results.json --output-dir reports/docstring_retrieval_v1/hybrid --rrf-k 60 --top-k 10
+```
+
+The default RRF constant is 60. The script recomputes the frozen BM25 rankings, fuses ranks without tuning against the silver labels, and writes `hybrid_results.json` and `hybrid_metrics.json`.
 
 ## Limitations
 - Queries were authored from docstrings in the same corpus, not from external user requests.
