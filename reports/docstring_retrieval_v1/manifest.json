@@ -64,6 +64,19 @@
         "dense_metrics.json"
       ],
       "cloud_fallback": false
+    },
+    "hybrid": {
+      "status": "implemented; pending local dense retrieval execution",
+      "method": "reciprocal_rank_fusion",
+      "runner": "scripts/run_docstring_hybrid_retrieval.py",
+      "rrf_k": 60,
+      "bm25_candidate_pool": 100,
+      "dense_candidate_pool_recommended": 100,
+      "outputs": [
+        "hybrid_results.json",
+        "hybrid_metrics.json"
+      ],
+      "tuning_on_evaluation_labels": false
     }
   },
   "previous_target_ids": [
