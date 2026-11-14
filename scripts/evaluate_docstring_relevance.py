@@ -17,15 +17,15 @@ from pathlib import Path
 from statistics import mean
 
 LABELS = {"relevant": 2, "partially_relevant": 1, "not_relevant": 0}
-REQUIRED = {"query_id", "candidate_rank", "candidate_code_unit_id", "relevance_label"}
+REQUIRED = {"query_id", "candidate_code_unit_id", "relevance_label"}
 
 
-def load_reviews(path: Path) -> dict[str, list[dict]]:
+def load_reviews(path: Path, rank_column: str = "candidate_rank") -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     seen: set[tuple[str, int]] = set()
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
-        missing = REQUIRED - set(reader.fieldnames or [])
+        missing = (REQUIRED | {rank_column}) - set(reader.fieldnames or [])
         if missing:
             raise ValueError(f"Review CSV is missing required columns: {sorted(missing)}")
         for line, row in enumerate(reader, start=2):
@@ -33,16 +33,19 @@ def load_reviews(path: Path) -> dict[str, list[dict]]:
             unit_id = (row.get("candidate_code_unit_id") or "").strip()
             if not query_id or not unit_id:
                 raise ValueError(f"Line {line}: query_id and candidate_code_unit_id are required")
-            try:
-                rank = int(row["candidate_rank"])
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"Line {line}: candidate_rank must be an integer") from exc
-            if rank < 1:
-                raise ValueError(f"Line {line}: candidate_rank must be >= 1")
-            key = (query_id, rank)
-            if key in seen:
-                raise ValueError(f"Line {line}: duplicate query/rank pair {key}")
-            seen.add(key)
+            raw_rank = (row.get(rank_column) or "").strip()
+            rank = None
+            if raw_rank:
+                try:
+                    rank = int(raw_rank)
+                except ValueError as exc:
+                    raise ValueError(f"Line {line}: {rank_column} must be an integer or blank") from exc
+                if rank < 1:
+                    raise ValueError(f"Line {line}: {rank_column} must be >= 1")
+                key = (query_id, rank)
+                if key in seen:
+                    raise ValueError(f"Line {line}: duplicate query/rank pair {key}")
+                seen.add(key)
             label = (row.get("relevance_label") or "").strip().lower()
             if label not in LABELS and label not in {"", "uncertain"}:
                 raise ValueError(f"Line {line}: unsupported relevance label {label!r}")
@@ -65,10 +68,11 @@ def evaluate_query(rows: list[dict], k: int) -> dict:
     judged = [row for row in rows if row["relevance_label"] in LABELS]
     judged_at_k = [row for row in judged if row["candidate_rank"] <= k]
     strict_relevant = [row for row in judged if row["relevance_label"] == "relevant"]
-    gains_by_rank = {row["candidate_rank"]: LABELS[row["relevance_label"]] for row in judged}
+    ranked = [row for row in judged if row["candidate_rank"] is not None]
+    gains_by_rank = {row["candidate_rank"]: LABELS[row["relevance_label"]] for row in ranked}
     ranked_gains = [gains_by_rank.get(rank, 0) for rank in range(1, k + 1)]
     ideal_dcg = dcg(sorted((LABELS[row["relevance_label"]] for row in judged), reverse=True), k)
-    first_rank = min((row["candidate_rank"] for row in strict_relevant), default=None)
+    first_rank = min((row["candidate_rank"] for row in strict_relevant if row["candidate_rank"] is not None), default=None)
     return {
         "judged_candidates": len(judged),
         "uncertain_or_blank": len(rows) - len(judged),
@@ -89,10 +93,11 @@ def main() -> None:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--k", type=int, default=10)
+    parser.add_argument("--rank-column", default="candidate_rank", help="CSV column containing this run’s rank; blank means not retrieved")
     args = parser.parse_args()
     if args.k < 1:
         parser.error("--k must be >= 1")
-    grouped = load_reviews(args.input)
+    grouped = load_reviews(args.input, args.rank_column)
     per_query = [
         {"query_id": query_id, **evaluate_query(rows, args.k)}
         for query_id, rows in sorted(grouped.items())
