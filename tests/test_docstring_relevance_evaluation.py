@@ -72,3 +72,35 @@ def test_load_reviews_rejects_unknown_label(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="unsupported relevance label"):
         load_reviews(path)
+
+
+
+def test_evaluate_query_does_not_count_unranked_candidates_as_retrieved() -> None:
+    rows = [
+        {"candidate_rank": 1, "relevance_label": "not_relevant"},
+        {"candidate_rank": None, "relevance_label": "relevant"},
+    ]
+
+    result = evaluate_query(rows, 1)
+
+    assert result["judged_candidates"] == 2
+    assert result["hit_at_k_strict"] == 0
+    assert result["mrr_strict"] == 0
+    assert result["precision_at_k_judged"] == 0
+    assert result["ndcg_at_k_judged_pool"] < 1
+
+
+def test_load_reviews_supports_method_specific_rank_column(tmp_path) -> None:
+    path = tmp_path / "pooled.csv"
+    fields = ["query_id", "candidate_rank_dense", "candidate_code_unit_id", "relevance_label"]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows([
+            {"query_id": "D001", "candidate_rank_dense": "1", "candidate_code_unit_id": "unit-a", "relevance_label": "relevant"},
+            {"query_id": "D001", "candidate_rank_dense": "", "candidate_code_unit_id": "unit-b", "relevance_label": "not_relevant"},
+        ])
+
+    rows = load_reviews(path, "candidate_rank_dense")["D001"]
+
+    assert [row["candidate_rank"] for row in rows] == [1, None]
