@@ -155,6 +155,22 @@
     "limitations": [
       "Only the BM25 top-k pool is judged; corpus-wide recall cannot be estimated.",
       "Strict Hit@K and MRR count only relevant labels."
-    ]
+    ],
+    "pooled_review": {
+      "runner": "scripts/prepare_pooled_relevance_review.py",
+      "status": "implemented; pending dense and hybrid result artifacts",
+      "purpose": "Union BM25, dense, and hybrid top-k candidates while preserving existing BM25 labels and notes",
+      "rank_columns": [
+        "candidate_rank_bm25",
+        "candidate_rank_dense",
+        "candidate_rank_hybrid"
+      ],
+      "output": "pooled_relevance_review.csv"
+    },
+    "cross_retriever_metrics": {
+      "status": "supported by evaluator; pending pooled judgments",
+      "rank_column_option": "--rank-column",
+      "unjudged_policy": "Excluded from judged denominators and condensed nDCG ranking"
+    }
   }
 }
